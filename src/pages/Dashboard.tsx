@@ -13,7 +13,6 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Sparkles,
-  Calendar,
   PlusCircle,
   TrendingUp,
 } from "lucide-react";
@@ -29,7 +28,6 @@ import type { Absensi, Anggota, DashboardData, Transaksi } from "../types";
 import {
   buatSesiAbsensi,
   formatTanggalPendek,
-  formatTanggalPanjang,
   formatRupiah,
 } from "../utils/format";
 import { Skeleton } from "../components/ui/Skeleton";
@@ -285,17 +283,7 @@ export function Dashboard() {
           <h1 className="dash-greeting-title">
             Selamat Datang Di Portal Sistem MB Chondro
           </h1>
-          <div className="dash-greeting-sub">
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-              <Calendar size={14} style={{ color: "rgba(255,255,255,0.9)" }} />
-              {formatTanggalPanjang(new Date().toISOString())}
-            </span>
-            <span>•</span>
-            <span className="dash-status-pill">
-              <span className="pulse-dot" />
-              Sistem Realtime & Terhubung
-            </span>
-          </div>
+          <div className="dash-greeting-sub" />
         </div>
 
         <div className="dash-quick-shortcuts">
