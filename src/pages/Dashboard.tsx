@@ -283,7 +283,7 @@ export function Dashboard() {
       <div className="dash-greeting-banner animate-fade-slide-up">
         <div>
           <h1 className="dash-greeting-title">
-            Selamat Datang di Sistem mbc sistem
+            Selamat Datang Di Portal Sistem MB Chondro
           </h1>
           <div className="dash-greeting-sub">
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
