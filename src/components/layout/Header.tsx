@@ -1,6 +1,7 @@
 import { Menu, Calendar } from "lucide-react";
 import { formatTanggalPanjang } from "../../utils/format";
 import { useHeaderAction } from "../../contexts/HeaderActionContext";
+import { ConnectionIndicator } from "./ConnectionIndicator";
 
 interface HeaderProps {
   title: string;
@@ -25,6 +26,7 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
       </div>
       <div className="header-right">
         {action && <div className="header-action">{action}</div>}
+        <ConnectionIndicator />
         <div className="header-date">
           <span className="header-date-label">HARI INI</span>
           <span className="header-date-value">

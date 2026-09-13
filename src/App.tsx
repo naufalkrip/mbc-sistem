@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ConnectionProvider } from "./contexts/ConnectionContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { Layout } from "./components/layout/Layout";
 import { Login } from "./pages/Login";
@@ -17,35 +18,37 @@ import { NotFound } from "./pages/NotFound";
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Routes>
-        {/* Public Login Route */}
-        <Route path="/login" element={<Login />} />
+    <ConnectionProvider>
+      <AuthProvider>
+        <Routes>
+          {/* Public Login Route */}
+          <Route path="/login" element={<Login />} />
 
-        {/* Standalone Public Recruitment Form (No Admin Sidebar/Header, No Auth Required) */}
-        <Route path="/rekrutmen/form" element={<PublicForm />} />
-        <Route path="/rekrutmen/form/:id" element={<PublicForm />} />
+          {/* Standalone Public Recruitment Form (No Admin Sidebar/Header, No Auth Required) */}
+          <Route path="/rekrutmen/form" element={<PublicForm />} />
+          <Route path="/rekrutmen/form/:id" element={<PublicForm />} />
 
-        {/* Internal Protected Admin Management Routes */}
-        <Route
-          element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/anggota" element={<Anggota />} />
-          <Route path="/absensi" element={<Absensi />} />
-          <Route path="/keuangan" element={<KeuanganChondro />} />
-          <Route path="/keuangan-media" element={<KeuanganMedia />} />
-          <Route path="/transaksi" element={<Transaksi />} />
-          <Route path="/transaksi/:id" element={<TransaksiDetailPage />} />
-          <Route path="/rekrutmen" element={<Rekrutmen />} />
-          <Route path="/rekrutmen/daftar" element={<RekrutmenDaftar />} />
-          <Route path="*" element={<NotFound />} />
-        </Route>
-      </Routes>
-    </AuthProvider>
+          {/* Internal Protected Admin Management Routes */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/anggota" element={<Anggota />} />
+            <Route path="/absensi" element={<Absensi />} />
+            <Route path="/keuangan" element={<KeuanganChondro />} />
+            <Route path="/keuangan-media" element={<KeuanganMedia />} />
+            <Route path="/transaksi" element={<Transaksi />} />
+            <Route path="/transaksi/:id" element={<TransaksiDetailPage />} />
+            <Route path="/rekrutmen" element={<Rekrutmen />} />
+            <Route path="/rekrutmen/daftar" element={<RekrutmenDaftar />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </ConnectionProvider>
   );
 }
