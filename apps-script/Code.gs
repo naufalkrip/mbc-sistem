@@ -8,7 +8,7 @@
  * 1. Buka https://script.google.com (project: 1zJPjV4XTa6dZe0KHpHKEI2qfMA-WtEh1ekF8BCNb9DwE5_O8BAAh274l)
  * 2. Ganti seluruh isi Code.gs dengan file ini.
  * 3. Klik Deploy → New deployment → Web app.
- *    - Description: MB Chondro API
+ *    - Description: mbc sistem API
  *    - Execute as: Me
  *    - Who has access: Anyone
  * 4. Salin URL /exec → paste ke src/config.ts sebagai API_URL.
@@ -197,7 +197,7 @@ function executeAction(action, data) {
     case "deleteAbsensiBatch":
       return deleteAbsensiBatch(data.ids);
 
-    // Keuangan MB Chondro
+    // Keuangan mbc sistem
     case "getKeuanganChondro":
       return getKeuanganChondro();
     case "addKeuanganChondro":
@@ -1570,7 +1570,7 @@ function uploadRekrutmenImage(data) {
   var bytes = Utilities.base64Decode(rawBase64);
   var blob = Utilities.newBlob(bytes, mimeType, fileName);
 
-  var folderName = "MB Chondro Rekrutmen Assets";
+  var folderName = "mbc sistem Rekrutmen Assets";
   var folders = DriveApp.getFoldersByName(folderName);
   var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
 
@@ -1646,7 +1646,7 @@ function getRekrutmenImageBase64(data) {
   for (var n = 0; n < nameCandidates.length; n++) {
     var targetName = nameCandidates[n];
     try {
-      var folders = DriveApp.getFoldersByName("MB Chondro Berkas Pendaftar");
+      var folders = DriveApp.getFoldersByName("mbc sistem Berkas Pendaftar");
       while (folders.hasNext()) {
         var folder = folders.next();
         var files = folder.getFilesByName(targetName);
@@ -1851,7 +1851,7 @@ function addRekrutmenSubmission(data) {
         if (!isImage || !isSmallSafe) {
           try {
             if (!driveFolder) {
-              var fName = "MB Chondro Berkas Pendaftar";
+              var fName = "mbc sistem Berkas Pendaftar";
               var fList = DriveApp.getFoldersByName(fName);
               driveFolder = fList.hasNext() ? fList.next() : DriveApp.createFolder(fName);
             }
@@ -1872,7 +1872,7 @@ function addRekrutmenSubmission(data) {
           // Ini menjamin 100% foto selalu tampil seketika & tidak pernah terblokir oleh izin Google Drive
           try {
             if (!driveFolder) {
-              var fName2 = "MB Chondro Berkas Pendaftar";
+              var fName2 = "mbc sistem Berkas Pendaftar";
               var fList2 = DriveApp.getFoldersByName(fName2);
               driveFolder = fList2.hasNext() ? fList2.next() : DriveApp.createFolder(fName2);
             }
@@ -2024,7 +2024,7 @@ function loginUser(username, password) {
   // Pastikan akun admin default dibuat jika sheet masih kosong
   if (sheet.getLastRow() <= 1) {
     var now = new Date().toISOString();
-    sheet.appendRow(["USR-001", "admin", "admin", "Administrator MB Chondro", "admin", "Aktif", now, now]);
+    sheet.appendRow(["USR-001", "admin", "admin", "Administrator mbc sistem", "admin", "Aktif", now, now]);
   }
 
   var users = readRows(cfg);

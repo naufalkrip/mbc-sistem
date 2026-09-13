@@ -38,8 +38,8 @@ export function KeuanganChondro() {
 
   return (
     <Keuangan
-      title="Keuangan MB Chondro"
-      subtitle="Keuangan MB Chondro"
+      title="Keuangan mbc sistem"
+      subtitle="Keuangan mbc sistem"
       loading={loading}
       transaksi={data ?? []}
       onRefresh={refresh}

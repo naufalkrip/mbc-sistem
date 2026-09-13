@@ -39,7 +39,7 @@ import { getRekrutmenImageBase64Item } from "./api";
 //   - Footer: Garis pemisah tipis + identitas di kiri + "Halaman X dari Y" di kanan
 // ============================================================
 
-const BURGUNDY: [number, number, number] = [127, 29, 29]; // #7F1D1D - Merah Maroon MB Chondro
+const BURGUNDY: [number, number, number] = [127, 29, 29]; // #7F1D1D - Merah Maroon mbc sistem
 const NAVY: [number, number, number] = [15, 23, 42]; // #0F172A - Teks Utama / Judul
 const BODY: [number, number, number] = [30, 41, 59]; // #1E293B - Teks Isi Tabel
 const SLATE: [number, number, number] = [71, 85, 105]; // #475569 - Teks Sekunder
@@ -652,7 +652,7 @@ export async function laporanAnggota(anggota: Anggota[], periode: string) {
 
   await createPdf(
     "DATA ANGGOTA MB CHONDRO",
-    "Rekapitulasi data seluruh anggota aktif dan kepengurusan MB Chondro",
+    "Rekapitulasi data seluruh anggota aktif dan kepengurusan mbc sistem",
     periode,
     {
       orientation: "landscape",
@@ -691,7 +691,7 @@ export async function laporanAbsensi(absensi: Absensi[], periode: string) {
 
   await createPdf(
     "RIWAYAT PRESENSI MB CHONDRO",
-    "Catatan riwayat kehadiran anggota per sesi kegiatan MB Chondro",
+    "Catatan riwayat kehadiran anggota per sesi kegiatan mbc sistem",
     periode,
     {
       orientation: "landscape",
@@ -1084,7 +1084,7 @@ async function drawCandidateSummaryWithPhoto(
     doc.setLineWidth(0.25);
     doc.roundedRect(leftX, iy, summaryW, itemH, 1.2, 1.2, "FD");
 
-    // Aksen merah MB Chondro di sisi kiri item
+    // Aksen merah mbc sistem di sisi kiri item
     doc.setFillColor(...BURGUNDY);
     doc.roundedRect(leftX, iy + 0.5, 1.5, itemH - 1, 0.75, 0.75, "F");
 
@@ -1226,7 +1226,7 @@ function drawSelectionDecisionBox(doc: jsPDF, startY: number): number {
   doc.setFontSize(8.5);
   doc.setTextColor(...SLATE);
   doc.text("..................., .................... 2026", signX + 24, noteY - 3.5, { align: "center" });
-  doc.text("Tim Penilai / Penguji MB Chondro,", signX + 24, noteY + 1.5, { align: "center" });
+  doc.text("Tim Penilai / Penguji mbc sistem,", signX + 24, noteY + 1.5, { align: "center" });
 
   doc.setFont(fontFamily, "normal");
   doc.setTextColor(...BODY);
@@ -1371,7 +1371,7 @@ export async function laporanRekrutmen(
     let startY = await drawFullHeader(
       doc,
       "PENILAIAN CALON ANGGOTA",
-      form.title || "Rekrutmen MB Chondro",
+      form.title || "Rekrutmen mbc sistem",
       periodLabel || formatTanggalPanjang(new Date().toISOString())
     );
     doc.setFont(fontFamily, "normal");

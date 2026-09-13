@@ -32,7 +32,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
-    if (window.confirm("Apakah Anda yakin ingin keluar dari sistem MB Chondro?")) {
+    if (window.confirm("Apakah Anda yakin ingin keluar dari sistem mbc sistem?")) {
       logout();
     }
   };
@@ -43,7 +43,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       <aside className={`sidebar ${open ? "sidebar-open" : ""}`} aria-label="Menu samping">
         <div className="sidebar-brand">
           <div className="brand-logo">
-            <img src={logo} alt="Logo MB Chondro" />
+            <img src={logo} alt="Logo mbc sistem" />
           </div>
           <div className="brand-text">
             <strong>MB CHONDRO</strong>
@@ -91,7 +91,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         )}
 
         <div className="sidebar-footer">
-          <span>© {new Date().getFullYear()} MB Chondro</span>
+          <span>© {new Date().getFullYear()} mbc sistem</span>
           <span>v1.0.0</span>
         </div>
       </aside>

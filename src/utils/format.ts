@@ -411,7 +411,7 @@ export function formatNomorWhatsAppUrl(nomor: string | number | null | undefined
 }
 
 /**
- * Membuat pesan template otomatis sapaan & jadwal skrining calon anggota MB Chondro
+ * Membuat pesan template otomatis sapaan & jadwal skrining calon anggota mbc sistem
  */
 export function buatPesanWhatsAppCalon(nama: string, judulFormulir?: string): string {
   const cleanName = (nama || "Calon Anggota").trim();

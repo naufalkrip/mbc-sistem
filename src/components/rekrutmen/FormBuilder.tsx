@@ -559,7 +559,7 @@ export function FormBuilder({
 
   return (
     <div className="form-builder" style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
-      {/* Top Banner Card: Standout Red Container (Kotak Merah MB Chondro) */}
+      {/* Top Banner Card: Standout Red Container (Kotak Merah mbc sistem) */}
       <div
         className="card"
         style={{
@@ -576,7 +576,7 @@ export function FormBuilder({
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexWrap: "wrap" }}>
               <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: 0, color: "#ffffff" }}>
-                {form.title || "Formulir Pendaftaran Anggota Baru MB Chondro"}
+                {form.title || "Formulir Pendaftaran Anggota Baru mbc sistem"}
               </h2>
               <button
                 type="button"
@@ -1247,7 +1247,7 @@ export function FormBuilder({
                           <GripVertical size={16} />
                         </div>
 
-                        {/* Order Number Chip (Merah MB Chondro) */}
+                        {/* Order Number Chip (Merah mbc sistem) */}
                         <span
                           style={{
                             fontSize: "11px",
@@ -1722,7 +1722,7 @@ export function FormBuilder({
               <input
                 value={formSettings.title}
                 onChange={(e) => setFormSettings((p) => ({ ...p, title: e.target.value }))}
-                placeholder="Contoh: Formulir Pendaftaran Anggota Baru MB Chondro"
+                placeholder="Contoh: Formulir Pendaftaran Anggota Baru mbc sistem"
                 style={{ height: 40, padding: "8px 12px", fontSize: "13.5px" }}
               />
             </div>

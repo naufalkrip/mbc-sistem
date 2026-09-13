@@ -47,7 +47,7 @@ const KEGIATAN_SUGGEST = [
   "Latihan",
   "Pertemuan Mingguan",
   "Acara Desa Lambur",
-  "Sekretariat MB Chondro",
+  "Sekretariat mbc sistem",
 ];
 
 const PILIHAN_BULAN = [

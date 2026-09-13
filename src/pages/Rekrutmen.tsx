@@ -93,9 +93,9 @@ export function Rekrutmen() {
 
   const openAddForm = () => {
     setFormData({
-      title: "Pendaftaran Anggota Baru MB Chondro " + new Date().getFullYear(),
+      title: "Pendaftaran Anggota Baru mbc sistem " + new Date().getFullYear(),
       description:
-        "Silakan isi seluruh data dengan benar dan lengkap. Data yang dikirim akan digunakan untuk proses seleksi calon anggota MB Chondro.",
+        "Silakan isi seluruh data dengan benar dan lengkap. Data yang dikirim akan digunakan untuk proses seleksi calon anggota mbc sistem.",
       status: "dibuka",
     });
     setFormErrors({});
@@ -257,7 +257,7 @@ export function Rekrutmen() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* 1. Header Ringkasan Merah Standout MB Chondro */}
+      {/* 1. Header Ringkasan Merah Standout mbc sistem */}
       <div
         style={{
           background: "linear-gradient(135deg, #c8101e 0%, #a41111 50%, #8a1414 100%)",
@@ -658,7 +658,7 @@ export function Rekrutmen() {
                   marginRight: "auto",
                 }}
               >
-                Buat formulir pendaftaran pertama untuk mulai menerima calon anggota baru MB Chondro.
+                Buat formulir pendaftaran pertama untuk mulai menerima calon anggota baru mbc sistem.
               </p>
               <button className="btn btn-primary" onClick={openAddForm}>
                 <Plus size={16} /> Buat Formulir Baru
@@ -691,7 +691,7 @@ export function Rekrutmen() {
             <input
               value={formData.title}
               onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
-              placeholder="Contoh: Formulir Pendaftaran Anggota Baru MB Chondro 2026"
+              placeholder="Contoh: Formulir Pendaftaran Anggota Baru mbc sistem 2026"
               style={{ height: 40, padding: "8px 12px", fontSize: "13.5px" }}
             />
             {formErrors.title && (
@@ -704,7 +704,7 @@ export function Rekrutmen() {
             <textarea
               value={formData.description}
               onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-              placeholder="Silakan isi seluruh data dengan benar dan lengkap untuk proses seleksi calon anggota MB Chondro."
+              placeholder="Silakan isi seluruh data dengan benar dan lengkap untuk proses seleksi calon anggota mbc sistem."
               rows={3}
               style={{ padding: "8px 12px", fontSize: "13px", resize: "vertical" }}
             />

@@ -171,7 +171,7 @@ export function Login() {
         {/* Top Brand Header */}
         <div className="login-header">
           <div className="login-logo-container">
-            <img src={logoImg} alt="Logo MB Chondro" className="login-logo-img" />
+            <img src={logoImg} alt="Logo mbc sistem" className="login-logo-img" />
           </div>
           <div className="login-badge">
             <ShieldCheck size={13} />

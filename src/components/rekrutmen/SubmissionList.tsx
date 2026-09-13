@@ -1759,7 +1759,7 @@ export function SubmissionList({
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700, fontSize: "13.5px", color: "#065f46" }}>
                       <CheckCircle size={16} style={{ color: "#059669" }} />
-                      <span>Calon Anggota Lolos Seleksi MB Chondro</span>
+                      <span>Calon Anggota Lolos Seleksi mbc sistem</span>
                     </div>
                     <span style={{ fontSize: "12px", color: "#047857", display: "block", marginTop: 2 }}>
                       Ketentuan resmi: Wajib mengikuti training &amp; 3x penampilan Chondro Wonopringgo.
@@ -2391,7 +2391,7 @@ export function SubmissionList({
               Pilih Kriteria & Rentang Laporan
             </div>
             <p style={{ fontSize: "12.5px", color: "var(--text-muted)", margin: "3px 0 0" }}>
-              Cetak dokumen rekapitulasi calon anggota MB Chondro lengkap dengan tabel status dan pas foto.
+              Cetak dokumen rekapitulasi calon anggota mbc sistem lengkap dengan tabel status dan pas foto.
             </p>
           </div>
 

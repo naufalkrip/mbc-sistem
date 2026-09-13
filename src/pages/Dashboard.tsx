@@ -283,7 +283,7 @@ export function Dashboard() {
       <div className="dash-greeting-banner animate-fade-slide-up">
         <div>
           <h1 className="dash-greeting-title">
-            Selamat Datang di Sistem MB Chondro
+            Selamat Datang di Sistem mbc sistem
           </h1>
           <div className="dash-greeting-sub">
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -346,7 +346,7 @@ export function Dashboard() {
               iconClass="summary-card-icon-green"
             />
             <SummaryCard
-              label="Saldo Kas MB Chondro"
+              label="Saldo Kas mbc sistem"
               value={formatRupiah(keuanganChondroSaldo)}
               sub="Kas utama organisasi"
               badge="Kas Utama"
@@ -370,7 +370,7 @@ export function Dashboard() {
         <div className="card-header" style={{ flexWrap: "wrap", gap: 12 }}>
           <div>
             <h2>Rekapitulasi Keuangan Organisasi</h2>
-            <p>Arus kas masuk, keluar, dan saldo likuiditas operasional MB Chondro</p>
+            <p>Arus kas masuk, keluar, dan saldo likuiditas operasional mbc sistem</p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Link to="/keuangan" className="btn btn-outline" style={{ fontSize: "12px", padding: "6px 12px" }}>
@@ -411,7 +411,7 @@ export function Dashboard() {
                       <Wallet size={18} />
                     </div>
                     <div>
-                      <h3 className="finance-card-name">Kas MB Chondro</h3>
+                      <h3 className="finance-card-name">Kas mbc sistem</h3>
                       <div className="finance-card-tag">Kas Utama Organisasi</div>
                     </div>
                   </div>
@@ -546,7 +546,7 @@ export function Dashboard() {
           <div className="card-header" style={{ flexWrap: "wrap", gap: 12 }}>
             <div>
               <h2>Struktur & Distribusi Anggota</h2>
-              <p>Visualisasi sebaran anggota MB Chondro</p>
+              <p>Visualisasi sebaran anggota mbc sistem</p>
             </div>
 
             {/* SEGMENTED TAB SWITCHER */}
@@ -666,7 +666,7 @@ export function Dashboard() {
           <div className="card-header">
             <div>
               <h2>Log & Aktivitas Terkini</h2>
-              <p>Riwayat kegiatan & mutasi MB Chondro</p>
+              <p>Riwayat kegiatan & mutasi mbc sistem</p>
             </div>
           </div>
           {loading ? (
@@ -721,7 +721,7 @@ export function Dashboard() {
           <div className="modal modal-md" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 id="finance-modal-title">
-                {financeModal.type === "chondro" ? "Rincian Kas MB Chondro" : "Rincian Kas Media"}
+                {financeModal.type === "chondro" ? "Rincian Kas mbc sistem" : "Rincian Kas Media"}
               </h3>
               <button className="modal-close" onClick={closeFinanceModal} aria-label="Tutup">
                 <X size={20} />

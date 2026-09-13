@@ -1,6 +1,6 @@
 # MB CHONDRO — Sistem Manajemen Organisasi
 
-Website manajemen organisasi MB Chondro berbasis **React + Vite + TypeScript** dengan backend **Google Apps Script** dan database **Google Spreadsheet**.
+Website manajemen organisasi mbc sistem berbasis **React + Vite + TypeScript** dengan backend **Google Apps Script** dan database **Google Spreadsheet**.
 
 ```
 React Website
@@ -17,7 +17,7 @@ Google Spreadsheet (ANGGOTA, ABSENSI, KEUANGAN_CHONDRO, KEUANGAN_MEDIA)
 - **Dashboard** — ringkasan anggota, absensi, dan keuangan kedua kas
 - **Data Anggota** — CRUD, search, filter divisi/status, detail
 - **Absensi** — input, riwayat, filter, rekap per anggota
-- **Keuangan MB Chondro** — CRUD transaksi, saldo, filter, format Rupiah
+- **Keuangan mbc sistem** — CRUD transaksi, saldo, filter, format Rupiah
 - **Keuangan Media** — sama dengan keuangan utama (sheet terpisah)
 - **Laporan PDF** — 4 jenis laporan + filter periode + download PDF (jsPDF)
 
@@ -43,7 +43,7 @@ Buka `http://localhost:5173`.
    [`apps-script/Code.gs`](./apps-script/Code.gs) di project ini.
 
 3. Klik **Deploy → New deployment** → pilih **Web app**:
-   - **Description**: `MB Chondro API`
+   - **Description**: `mbc sistem API`
    - **Execute as**: `Me`
    - **Who has access**: `Anyone`
 

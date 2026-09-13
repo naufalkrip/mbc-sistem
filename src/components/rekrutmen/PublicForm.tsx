@@ -521,7 +521,7 @@ export function PublicForm() {
               lineHeight: 1.5,
             }}
           >
-            Silakan hubungi admin MB Chondro atau pantau pengumuman resmi terkait jadwal pembukaan pendaftaran.
+            Silakan hubungi admin mbc sistem atau pantau pengumuman resmi terkait jadwal pembukaan pendaftaran.
           </div>
           <button
             type="button"
@@ -562,7 +562,7 @@ export function PublicForm() {
             border: "1px solid #e2e8f0",
           }}
         >
-          <img src={logo} alt="Logo MB Chondro" style={{ height: 64, width: "auto", objectFit: "contain", marginBottom: 16 }} />
+          <img src={logo} alt="Logo mbc sistem" style={{ height: 64, width: "auto", objectFit: "contain", marginBottom: 16 }} />
           <div
             style={{
               width: 60,
@@ -582,7 +582,7 @@ export function PublicForm() {
             Pendaftaran Berhasil Dikirim!
           </h2>
           <p style={{ fontSize: "14px", color: "var(--text-muted)", lineHeight: 1.6, marginBottom: 20 }}>
-            Terima kasih telah mendaftar sebagai calon anggota <strong>MB Chondro</strong>. Data formulir dan berkas Anda telah berhasil kami terima dan akan segera diproses dalam tahapan seleksi.
+            Terima kasih telah mendaftar sebagai calon anggota <strong>mbc sistem</strong>. Data formulir dan berkas Anda telah berhasil kami terima dan akan segera diproses dalam tahapan seleksi.
           </p>
           <div
             style={{
@@ -598,7 +598,7 @@ export function PublicForm() {
           >
             <strong>💡 Tahapan Selanjutnya:</strong>
             <ul style={{ margin: "6px 0 0", paddingLeft: 18, lineHeight: 1.6 }}>
-              <li>Tim MB Chondro akan melakukan verifikasi berkas dan data pendaftaran.</li>
+              <li>Tim mbc sistem akan melakukan verifikasi berkas dan data pendaftaran.</li>
               <li>Pengumuman kelolosan seleksi akan disampaikan melalui WhatsApp atau kontak yang Anda cantumkan.</li>
             </ul>
           </div>
@@ -619,7 +619,7 @@ export function PublicForm() {
           </button>
         </div>
         <footer style={{ marginTop: 24, fontSize: "12px", color: "var(--text-muted)", textAlign: "center" }}>
-          © MB Chondro · Sistem Manajemen Penerimaan Anggota
+          © mbc sistem · Sistem Manajemen Penerimaan Anggota
         </footer>
       </div>
     );
@@ -663,7 +663,7 @@ export function PublicForm() {
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 12 }}>
             <img
               src={logo}
-              alt="Logo MB Chondro"
+              alt="Logo mbc sistem"
               style={{
                 height: 54,
                 width: "auto",
@@ -1311,7 +1311,7 @@ export function PublicForm() {
 
         {/* Footer */}
         <footer style={{ marginTop: 20, textAlign: "center", fontSize: "12px", color: "var(--text-muted)" }}>
-          © MB Chondro · Formulir Penerimaan Anggota Baru
+          © mbc sistem · Formulir Penerimaan Anggota Baru
         </footer>
       </div>
 

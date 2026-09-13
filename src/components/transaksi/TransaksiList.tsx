@@ -297,7 +297,7 @@ export function TransaksiList({
         <div className="summary-panel-header" style={{ marginBottom: 0 }}>
           <div>
             <h3>Ringkasan Transaksi Temporer</h3>
-            <p>Manajemen pencatatan transaksi pos kegiatan & proyek MB Chondro</p>
+            <p>Manajemen pencatatan transaksi pos kegiatan & proyek mbc sistem</p>
           </div>
 
           <div

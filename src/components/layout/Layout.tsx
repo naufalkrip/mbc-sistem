@@ -7,13 +7,13 @@ import { PageTransition } from "../ui/PageTransition";
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/": { title: "Dashboard", subtitle: "Ringkasan data organisasi" },
-  "/anggota": { title: "Data Anggota", subtitle: "Kelola anggota MB Chondro" },
-  "/absensi": { title: "Absensi", subtitle: "Kelola kehadiran anggota MB Chondro" },
-  "/keuangan": { title: "Keuangan MB Chondro", subtitle: "Kelola kas MB Chondro" },
+  "/anggota": { title: "Data Anggota", subtitle: "Kelola anggota mbc sistem" },
+  "/absensi": { title: "Absensi", subtitle: "Kelola kehadiran anggota mbc sistem" },
+  "/keuangan": { title: "Keuangan mbc sistem", subtitle: "Kelola kas mbc sistem" },
   "/transaksi": { title: "Transaksi", subtitle: "Kelola transaksi temporer" },
   "/rekrutmen": { title: "Rekruitmen", subtitle: "Kelola pendaftaran calon anggota" },
   "/rekrutmen/daftar": { title: "Pendaftaran Anggota", subtitle: "Formulir pendaftaran calon anggota" },
-  "/keuangan-media": { title: "Keuangan Media MB Chondro", subtitle: "Kelola kas Media MB Chondro" },
+  "/keuangan-media": { title: "Keuangan Media mbc sistem", subtitle: "Kelola kas Media mbc sistem" },
 };
 
 export function Layout({ children }: { children?: ReactNode }) {

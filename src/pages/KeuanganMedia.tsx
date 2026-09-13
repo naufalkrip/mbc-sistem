@@ -38,8 +38,8 @@ export function KeuanganMedia() {
 
   return (
     <Keuangan
-      title="Keuangan Media MB Chondro"
-      subtitle="Keuangan Media MB Chondro"
+      title="Keuangan Media mbc sistem"
+      subtitle="Keuangan Media mbc sistem"
       loading={loading}
       transaksi={data ?? []}
       onRefresh={refresh}
