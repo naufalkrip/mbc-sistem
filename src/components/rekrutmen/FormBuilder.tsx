@@ -15,9 +15,13 @@ import {
   Sparkles,
   Pencil,
   Camera,
+  Search,
+  FileText,
+  Layers,
 } from "lucide-react";
 import type { RekrutmenField, RekrutmenForm, RekrutmenFieldType, RekrutmenFieldOption } from "../../types";
 import { compressImageToSafeHd } from "../../services/api";
+import { useToast } from "../../contexts/ToastContext";
 import { Modal } from "../ui/Modal";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 
@@ -31,6 +35,199 @@ const FIELD_TYPES: { value: RekrutmenFieldType; label: string; hasOptions: boole
   { value: "select", label: "Dropdown Pilihan", hasOptions: true, isUpload: false, icon: "▾" },
   { value: "image", label: "Upload Foto (JPG, PNG, WEBP)", hasOptions: false, isUpload: true, icon: "📸" },
   { value: "file", label: "Upload Dokumen (PDF, JPG, PNG)", hasOptions: false, isUpload: true, icon: "📄" },
+];
+
+const FIELD_TYPE_METAS: Record<
+  RekrutmenFieldType,
+  {
+    label: string;
+    icon: string;
+    category: "teks" | "pilihan" | "media" | "khusus";
+    accentColor: string;
+    accentBg: string;
+    accentBorder: string;
+    badgeBg: string;
+    badgeColor: string;
+    previewPlaceholder: string;
+  }
+> = {
+  text: {
+    label: "Teks Pendek",
+    icon: "Aa",
+    category: "teks",
+    accentColor: "var(--primary-700, #b91c1c)",
+    accentBg: "rgba(185, 28, 28, 0.03)",
+    accentBorder: "rgba(185, 28, 28, 0.2)",
+    badgeBg: "rgba(185, 28, 28, 0.08)",
+    badgeColor: "var(--primary-700, #b91c1c)",
+    previewPlaceholder: "Jawaban teks singkat...",
+  },
+  textarea: {
+    label: "Teks Paragraf",
+    icon: "¶",
+    category: "teks",
+    accentColor: "var(--primary-700, #b91c1c)",
+    accentBg: "rgba(185, 28, 28, 0.03)",
+    accentBorder: "rgba(185, 28, 28, 0.2)",
+    badgeBg: "rgba(185, 28, 28, 0.08)",
+    badgeColor: "var(--primary-700, #b91c1c)",
+    previewPlaceholder: "Tuliskan uraian atau penjelasan lengkap...",
+  },
+  number: {
+    label: "Angka (Number)",
+    icon: "123",
+    category: "teks",
+    accentColor: "var(--primary-700, #b91c1c)",
+    accentBg: "rgba(185, 28, 28, 0.03)",
+    accentBorder: "rgba(185, 28, 28, 0.2)",
+    badgeBg: "rgba(185, 28, 28, 0.08)",
+    badgeColor: "var(--primary-700, #b91c1c)",
+    previewPlaceholder: "08123456789...",
+  },
+  date: {
+    label: "Tanggal (Date)",
+    icon: "📅",
+    category: "khusus",
+    accentColor: "var(--primary-700, #b91c1c)",
+    accentBg: "rgba(185, 28, 28, 0.03)",
+    accentBorder: "rgba(185, 28, 28, 0.2)",
+    badgeBg: "rgba(185, 28, 28, 0.08)",
+    badgeColor: "var(--primary-700, #b91c1c)",
+    previewPlaceholder: "DD / MM / YYYY",
+  },
+  radio: {
+    label: "Pilihan Tunggal (Radio)",
+    icon: "🔘",
+    category: "pilihan",
+    accentColor: "var(--primary-700, #b91c1c)",
+    accentBg: "rgba(185, 28, 28, 0.03)",
+    accentBorder: "rgba(185, 28, 28, 0.2)",
+    badgeBg: "rgba(185, 28, 28, 0.08)",
+    badgeColor: "var(--primary-700, #b91c1c)",
+    previewPlaceholder: "Pilih salah satu",
+  },
+  checkbox: {
+    label: "Pilihan Ganda (Checkbox)",
+    icon: "☑️",
+    category: "pilihan",
+    accentColor: "var(--primary-700, #b91c1c)",
+    accentBg: "rgba(185, 28, 28, 0.03)",
+    accentBorder: "rgba(185, 28, 28, 0.2)",
+    badgeBg: "rgba(185, 28, 28, 0.08)",
+    badgeColor: "var(--primary-700, #b91c1c)",
+    previewPlaceholder: "Bisa pilih lebih dari satu",
+  },
+  select: {
+    label: "Dropdown Pilihan",
+    icon: "▾",
+    category: "pilihan",
+    accentColor: "var(--primary-700, #b91c1c)",
+    accentBg: "rgba(185, 28, 28, 0.03)",
+    accentBorder: "rgba(185, 28, 28, 0.2)",
+    badgeBg: "rgba(185, 28, 28, 0.08)",
+    badgeColor: "var(--primary-700, #b91c1c)",
+    previewPlaceholder: "-- Pilih Opsi Dropdown --",
+  },
+  image: {
+    label: "Upload Pas Foto",
+    icon: "📸",
+    category: "media",
+    accentColor: "var(--primary-700, #b91c1c)",
+    accentBg: "rgba(185, 28, 28, 0.04)",
+    accentBorder: "rgba(185, 28, 28, 0.3)",
+    badgeBg: "rgba(185, 28, 28, 0.12)",
+    badgeColor: "var(--primary-700, #b91c1c)",
+    previewPlaceholder: "Pilih file pas foto (JPG, PNG, WEBP)",
+  },
+  file: {
+    label: "Upload Dokumen",
+    icon: "📄",
+    category: "media",
+    accentColor: "var(--primary-700, #b91c1c)",
+    accentBg: "rgba(185, 28, 28, 0.04)",
+    accentBorder: "rgba(185, 28, 28, 0.25)",
+    badgeBg: "rgba(185, 28, 28, 0.08)",
+    badgeColor: "var(--primary-700, #b91c1c)",
+    previewPlaceholder: "Pilih file dokumen (PDF, JPG, PNG)",
+  },
+};
+
+const QUESTION_TEMPLATES: Array<{
+  label: string;
+  field: Omit<RekrutmenField, "id" | "createdAt" | "updatedAt">;
+}> = [
+  {
+    label: "+ Nama Lengkap",
+    field: {
+      formId: "",
+      label: "Nama Lengkap Calon Anggota",
+      description: "Isikan nama lengkap sesuai kartu identitas (KTP / Kartu Pelajar).",
+      placeholder: "Contoh: Budi Santoso",
+      fieldType: "text",
+      required: true,
+      options: [],
+      sortOrder: 1,
+    },
+  },
+  {
+    label: "+ No. WhatsApp",
+    field: {
+      formId: "",
+      label: "Nomor WhatsApp Aktif",
+      description: "Pastikan nomor aktif dan terhubung ke WhatsApp untuk jadwal skrining & pengumuman.",
+      placeholder: "Contoh: 081234567890",
+      fieldType: "number",
+      required: true,
+      options: [],
+      sortOrder: 2,
+    },
+  },
+  {
+    label: "+ Pas Foto 3x4",
+    field: {
+      formId: "",
+      label: "Pas Foto Calon Anggota (3x4)",
+      description: "Unggah pas foto formal/rapi berlatar belakang polos.",
+      placeholder: "Upload pas foto",
+      fieldType: "image",
+      required: true,
+      options: [],
+      sortOrder: 3,
+      maxFileSize: 2,
+      allowedFileTypes: ["jpg", "jpeg", "png", "webp"],
+    },
+  },
+  {
+    label: "+ Pilihan Alat Musik",
+    field: {
+      formId: "",
+      label: "Pilihan Alat Musik / Seksi yang Diminati",
+      description: "Pilih alat musik atau seksi Marching Band yang ingin Anda mainkan.",
+      placeholder: "-- Pilih Alat Musik --",
+      fieldType: "select",
+      required: true,
+      options: [
+        { value: "Brass (Trumpet / Trombone / Mellophone / Baritone / Tuba)", label: "Brass (Trumpet / Trombone / Mellophone / Tuba)" },
+        { value: "Percussion Battery (Snare / Tenor / Bass Drum)", label: "Percussion Battery (Snare / Tenor / Bass Drum)" },
+        { value: "Pit Instrument (Marimba / Vibraphone / Glockenspiel)", label: "Pit Instrument (Marimba / Vibraphone / Glock)" },
+        { value: "Color Guard (Bendera / Rifle / Sabres)", label: "Color Guard (Flag / Rifle / Dance)" },
+      ],
+      sortOrder: 4,
+    },
+  },
+  {
+    label: "+ Pengalaman Musik",
+    field: {
+      formId: "",
+      label: "Pengalaman Bermain Musik / Marching Band",
+      description: "Tuliskan pengalaman musik Anda sebelumnya jika ada (pemula tetap diperbolehkan).",
+      placeholder: "Contoh: Pernah mengikuti drum band SMP / Belajar musik otodidak / Pemula",
+      fieldType: "textarea",
+      required: false,
+      options: [],
+      sortOrder: 5,
+    },
+  },
 ];
 
 interface FormBuilderProps {
@@ -95,12 +292,109 @@ export function FormBuilder({
   const [savingField, setSavingField] = useState(false);
   const [deletingField, setDeletingField] = useState<RekrutmenField | null>(null);
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
-
   const [copySuccess, setCopySuccess] = useState(false);
+
+  const { success: toastSuccess, error: toastError } = useToast();
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<"all" | "required" | "media" | "choice" | "text">("all");
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const sortedFields = useMemo(() => {
     return [...(Array.isArray(fields) ? fields : [])].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   }, [fields]);
+
+  const stats = useMemo(() => {
+    return {
+      total: sortedFields.length,
+      required: sortedFields.filter((f) => f.required).length,
+      optional: sortedFields.filter((f) => !f.required).length,
+      media: sortedFields.filter((f) => f.fieldType === "image" || f.fieldType === "file").length,
+      choice: sortedFields.filter((f) => f.fieldType === "select" || f.fieldType === "radio" || f.fieldType === "checkbox").length,
+      text: sortedFields.filter((f) => f.fieldType === "text" || f.fieldType === "textarea" || f.fieldType === "number" || f.fieldType === "date").length,
+    };
+  }, [sortedFields]);
+
+  const filteredSortedFields = useMemo(() => {
+    return sortedFields.filter((f) => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesLabel = (f.label || "").toLowerCase().includes(q);
+        const matchesDesc = (f.description || "").toLowerCase().includes(q);
+        const matchesType = (FIELD_TYPES.find((t) => t.value === f.fieldType)?.label || "").toLowerCase().includes(q);
+        if (!matchesLabel && !matchesDesc && !matchesType) return false;
+      }
+      if (activeCategory === "required") {
+        if (!f.required) return false;
+      } else if (activeCategory === "media") {
+        if (f.fieldType !== "image" && f.fieldType !== "file") return false;
+      } else if (activeCategory === "choice") {
+        if (f.fieldType !== "select" && f.fieldType !== "radio" && f.fieldType !== "checkbox") return false;
+      } else if (activeCategory === "text") {
+        if (f.fieldType !== "text" && f.fieldType !== "textarea" && f.fieldType !== "number" && f.fieldType !== "date") return false;
+      }
+      return true;
+    });
+  }, [sortedFields, searchQuery, activeCategory]);
+
+  const handleQuickToggleRequired = async (field: RekrutmenField) => {
+    const nextRequired = !field.required;
+    const ok = await onUpdateField(field.id, {
+      formId: form.id,
+      label: field.label,
+      description: field.description || "",
+      placeholder: field.placeholder || "",
+      fieldType: field.fieldType,
+      required: nextRequired,
+      options: field.options || [],
+      sortOrder: field.sortOrder,
+      exampleImageUrl: field.exampleImageUrl || "",
+      exampleImageTitle: field.exampleImageTitle || "",
+      maxFileSize: field.maxFileSize,
+      allowedFileTypes: field.allowedFileTypes,
+    });
+    if (ok) {
+      toastSuccess(`Pertanyaan "${field.label}" diubah menjadi ${nextRequired ? "Wajib Diisi" : "Opsional"}.`);
+    } else {
+      toastError("Gagal memperbarui status pertanyaan.");
+    }
+  };
+
+  const handleDuplicateField = async (field: RekrutmenField) => {
+    const ok = await onAddField({
+      formId: form.id,
+      label: `${field.label} (Salinan)`,
+      description: field.description || "",
+      placeholder: field.placeholder || "",
+      fieldType: field.fieldType,
+      required: field.required,
+      options: (field.options || []).map((o) => ({ value: o.value, label: o.label })),
+      sortOrder: sortedFields.length + 1,
+      exampleImageUrl: field.exampleImageUrl || "",
+      exampleImageTitle: field.exampleImageTitle || "",
+      maxFileSize: field.maxFileSize,
+      allowedFileTypes: field.allowedFileTypes,
+    });
+    if (ok) {
+      toastSuccess(`Pertanyaan "${field.label}" berhasil diduplikat!`);
+    } else {
+      toastError("Gagal menduplikat pertanyaan.");
+    }
+  };
+
+  const handleAddFromTemplate = async (template: (typeof QUESTION_TEMPLATES)[0]) => {
+    const ok = await onAddField({
+      ...template.field,
+      formId: form.id,
+      sortOrder: sortedFields.length + 1,
+    });
+    if (ok) {
+      toastSuccess(`Pertanyaan "${template.field.label}" berhasil ditambahkan!`);
+    } else {
+      toastError("Gagal menambahkan pertanyaan.");
+    }
+  };
 
   useEffect(() => {
     setFormSettings({
@@ -261,10 +555,6 @@ export function FormBuilder({
     }
   };
 
-  const getFieldTypeLabel = (type: RekrutmenFieldType) => {
-    return FIELD_TYPES.find((t) => t.value === type)?.label || type;
-  };
-
   const publicLink = `${window.location.origin}/rekrutmen/form/${form.id || ""}`;
 
   return (
@@ -419,31 +709,371 @@ export function FormBuilder({
 
       {/* TAB 1: DAFTAR PERTANYAAN (FORM BUILDER) */}
       {activeTab === "fields" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Main Action Header */}
           <div
+            className="card"
             style={{
+              padding: "16px 20px",
+              background: "#ffffff",
+              borderRadius: "var(--radius-md, 12px)",
+              border: "1px solid var(--border, #e2e8f0)",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
               flexWrap: "wrap",
-              gap: 10,
+              gap: 12,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
             }}
           >
             <div>
-              <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0, color: "var(--navy-900)" }}>
-                Struktur Pertanyaan Formulir
-              </h3>
-              <p style={{ fontSize: "12.5px", color: "var(--text-muted)", margin: "2px 0 0" }}>
-                Susun pertanyaan yang wajib diisi calon anggota baru secara dinamis
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "6px",
+                    background: "rgba(185, 28, 28, 0.1)",
+                    color: "var(--primary-700, #b91c1c)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Layers size={16} />
+                </div>
+                <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0, color: "var(--navy-900)" }}>
+                  Struktur Pertanyaan Formulir
+                </h3>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: "12px",
+                    background: "var(--primary-50, #fef2f2)",
+                    color: "var(--primary-700, #b91c1c)",
+                    border: "1px solid rgba(185, 28, 28, 0.15)",
+                  }}
+                >
+                  {sortedFields.length} Pertanyaan Aktif
+                </span>
+              </div>
+              <p style={{ fontSize: "12.5px", color: "var(--text-muted)", margin: 0 }}>
+                Susun urutan, tipe isian, pratinjau langsung, dan status wajib untuk calon anggota baru.
               </p>
             </div>
+
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <button className="btn btn-primary btn-sm" onClick={openAddField} style={{ fontSize: "12.5px" }}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={onPreview}
+                style={{
+                  fontSize: "12.5px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  borderColor: "#cbd5e1",
+                  color: "#334155",
+                }}
+              >
+                <Eye size={14} /> Preview Formulir
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={openAddField}
+                style={{
+                  fontSize: "12.5px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontWeight: 600,
+                  boxShadow: "0 2px 6px rgba(185, 28, 28, 0.25)",
+                }}
+              >
                 <Plus size={15} /> Tambah Pertanyaan Baru
               </button>
             </div>
           </div>
 
+          {/* Template Cepat / Quick Presets */}
+          <div
+            style={{
+              background: "linear-gradient(to right, #f8fafc, #f1f5f9)",
+              border: "1px solid #e2e8f0",
+              borderRadius: "var(--radius-sm, 10px)",
+              padding: "10px 14px",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 5, color: "#64748b", fontSize: "12px", fontWeight: 600 }}>
+              <Sparkles size={14} style={{ color: "#d97706" }} />
+              <span>Template Cepat:</span>
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flex: 1 }}>
+              {QUESTION_TEMPLATES.map((tmpl, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleAddFromTemplate(tmpl)}
+                  style={{
+                    fontSize: "11.5px",
+                    fontWeight: 600,
+                    padding: "4px 10px",
+                    borderRadius: "6px",
+                    border: "1px solid #cbd5e1",
+                    background: "#ffffff",
+                    color: "var(--navy-800, #1e293b)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    transition: "all 0.15s ease",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "var(--primary-700, #b91c1c)";
+                    e.currentTarget.style.color = "var(--primary-700, #b91c1c)";
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "#cbd5e1";
+                    e.currentTarget.style.color = "var(--navy-800, #1e293b)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  <span>{tmpl.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Search & Filter Toolbar with Live Counters */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+              background: "#ffffff",
+              padding: "10px 14px",
+              borderRadius: "var(--radius-sm, 10px)",
+              border: "1px solid var(--border, #e2e8f0)",
+            }}
+          >
+            {/* Category Filter Pills */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={() => setActiveCategory("all")}
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  padding: "5px 10px",
+                  borderRadius: "20px",
+                  border: activeCategory === "all" ? "1px solid var(--primary-700, #b91c1c)" : "1px solid #e2e8f0",
+                  background: activeCategory === "all" ? "var(--primary-50, #fef2f2)" : "#f8fafc",
+                  color: activeCategory === "all" ? "var(--primary-700, #b91c1c)" : "#64748b",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span>Semua</span>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    padding: "1px 6px",
+                    borderRadius: "10px",
+                    background: activeCategory === "all" ? "var(--primary-700, #b91c1c)" : "#e2e8f0",
+                    color: activeCategory === "all" ? "#ffffff" : "#475569",
+                  }}
+                >
+                  {stats.total}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveCategory("required")}
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  padding: "5px 10px",
+                  borderRadius: "20px",
+                  border: activeCategory === "required" ? "1px solid #dc2626" : "1px solid #e2e8f0",
+                  background: activeCategory === "required" ? "#fef2f2" : "#f8fafc",
+                  color: activeCategory === "required" ? "#dc2626" : "#64748b",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span>🔴 Wajib</span>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    padding: "1px 6px",
+                    borderRadius: "10px",
+                    background: activeCategory === "required" ? "#dc2626" : "#e2e8f0",
+                    color: activeCategory === "required" ? "#ffffff" : "#475569",
+                  }}
+                >
+                  {stats.required}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveCategory("media")}
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  padding: "5px 10px",
+                  borderRadius: "20px",
+                  border: activeCategory === "media" ? "1px solid var(--primary-700, #b91c1c)" : "1px solid #e2e8f0",
+                  background: activeCategory === "media" ? "var(--primary-50, #fef2f2)" : "#f8fafc",
+                  color: activeCategory === "media" ? "var(--primary-700, #b91c1c)" : "#64748b",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span>📸 Foto & Berkas</span>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    padding: "1px 6px",
+                    borderRadius: "10px",
+                    background: activeCategory === "media" ? "var(--primary-700, #b91c1c)" : "#e2e8f0",
+                    color: activeCategory === "media" ? "#ffffff" : "#475569",
+                  }}
+                >
+                  {stats.media}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveCategory("choice")}
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  padding: "5px 10px",
+                  borderRadius: "20px",
+                  border: activeCategory === "choice" ? "1px solid var(--primary-700, #b91c1c)" : "1px solid #e2e8f0",
+                  background: activeCategory === "choice" ? "var(--primary-50, #fef2f2)" : "#f8fafc",
+                  color: activeCategory === "choice" ? "var(--primary-700, #b91c1c)" : "#64748b",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span>🔘 Pilihan</span>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    padding: "1px 6px",
+                    borderRadius: "10px",
+                    background: activeCategory === "choice" ? "var(--primary-700, #b91c1c)" : "#e2e8f0",
+                    color: activeCategory === "choice" ? "#ffffff" : "#475569",
+                  }}
+                >
+                  {stats.choice}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveCategory("text")}
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  padding: "5px 10px",
+                  borderRadius: "20px",
+                  border: activeCategory === "text" ? "1px solid var(--primary-700, #b91c1c)" : "1px solid #e2e8f0",
+                  background: activeCategory === "text" ? "var(--primary-50, #fef2f2)" : "#f8fafc",
+                  color: activeCategory === "text" ? "var(--primary-700, #b91c1c)" : "#64748b",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span>✏️ Teks & Isian</span>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    padding: "1px 6px",
+                    borderRadius: "10px",
+                    background: activeCategory === "text" ? "var(--primary-700, #b91c1c)" : "#e2e8f0",
+                    color: activeCategory === "text" ? "#ffffff" : "#475569",
+                  }}
+                >
+                  {stats.text}
+                </span>
+              </button>
+            </div>
+
+            {/* Keyword Search */}
+            <div style={{ position: "relative", minWidth: 200, flex: "1 1 200px", maxWidth: 300 }}>
+              <Search
+                size={14}
+                style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}
+              />
+              <input
+                type="text"
+                placeholder="Cari nama pertanyaan..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "6px 28px 6px 30px",
+                  fontSize: "12.5px",
+                  borderRadius: "6px",
+                  border: "1px solid #cbd5e1",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  style={{
+                    position: "absolute",
+                    right: 8,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    color: "#94a3b8",
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* List of Dynamic Question Cards */}
           {sortedFields.length === 0 ? (
             <div
               className="card"
@@ -473,202 +1103,599 @@ export function FormBuilder({
               <h4 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 600, color: "var(--navy-900)" }}>
                 Belum Ada Pertanyaan
               </h4>
-              <p style={{ margin: "0 0 16px", fontSize: "13px", color: "var(--text-muted)", maxWidth: 420, marginLeft: "auto", marginRight: "auto" }}>
+              <p
+                style={{
+                  margin: "0 0 16px",
+                  fontSize: "13px",
+                  color: "var(--text-muted)",
+                  maxWidth: 420,
+                  marginLeft: "auto",
+                  marginRight: "auto",
+                }}
+              >
                 Mulai susun pertanyaan pendaftaran seperti Nama Lengkap, Nomor WhatsApp, Pas Foto Calon Anggota, dan Berkas Identitas.
               </p>
               <button className="btn btn-primary" onClick={openAddField}>
                 <Plus size={16} /> Buat Pertanyaan Pertama
               </button>
             </div>
+          ) : filteredSortedFields.length === 0 ? (
+            <div
+              className="card"
+              style={{
+                padding: "36px 20px",
+                textAlign: "center",
+                background: "#ffffff",
+                borderRadius: "var(--radius-md, 12px)",
+                border: "1px dashed #cbd5e1",
+              }}
+            >
+              <p style={{ margin: "0 0 10px", fontSize: "13.5px", color: "#64748b" }}>
+                Tidak ada pertanyaan yang sesuai dengan filter atau kata kunci &quot;{searchQuery}&quot;.
+              </p>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setActiveCategory("all");
+                }}
+              >
+                Reset Filter & Pencarian
+              </button>
+            </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {sortedFields.map((field, index) => (
-                <div
-                  key={field.id}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData("text/plain", field.id);
-                    e.dataTransfer.effectAllowed = "move";
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "move";
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const draggedId = e.dataTransfer.getData("text/plain");
-                    const fromIndex = sortedFields.findIndex((f) => f.id === draggedId);
-                    if (fromIndex !== -1 && fromIndex !== index) {
-                      handleReorder(fromIndex, index);
-                    }
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "14px 16px",
-                    background: "#ffffff",
-                    borderRadius: "var(--radius-sm, 10px)",
-                    border: "1px solid var(--border, #e2e8f0)",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
-                    transition: "all 0.15s ease",
-                    flexWrap: "wrap",
-                  }}
-                >
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {filteredSortedFields.map((field) => {
+                const meta = FIELD_TYPE_METAS[field.fieldType] || {
+                  label: field.fieldType,
+                  icon: "❓",
+                  category: "teks",
+                  accentColor: "#64748b",
+                  accentBg: "rgba(100, 116, 139, 0.04)",
+                  accentBorder: "rgba(100, 116, 139, 0.25)",
+                  badgeBg: "#f1f5f9",
+                  badgeColor: "#475569",
+                  previewPlaceholder: "Isian...",
+                };
+
+                const isDropTarget = dragOverId === field.id;
+                const isBeingDragged = draggedId === field.id;
+                const actualIndex = sortedFields.findIndex((f) => f.id === field.id);
+
+                return (
                   <div
-                    style={{
-                      cursor: "grab",
-                      color: "var(--text-muted)",
-                      display: "flex",
-                      alignItems: "center",
+                    key={field.id}
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggedId(field.id);
+                      e.dataTransfer.setData("text/plain", field.id);
+                      e.dataTransfer.effectAllowed = "move";
                     }}
-                    title="Geser untuk mengubah urutan"
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      if (dragOverId !== field.id) {
+                        setDragOverId(field.id);
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverId === field.id) {
+                        setDragOverId(null);
+                      }
+                    }}
+                    onDragEnd={() => {
+                      setDraggedId(null);
+                      setDragOverId(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const droppedSourceId = e.dataTransfer.getData("text/plain");
+                      const fromIdx = sortedFields.findIndex((f) => f.id === droppedSourceId);
+                      const toIdx = sortedFields.findIndex((f) => f.id === field.id);
+                      setDraggedId(null);
+                      setDragOverId(null);
+                      if (fromIdx !== -1 && toIdx !== -1 && fromIdx !== toIdx) {
+                        handleReorder(fromIdx, toIdx);
+                      }
+                    }}
+                    style={{
+                      position: "relative",
+                      background: "#ffffff",
+                      borderRadius: "var(--radius-md, 12px)",
+                      border: isDropTarget
+                        ? "2px dashed var(--primary-700, #b91c1c)"
+                        : "1.5px solid rgba(185, 28, 28, 0.28)",
+                      borderLeft: "5px solid var(--primary-700, #b91c1c)",
+                      boxShadow: isBeingDragged
+                        ? "0 8px 24px rgba(185, 28, 28, 0.15)"
+                        : isDropTarget
+                        ? "0 4px 16px rgba(185, 28, 28, 0.2)"
+                        : "0 1px 4px rgba(0,0,0,0.03)",
+                      opacity: isBeingDragged ? 0.45 : 1,
+                      padding: "14px 16px",
+                      transition: "all 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                    }}
                   >
-                    <GripVertical size={18} />
-                  </div>
+                    {/* Top Row: Index Badge, Type Tag, Interactive Required Toggle, & Action Buttons */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        flexWrap: "wrap",
+                        gap: 10,
+                      }}
+                    >
+                      {/* Left: Drag Handle, Number Badge, Field Type Badge */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <div
+                          style={{
+                            cursor: "grab",
+                            color: "#94a3b8",
+                            display: "flex",
+                            alignItems: "center",
+                            padding: "2px 4px",
+                            borderRadius: "4px",
+                            background: "#f8fafc",
+                          }}
+                          title="Tahan dan geser untuk mengubah urutan pertanyaan"
+                        >
+                          <GripVertical size={16} />
+                        </div>
 
-                  <div style={{ width: 24, textAlign: "center", fontWeight: 700, fontSize: "13px", color: "var(--text-muted)" }}>
-                    {index + 1}.
-                  </div>
-
-                  <div style={{ flex: "1 1 240px", minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          padding: "2px 8px",
-                          borderRadius: "12px",
-                          background: field.fieldType === "image" ? "rgba(185, 28, 28, 0.1)" : "#f1f5f9",
-                          color: field.fieldType === "image" ? "var(--primary-700, #b91c1c)" : "#475569",
-                          border: field.fieldType === "image" ? "1px solid rgba(185, 28, 28, 0.2)" : "none",
-                        }}
-                      >
-                        {getFieldTypeLabel(field.fieldType)}
-                      </span>
-                      {field.required ? (
+                        {/* Order Number Chip (Merah MB Chondro) */}
                         <span
                           style={{
                             fontSize: "11px",
                             fontWeight: 700,
-                            padding: "2px 7px",
-                            borderRadius: "12px",
-                            background: "rgba(220, 38, 38, 0.1)",
+                            padding: "2px 8px",
+                            borderRadius: "6px",
+                            background: "linear-gradient(135deg, #c8101e 0%, #a41111 100%)",
+                            color: "#ffffff",
+                            letterSpacing: "0.5px",
+                            boxShadow: "0 1px 3px rgba(185, 28, 28, 0.3)",
+                          }}
+                        >
+                          #{String(actualIndex + 1).padStart(2, "0")}
+                        </span>
+
+                        {/* Field Type Badge */}
+                        <span
+                          style={{
+                            fontSize: "11.5px",
+                            fontWeight: 600,
+                            padding: "3px 9px",
+                            borderRadius: "14px",
+                            background: meta.badgeBg,
+                            color: meta.badgeColor,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            border: `1px solid ${meta.accentBorder}`,
+                          }}
+                        >
+                          <span>{meta.icon}</span>
+                          <span>{meta.label}</span>
+                        </span>
+
+                        {/* Interactive Direct Toggle for Required/Optional */}
+                        <button
+                          type="button"
+                          onClick={() => handleQuickToggleRequired(field)}
+                          title="Klik untuk mengubah status Wajib / Opsional langsung"
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            padding: "2px 8px",
+                            borderRadius: "14px",
+                            border: field.required ? "1px solid rgba(220, 38, 38, 0.3)" : "1px solid #cbd5e1",
+                            background: field.required ? "rgba(220, 38, 38, 0.08)" : "#f8fafc",
+                            color: field.required ? "#dc2626" : "#64748b",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              background: field.required ? "#dc2626" : "#94a3b8",
+                            }}
+                          />
+                          {field.required ? "Wajib Diisi" : "Opsional"}
+                          <span style={{ fontSize: "9px", opacity: 0.7 }}>⇄</span>
+                        </button>
+
+                        {/* Example Image Indicator */}
+                        {(field.fieldType === "image" || field.fieldType === "file") &&
+                          Boolean(field.exampleImageUrl && field.exampleImageUrl.trim()) && (
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                padding: "2px 8px",
+                                borderRadius: "12px",
+                                background: "rgba(185, 28, 28, 0.08)",
+                                color: "var(--primary-700, #b91c1c)",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 3,
+                                border: "1px solid rgba(185, 28, 28, 0.2)",
+                              }}
+                            >
+                              <ImageIcon size={11} /> Ada Panduan Foto
+                            </span>
+                          )}
+                      </div>
+
+                      {/* Right: Quick Action Buttons */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => moveField(actualIndex, "up")}
+                          disabled={actualIndex === 0}
+                          title="Geser urutan ke atas"
+                          style={{
+                            padding: "4px 6px",
+                            color: actualIndex === 0 ? "#cbd5e1" : "var(--navy-900)",
+                          }}
+                        >
+                          <ChevronUp size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => moveField(actualIndex, "down")}
+                          disabled={actualIndex === sortedFields.length - 1}
+                          title="Geser urutan ke bawah"
+                          style={{
+                            padding: "4px 6px",
+                            color: actualIndex === sortedFields.length - 1 ? "#cbd5e1" : "var(--navy-900)",
+                          }}
+                        >
+                          <ChevronDown size={15} />
+                        </button>
+
+                        {/* 1-Click Duplicate Button */}
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => handleDuplicateField(field)}
+                          title="Duplikat pertanyaan ini"
+                          style={{
+                            padding: "4px 8px",
+                            color: "#475569",
+                            fontSize: "12px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <Copy size={13} />
+                          <span className="hidden-mobile">Salin</span>
+                        </button>
+
+                        {/* Edit Button */}
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => openEditField(field)}
+                          title="Edit konfigurasi pertanyaan"
+                          style={{
+                            padding: "4px 10px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            color: "var(--primary-700, #b91c1c)",
+                            borderColor: "rgba(185, 28, 28, 0.3)",
+                            background: "var(--primary-50, #fef2f2)",
+                          }}
+                        >
+                          <Pencil size={12} /> Edit
+                        </button>
+
+                        {/* Delete Button */}
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setDeletingField(field)}
+                          title="Hapus pertanyaan ini"
+                          style={{
+                            padding: "4px 6px",
                             color: "#dc2626",
                           }}
                         >
-                          * Wajib
-                        </span>
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Middle: Question Label & Description */}
+                    <div>
+                      <h4
+                        style={{
+                          margin: 0,
+                          fontSize: "14px",
+                          fontWeight: 700,
+                          color: "var(--navy-900, #0f172a)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        {field.label}
+                        {field.required && <span style={{ color: "#dc2626" }}>*</span>}
+                      </h4>
+                      {field.description ? (
+                        <p
+                          style={{
+                            margin: "3px 0 0",
+                            fontSize: "12px",
+                            color: "var(--text-muted, #64748b)",
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {field.description}
+                        </p>
                       ) : (
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 500,
-                            padding: "2px 7px",
-                            borderRadius: "12px",
-                            background: "#f8fafc",
-                            color: "var(--text-muted)",
-                          }}
-                        >
-                          Opsional
-                        </span>
-                      )}
-                      {(field.fieldType === "image" || field.fieldType === "file") &&
-                        Boolean(field.exampleImageUrl && field.exampleImageUrl.trim()) && (
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            padding: "2px 7px",
-                            borderRadius: "12px",
-                            background: "rgba(37, 99, 235, 0.1)",
-                            color: "#2563eb",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 3,
-                          }}
-                        >
-                          <ImageIcon size={12} /> Lampiran Contoh
+                        <span style={{ fontSize: "11px", color: "#94a3b8", fontStyle: "italic" }}>
+                          (Tidak ada deskripsi petunjuk)
                         </span>
                       )}
                     </div>
-                    <strong style={{ fontSize: "14px", color: "var(--navy-900)" }}>{field.label}</strong>
-                    {field.description && (
-                      <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--text-muted)" }}>{field.description}</p>
-                    )}
-                    {field.options && field.options.length > 0 && (
-                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
-                        {field.options.map((opt, i) => (
-                          <span
-                            key={i}
-                            style={{
-                              fontSize: "11.5px",
-                              background: "#f8fafc",
-                              border: "1px solid #e2e8f0",
-                              borderRadius: "4px",
-                              padding: "1px 6px",
-                              color: "#475569",
-                            }}
-                          >
-                            {opt.label || opt.value}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Actions for each field */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginLeft: "auto" }}>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => moveField(index, "up")}
-                      disabled={index === 0}
-                      title="Pindahkan ke atas"
-                      style={{ padding: "6px", color: index === 0 ? "#cbd5e1" : "var(--navy-900)" }}
-                    >
-                      <ChevronUp size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => moveField(index, "down")}
-                      disabled={index === sortedFields.length - 1}
-                      title="Pindahkan ke bawah"
-                      style={{ padding: "6px", color: index === sortedFields.length - 1 ? "#cbd5e1" : "var(--navy-900)" }}
-                    >
-                      <ChevronDown size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-sm"
-                      onClick={() => openEditField(field)}
-                      title="Edit Pertanyaan"
+                    {/* Bottom: Live Interactive Mini Mockup Simulation (Visualisasi Nyata bagi Calon Anggota) */}
+                    <div
                       style={{
-                        padding: "5px 12px",
-                        fontSize: "12.5px",
-                        fontWeight: 600,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 5,
-                        color: "var(--primary-700, #b91c1c)",
-                        borderColor: "rgba(185, 28, 28, 0.3)",
+                        background: meta.accentBg,
+                        border: `1px solid ${meta.accentBorder}`,
+                        borderRadius: "8px",
+                        padding: "10px 12px",
+                        marginTop: 2,
                       }}
                     >
-                      <Pencil size={13} /> Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setDeletingField(field)}
-                      title="Hapus Pertanyaan"
-                      style={{ padding: "6px", color: "#dc2626" }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          marginBottom: 6,
+                        }}
+                      >
+                        <span style={{ fontSize: "10.5px", fontWeight: 700, color: meta.accentColor, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          Pratinjau Isian Pendaftar:
+                        </span>
+                        {field.placeholder && (
+                          <span style={{ fontSize: "11px", color: "#64748b" }}>
+                            Placeholder: &ldquo;{field.placeholder}&rdquo;
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Mockup based on field type */}
+                      {field.fieldType === "text" || field.fieldType === "number" ? (
+                        <div
+                          style={{
+                            background: "#ffffff",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "6px",
+                            padding: "6px 10px",
+                            fontSize: "12px",
+                            color: "#94a3b8",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <span>{field.placeholder || meta.previewPlaceholder}</span>
+                          <span style={{ fontSize: "10px", color: "#cbd5e1" }}>{field.fieldType === "number" ? "123" : "Aa"}</span>
+                        </div>
+                      ) : field.fieldType === "textarea" ? (
+                        <div
+                          style={{
+                            background: "#ffffff",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "6px",
+                            padding: "8px 10px",
+                            fontSize: "12px",
+                            color: "#94a3b8",
+                            minHeight: 48,
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {field.placeholder || meta.previewPlaceholder}
+                        </div>
+                      ) : field.fieldType === "date" ? (
+                        <div
+                          style={{
+                            background: "#ffffff",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "6px",
+                            padding: "6px 10px",
+                            fontSize: "12px",
+                            color: "#94a3b8",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 8,
+                            width: 170,
+                          }}
+                        >
+                          <span>📅</span>
+                          <span>DD / MM / YYYY</span>
+                        </div>
+                      ) : field.fieldType === "radio" || field.fieldType === "checkbox" ? (
+                        <div>
+                          {field.options && field.options.length > 0 ? (
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                              {field.options.map((opt, i) => (
+                                <span
+                                  key={i}
+                                  style={{
+                                    fontSize: "11.5px",
+                                    fontWeight: 500,
+                                    background: "#ffffff",
+                                    border: "1px solid #cbd5e1",
+                                    borderRadius: "16px",
+                                    padding: "3px 10px",
+                                    color: "#334155",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 5,
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      width: 10,
+                                      height: 10,
+                                      borderRadius: field.fieldType === "radio" ? "50%" : "2px",
+                                      border: "1.5px solid #94a3b8",
+                                      display: "inline-block",
+                                    }}
+                                  />
+                                  {opt.label || opt.value}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: "11.5px", color: "#dc2626", fontStyle: "italic" }}>
+                              ⚠️ Belum ada opsi pilihan yang ditambahkan. Klik tombol &ldquo;Edit&rdquo; untuk menambahkan opsi.
+                            </span>
+                          )}
+                        </div>
+                      ) : field.fieldType === "select" ? (
+                        <div
+                          style={{
+                            background: "#ffffff",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "6px",
+                            padding: "6px 10px",
+                            fontSize: "12px",
+                            color: "#475569",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            maxWidth: 320,
+                          }}
+                        >
+                          <span>
+                            {field.options && field.options.length > 0
+                              ? `-- Pilih salah satu (${field.options.length} opsi tersedia) --`
+                              : "-- Belum ada opsi dropdown --"}
+                          </span>
+                          <ChevronDown size={14} style={{ color: "#94a3b8" }} />
+                        </div>
+                      ) : field.fieldType === "image" ? (
+                        <div
+                          style={{
+                            background: "#ffffff",
+                            border: "1.5px dashed var(--primary-700, #b91c1c)",
+                            borderRadius: "8px",
+                            padding: "10px 14px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            flexWrap: "wrap",
+                            gap: 8,
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div
+                              style={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: "6px",
+                                background: "rgba(185, 28, 28, 0.1)",
+                                color: "var(--primary-700, #b91c1c)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <Camera size={18} />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--navy-900)" }}>
+                                Area Upload Pas Foto Calon Anggota
+                              </div>
+                              <div style={{ fontSize: "11px", color: "#64748b" }}>
+                                Format: JPG, PNG, WEBP (Otomatis Kompresi HD aman kuota)
+                              </div>
+                            </div>
+                          </div>
+                          {field.exampleImageUrl ? (
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                padding: "3px 8px",
+                                borderRadius: "6px",
+                                background: "#eff6ff",
+                                color: "#1d4ed8",
+                                border: "1px solid #bfdbfe",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                              }}
+                            >
+                              <Eye size={11} /> {field.exampleImageTitle || "Ada Contoh Foto"}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+                              Belum ada lampiran contoh
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            background: "#ffffff",
+                            border: "1.5px dashed var(--primary-700, #b91c1c)",
+                            borderRadius: "8px",
+                            padding: "10px 14px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 34,
+                              height: 34,
+                              borderRadius: "6px",
+                              background: "rgba(185, 28, 28, 0.08)",
+                              color: "var(--primary-700, #b91c1c)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <FileText size={18} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--navy-900)" }}>
+                              Area Upload Berkas / Dokumen
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#64748b" }}>
+                              Maks: {field.maxFileSize || 5}MB &bull; Format: {field.allowedFileTypes || "PDF, JPG, PNG"}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

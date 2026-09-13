@@ -643,7 +643,7 @@ export function PublicForm() {
             color: "#ffffff",
             borderRadius: "16px 16px 0 0",
             padding: "28px 24px",
-            boxShadow: "0 4px 14px rgba(185, 28, 28, 0.2)",
+            boxShadow: "0 6px 20px rgba(185, 28, 28, 0.22)",
             position: "relative",
             overflow: "hidden",
           }}
@@ -665,7 +665,7 @@ export function PublicForm() {
               src={logo}
               alt="Logo MB Chondro"
               style={{
-                height: 52,
+                height: 54,
                 width: "auto",
                 objectFit: "contain",
                 filter: "drop-shadow(0 2px 8px rgba(0, 0, 0, 0.25))",
@@ -700,10 +700,10 @@ export function PublicForm() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 10,
               marginTop: 18,
               paddingTop: 14,
-              borderTop: "1px solid rgba(255, 255, 255, 0.15)",
+              borderTop: "1px solid rgba(255, 255, 255, 0.18)",
               fontSize: "12.5px",
             }}
           >
@@ -711,51 +711,51 @@ export function PublicForm() {
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 5,
+                gap: 6,
                 fontWeight: !isPreviewing ? 700 : 500,
-                color: !isPreviewing ? "#ffffff" : "rgba(255, 255, 255, 0.7)",
+                color: !isPreviewing ? "#ffffff" : "rgba(255, 255, 255, 0.75)",
               }}
             >
               <span
                 style={{
-                  width: 20,
-                  height: 20,
+                  width: 22,
+                  height: 22,
                   borderRadius: "50%",
                   background: !isPreviewing ? "#ffffff" : "rgba(255, 255, 255, 0.25)",
                   color: !isPreviewing ? "var(--primary-700, #b91c1c)" : "#ffffff",
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "11px",
-                  fontWeight: 700,
+                  fontSize: "11.5px",
+                  fontWeight: 800,
                 }}
               >
                 1
               </span>
-              Isi Data
+              Isi Data & Berkas
             </span>
             <span style={{ opacity: 0.4 }}>›</span>
             <span
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 5,
+                gap: 6,
                 fontWeight: isPreviewing ? 700 : 500,
-                color: isPreviewing ? "#ffffff" : "rgba(255, 255, 255, 0.7)",
+                color: isPreviewing ? "#ffffff" : "rgba(255, 255, 255, 0.75)",
               }}
             >
               <span
                 style={{
-                  width: 20,
-                  height: 20,
+                  width: 22,
+                  height: 22,
                   borderRadius: "50%",
                   background: isPreviewing ? "#ffffff" : "rgba(255, 255, 255, 0.25)",
                   color: isPreviewing ? "var(--primary-700, #b91c1c)" : "#ffffff",
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "11px",
-                  fontWeight: 700,
+                  fontSize: "11.5px",
+                  fontWeight: 800,
                 }}
               >
                 2
@@ -778,7 +778,7 @@ export function PublicForm() {
         >
           {/* STEP 1: FORM INPUTS */}
           {!isPreviewing ? (
-            <form onSubmit={handleGoToPreview} style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+            <form onSubmit={handleGoToPreview} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               {sortedFields.map((field, idx) => {
                 const answer = answers.find((a) => a.fieldId === field.id);
                 const hasError = Boolean(errors[field.id]);
@@ -791,20 +791,20 @@ export function PublicForm() {
                       display: "flex",
                       flexDirection: "column",
                       gap: 6,
-                      padding: "16px",
-                      background: hasError ? "rgba(239, 68, 68, 0.03)" : "#ffffff",
-                      borderRadius: 10,
-                      border: hasError ? "1px solid #fca5a5" : "1px solid #e2e8f0",
+                      padding: "16px 18px",
+                      background: hasError ? "rgba(239, 68, 68, 0.03)" : "#fcfcfd",
+                      borderRadius: 12,
+                      border: hasError ? "1.5px solid #fca5a5" : "1px solid #e2e8f0",
                       transition: "all 0.15s ease",
                     }}
                   >
-                    <label style={{ fontSize: "13.5px", fontWeight: 600, color: "var(--navy-900)" }}>
+                    <label style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy-900)" }}>
                       {idx + 1}. {field.label}{" "}
                       {field.required && <span style={{ color: "#dc2626" }}>*</span>}
                     </label>
 
                     {field.description && (
-                      <p style={{ margin: "0 0 4px", fontSize: "12px", color: "var(--text-muted)" }}>
+                      <p style={{ margin: "0 0 4px", fontSize: "12.5px", color: "var(--text-muted)", lineHeight: 1.5 }}>
                         {field.description}
                       </p>
                     )}
@@ -866,7 +866,7 @@ export function PublicForm() {
                         value={answer?.value || ""}
                         onChange={(e) => handleChange(field.id, e.target.value)}
                         placeholder={field.placeholder || "Ketik jawaban Anda di sini"}
-                        style={{ height: 44, padding: "10px 14px", fontSize: "16px", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", WebkitAppearance: "none" }}
+                        style={{ height: 44, padding: "10px 14px", fontSize: "14px", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff", WebkitAppearance: "none" }}
                       />
                     )}
 
@@ -877,7 +877,7 @@ export function PublicForm() {
                         value={answer?.value || ""}
                         onChange={(e) => handleChange(field.id, e.target.value)}
                         placeholder={field.placeholder || "Tuliskan jawaban lengkap Anda"}
-                        style={{ padding: "10px 14px", fontSize: "16px", resize: "vertical", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", WebkitAppearance: "none" }}
+                        style={{ padding: "10px 14px", fontSize: "14px", resize: "vertical", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff", WebkitAppearance: "none" }}
                       />
                     )}
 
@@ -888,7 +888,7 @@ export function PublicForm() {
                         value={answer?.value || ""}
                         onChange={(e) => handleChange(field.id, e.target.value)}
                         placeholder={field.placeholder || "Masukkan angka"}
-                        style={{ height: 44, padding: "10px 14px", fontSize: "16px", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", WebkitAppearance: "none" }}
+                        style={{ height: 44, padding: "10px 14px", fontSize: "14px", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff", WebkitAppearance: "none" }}
                       />
                     )}
 
@@ -898,7 +898,7 @@ export function PublicForm() {
                         type="date"
                         value={answer?.value || ""}
                         onChange={(e) => handleChange(field.id, e.target.value)}
-                        style={{ height: 44, padding: "10px 14px", fontSize: "16px", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", WebkitAppearance: "none" }}
+                        style={{ height: 44, padding: "10px 14px", fontSize: "14px", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff", WebkitAppearance: "none" }}
                       />
                     )}
 
@@ -907,7 +907,7 @@ export function PublicForm() {
                       <select
                         value={answer?.value || ""}
                         onChange={(e) => handleChange(field.id, e.target.value)}
-                        style={{ height: 44, padding: "10px 14px", fontSize: "16px", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff" }}
+                        style={{ height: 44, padding: "10px 14px", fontSize: "14px", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff" }}
                       >
                         <option value="">-- Pilih salah satu --</option>
                         {(field.options || []).map((opt) => (
@@ -921,34 +921,39 @@ export function PublicForm() {
                     {/* INPUT: RADIO */}
                     {field.fieldType === "radio" && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
-                        {(field.options || []).map((opt) => (
-                          <label
-                            key={opt.value}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 12,
-                              padding: "12px 14px",
-                              background: answer?.value === opt.value ? "rgba(185, 28, 28, 0.06)" : "#f8fafc",
-                              borderRadius: 8,
-                              border: answer?.value === opt.value ? "1.5px solid var(--primary-700, #b91c1c)" : "1px solid #e2e8f0",
-                              cursor: "pointer",
-                              fontSize: "14px",
-                              fontWeight: answer?.value === opt.value ? 600 : 400,
-                              WebkitTapHighlightColor: "transparent",
-                            }}
-                          >
-                            <input
-                              type="radio"
-                              name={`radio-${field.id}`}
-                              value={opt.value}
-                              checked={answer?.value === opt.value}
-                              onChange={() => handleChange(field.id, opt.value)}
-                              style={{ width: 18, height: 18, accentColor: "var(--primary-700, #b91c1c)", cursor: "pointer" }}
-                            />
-                            <span style={{ flex: 1 }}>{opt.label || opt.value}</span>
-                          </label>
-                        ))}
+                        {(field.options || []).map((opt) => {
+                          const isSelected = answer?.value === opt.value;
+                          return (
+                            <label
+                              key={opt.value}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 12,
+                                padding: "12px 14px",
+                                background: isSelected ? "rgba(185, 28, 28, 0.06)" : "#ffffff",
+                                borderRadius: 8,
+                                border: isSelected ? "1.5px solid var(--primary-700, #b91c1c)" : "1px solid #e2e8f0",
+                                cursor: "pointer",
+                                fontSize: "13.5px",
+                                fontWeight: isSelected ? 600 : 400,
+                                color: isSelected ? "var(--navy-900)" : "#334155",
+                                transition: "all 0.15s ease",
+                                WebkitTapHighlightColor: "transparent",
+                              }}
+                            >
+                              <input
+                                type="radio"
+                                name={`radio-${field.id}`}
+                                value={opt.value}
+                                checked={isSelected}
+                                onChange={() => handleChange(field.id, opt.value)}
+                                style={{ width: 18, height: 18, accentColor: "var(--primary-700, #b91c1c)", cursor: "pointer" }}
+                              />
+                              <span style={{ flex: 1 }}>{opt.label || opt.value}</span>
+                            </label>
+                          );
+                        })}
                       </div>
                     )}
 
@@ -968,12 +973,14 @@ export function PublicForm() {
                                 alignItems: "center",
                                 gap: 12,
                                 padding: "12px 14px",
-                                background: isChecked ? "rgba(185, 28, 28, 0.06)" : "#f8fafc",
+                                background: isChecked ? "rgba(185, 28, 28, 0.06)" : "#ffffff",
                                 borderRadius: 8,
                                 border: isChecked ? "1.5px solid var(--primary-700, #b91c1c)" : "1px solid #e2e8f0",
                                 cursor: "pointer",
-                                fontSize: "14px",
+                                fontSize: "13.5px",
                                 fontWeight: isChecked ? 600 : 400,
+                                color: isChecked ? "var(--navy-900)" : "#334155",
+                                transition: "all 0.15s ease",
                                 WebkitTapHighlightColor: "transparent",
                               }}
                             >
@@ -991,7 +998,6 @@ export function PublicForm() {
                       </div>
                     )}
 
-
                     {/* INPUT: UPLOAD FOTO / DOKUMEN */}
                     {(field.fieldType === "image" || field.fieldType === "file") && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
@@ -1003,8 +1009,8 @@ export function PublicForm() {
                               alignItems: "center",
                               justifyContent: "center",
                               gap: 8,
-                              padding: "20px 16px",
-                              background: "#f8fafc",
+                              padding: "22px 16px",
+                              background: "#ffffff",
                               borderRadius: 10,
                               border: "2px dashed #cbd5e1",
                               cursor: "pointer",
@@ -1013,8 +1019,8 @@ export function PublicForm() {
                           >
                             <div
                               style={{
-                                width: 42,
-                                height: 42,
+                                width: 44,
+                                height: 44,
                                 borderRadius: "50%",
                                 background: "rgba(185, 28, 28, 0.08)",
                                 color: "var(--primary-700, #b91c1c)",
@@ -1023,12 +1029,12 @@ export function PublicForm() {
                                 justifyContent: "center",
                               }}
                             >
-                              <Upload size={20} />
+                              <Upload size={22} />
                             </div>
-                            <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--navy-900)" }}>
-                              {field.fieldType === "image" ? "Pilih & Unggah Foto" : "Pilih Berkas Dokumen"}
+                            <span style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--navy-900)" }}>
+                              {field.fieldType === "image" ? "Pilih & Unggah Pas Foto" : "Pilih Berkas Dokumen"}
                             </span>
-                            <span style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
+                            <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                               {field.fieldType === "image"
                                 ? `Format JPG, PNG, WEBP (Maksimal ${field.maxFileSize || 2} MB)`
                                 : `Format PDF, JPG, PNG (Maksimal ${field.maxFileSize || 5} MB)`}
@@ -1070,8 +1076,8 @@ export function PublicForm() {
                                     )
                                   }
                                   style={{
-                                    width: 54,
-                                    height: 54,
+                                    width: 56,
+                                    height: 56,
                                     objectFit: "cover",
                                     borderRadius: 6,
                                     border: "1px solid #86efac",
@@ -1124,7 +1130,7 @@ export function PublicForm() {
 
                     {/* Error message */}
                     {hasError && (
-                      <span style={{ fontSize: "12px", color: "#dc2626", fontWeight: 500, marginTop: 2 }}>
+                      <span style={{ fontSize: "12px", color: "#dc2626", fontWeight: 600, marginTop: 2 }}>
                         {errors[field.id]}
                       </span>
                     )}
@@ -1137,14 +1143,14 @@ export function PublicForm() {
                   type="submit"
                   className="btn btn-primary"
                   style={{
-                    padding: "12px 24px",
+                    padding: "12px 28px",
                     fontSize: "14px",
-                    fontWeight: 600,
+                    fontWeight: 700,
                     borderRadius: "8px",
-                    minWidth: "160px",
+                    minWidth: "180px",
                   }}
                 >
-                  <Eye size={16} /> Pratinjau Jawaban
+                  <Eye size={16} /> Pratinjau Jawaban ➔
                 </button>
               </div>
             </form>
@@ -1153,7 +1159,7 @@ export function PublicForm() {
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <div
                 style={{
-                  padding: "14px 16px",
+                  padding: "14px 18px",
                   background: "#eff6ff",
                   borderRadius: 10,
                   border: "1px solid #bfdbfe",
@@ -1163,7 +1169,7 @@ export function PublicForm() {
               >
                 <strong>🔎 Tinjau Data Pendaftaran Anda</strong>
                 <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "#1d4ed8" }}>
-                  Pastikan seluruh data dan berkas yang Anda masukkan sudah benar sebelum menekan tombol Kirim.
+                  Pastikan seluruh data dan berkas yang Anda masukkan sudah benar sebelum menekan tombol Kirim Formulir.
                 </p>
               </div>
 
@@ -1283,7 +1289,7 @@ export function PublicForm() {
                   style={{
                     padding: "12px 28px",
                     fontSize: "14px",
-                    fontWeight: 600,
+                    fontWeight: 700,
                     borderRadius: "8px",
                     flex: "1 1 auto",
                   }}

@@ -28,7 +28,7 @@ import { getRekrutmenImageBase64Item } from "./api";
 // DESIGN SYSTEM PDF MB CHONDRO — "OFFICIAL ORGANIZATION REPORT"
 // ============================================================
 // Satu template global untuk SEMUA jenis laporan:
-//   - Kertas F4 / Folio 215.9 × 330.2 mm (portrait / landscape otomatis)
+//   - Kertas A4 (ISO 216) 210 × 297 mm (Landscape / Portrait)
 //   - Font: Poppins (Regular, SemiBold, Bold) di-embed saat runtime (fallback Helvetica)
 //   - Kop Resmi 2-Tahap:
 //       1. Identitas Organisasi (Logo + MB CHONDRO + SISTEM MANAJEMEN) di kiri, Periode & Cetak di kanan
@@ -111,8 +111,8 @@ function semiboldStyle(): string {
   return fontFamily === "Poppins" ? "semibold" : "bold";
 }
 
-// Standar Ukuran Kertas F4 / Folio (Indonesia): 215 × 330 mm (21.5 cm × 33.0 cm)
-const F4: [number, number] = [215, 330];
+// Standar Ukuran Kertas A4 (ISO 216): 210 × 297 mm
+const A4: [number, number] = [210, 297];
 
 const MARGIN = 16;
 const MARGIN_BOTTOM = 16;
@@ -277,7 +277,10 @@ async function drawFullHeader(
 
   // --- 2. JUDUL & SUBTITLE LAPORAN (DI BAWAH GARIS KOP) ---
   let currentY = lineY + 7;
-  const reportTitle = `LAPORAN ${judul.toUpperCase()}`;
+  const cleanJudul = judul.trim().toUpperCase();
+  const reportTitle = cleanJudul.startsWith("LAPORAN")
+    ? cleanJudul
+    : `LAPORAN ${cleanJudul}`;
 
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(FONT_TITLE);
@@ -515,8 +518,8 @@ async function createPdf(
   periode: string,
   opts: CreatePdfOptions
 ) {
-  const orientation = opts.orientation ?? "portrait";
-  const doc = new jsPDF({ orientation, unit: "mm", format: F4 });
+  const orientation = opts.orientation ?? "landscape";
+  const doc = new jsPDF({ orientation, unit: "mm", format: A4 });
   const fontSize = opts.tableFontSize ?? FONT_TABLE;
   await ensureFonts(doc);
 
@@ -600,7 +603,7 @@ async function createPdf(
     let y = lastY + 8;
 
     if (ft.startNewPage || y + 24 > pageH - MARGIN_BOTTOM) {
-      doc.addPage(F4, orientation);
+      doc.addPage(A4, orientation);
       drawCompactHeader(doc);
       y = 20;
     }
@@ -630,7 +633,7 @@ async function createPdf(
 }
 
 // ============================================================
-// 1. LAPORAN DATA ANGGOTA (Portrait F4)
+// 1. LAPORAN DATA ANGGOTA (Landscape A4)
 // ============================================================
 export async function laporanAnggota(anggota: Anggota[], periode: string) {
   const aktif = anggota.filter((a) => a.status === "Aktif").length;
@@ -647,24 +650,29 @@ export async function laporanAnggota(anggota: Anggota[], periode: string) {
     a.keterangan || "-",
   ]);
 
-  await createPdf("DATA ANGGOTA", "Rekapitulasi data seluruh anggota MB Chondro", periode, {
-    orientation: "portrait",
-    columns: ["No", "Nama Lengkap", "Divisi", "No. WhatsApp / HP", "Status", "Tgl Bergabung", "Keterangan"],
-    rows,
-    summary: [
-      { label: "Total Anggota", value: `${anggota.length}` },
-      { label: "Aktif", value: `${aktif}` },
-      { label: "Cuti", value: `${cuti}` },
-      { label: "Tidak Aktif", value: `${tidakAktif}` },
-    ],
-    columnWidthRatios: [8, 38, 24, 24, 18, 22, 28],
-    columnAligns: ["center", "left", "left", "center", "center", "center", "left"],
-    fileName: `Laporan-data-anggota-${new Date().toISOString().slice(0, 10)}.pdf`,
-  });
+  await createPdf(
+    "DATA ANGGOTA MB CHONDRO",
+    "Rekapitulasi data seluruh anggota aktif dan kepengurusan MB Chondro",
+    periode,
+    {
+      orientation: "landscape",
+      columns: ["No", "Nama Lengkap", "Divisi", "No. WhatsApp / HP", "Status", "Tgl Bergabung", "Keterangan"],
+      rows,
+      summary: [
+        { label: "Total Anggota", value: `${anggota.length} Orang` },
+        { label: "Anggota Aktif", value: `${aktif} Orang` },
+        { label: "Status Cuti", value: `${cuti} Orang` },
+        { label: "Tidak Aktif", value: `${tidakAktif} Orang` },
+      ],
+      columnWidthRatios: [10, 52, 32, 36, 26, 34, 75],
+      columnAligns: ["center", "left", "left", "center", "center", "center", "left"],
+      fileName: `Laporan-data-anggota-${new Date().toISOString().slice(0, 10)}.pdf`,
+    }
+  );
 }
 
 // ============================================================
-// 2. LAPORAN RIWAYAT ABSENSI CATATAN (Landscape F4)
+// 2. LAPORAN RIWAYAT ABSENSI CATATAN (Landscape A4)
 // ============================================================
 export async function laporanAbsensi(absensi: Absensi[], periode: string) {
   const stat = hitungStatKehadiran(absensi);
@@ -681,26 +689,31 @@ export async function laporanAbsensi(absensi: Absensi[], periode: string) {
       a.keterangan || "-",
     ]);
 
-  await createPdf("RIWAYAT ABSENSI", "Catatan riwayat kehadiran anggota per sesi kegiatan", periode, {
-    orientation: "landscape",
-    columns: ["No", "Nama Lengkap", "Tanggal", "Kegiatan", "Waktu", "Status", "Keterangan"],
-    rows,
-    summary: [
-      { label: "Total Hadir", value: `${stat.hadir}` },
-      { label: "Total Izin", value: `${stat.izin}` },
-      { label: "Total Sakit", value: `${stat.sakit}` },
-      { label: "Total Cuti", value: `${stat.cuti}` },
-      { label: "Total Alpa", value: `${stat.alpa}` },
-      { label: "Persentase Kehadiran", value: `${stat.persentase}%` },
-    ],
-    columnWidthRatios: [8, 48, 22, 54, 18, 18, 44],
-    columnAligns: ["center", "left", "center", "left", "center", "center", "left"],
-    fileName: `Laporan-riwayat-absensi-${new Date().toISOString().slice(0, 10)}.pdf`,
-  });
+  await createPdf(
+    "RIWAYAT PRESENSI MB CHONDRO",
+    "Catatan riwayat kehadiran anggota per sesi kegiatan MB Chondro",
+    periode,
+    {
+      orientation: "landscape",
+      columns: ["No", "Nama Lengkap", "Tanggal", "Kegiatan", "Waktu", "Status", "Keterangan"],
+      rows,
+      summary: [
+        { label: "Total Hadir", value: `${stat.hadir} Sesi` },
+        { label: "Total Izin", value: `${stat.izin} Sesi` },
+        { label: "Total Sakit", value: `${stat.sakit} Sesi` },
+        { label: "Total Cuti", value: `${stat.cuti} Sesi` },
+        { label: "Total Alpa", value: `${stat.alpa} Sesi` },
+        { label: "Persentase Kehadiran", value: `${stat.persentase}%` },
+      ],
+      columnWidthRatios: [10, 52, 28, 62, 24, 26, 63],
+      columnAligns: ["center", "left", "center", "left", "center", "center", "left"],
+      fileName: `Laporan-riwayat-absensi-${new Date().toISOString().slice(0, 10)}.pdf`,
+    }
+  );
 }
 
 // ============================================================
-// 3. LAPORAN REKAP KEHADIRAN MATRIKS (Landscape/Portrait F4)
+// 3. LAPORAN REKAP KEHADIRAN MATRIKS (Landscape A4)
 // ============================================================
 export async function laporanAbsensiRekap(
   anggota: Anggota[],
@@ -770,27 +783,24 @@ export async function laporanAbsensiRekap(
   });
 
   const stat = hitungStatKehadiran(absensi);
-  const countDate = Math.max(kolomKunci.length, 1);
-  const isLandscape = countDate > 5;
-
   const dateRatio = 8;
-  const columnWidthRatios = [8, 52, 24, ...kolomKunci.map(() => dateRatio)];
+  const columnWidthRatios = [10, 52, 28, ...kolomKunci.map(() => dateRatio)];
 
-  await createPdf("REKAPITULASI ABSENSI", "Matriks rekap kehadiran anggota per kegiatan & tanggal", periode, {
-    orientation: isLandscape ? "landscape" : "portrait",
+  await createPdf("REKAPITULASI PRESENSI MB CHONDRO", "Matriks rekap kehadiran anggota per kegiatan & tanggal", periode, {
+    orientation: "landscape",
     columns: ["No", "Nama Anggota", "Divisi", ...kolomHeader],
     rows,
     summary: [
-      { label: "Total Anggota", value: `${anggota.length}` },
-      { label: "Total Hadir", value: `${stat.hadir}` },
-      { label: "Total Izin", value: `${stat.izin}` },
-      { label: "Total Sakit", value: `${stat.sakit}` },
-      { label: "Total Cuti", value: `${stat.cuti}` },
-      { label: "Total Alpa", value: `${stat.alpa}` },
+      { label: "Total Anggota", value: `${anggota.length} Orang` },
+      { label: "Total Hadir", value: `${stat.hadir} Sesi` },
+      { label: "Total Izin", value: `${stat.izin} Sesi` },
+      { label: "Total Sakit", value: `${stat.sakit} Sesi` },
+      { label: "Total Cuti", value: `${stat.cuti} Sesi` },
+      { label: "Total Alpa", value: `${stat.alpa} Sesi` },
       { label: "Persentase Kehadiran", value: `${stat.persentase}%` },
     ],
     drawSummaryCustom: drawAbsensiRekapSummary,
-    tableFontSize: Math.max(7, Math.min(FONT_TABLE, isLandscape ? 8 : 7.5)),
+    tableFontSize: Math.max(7, Math.min(FONT_TABLE, 8)),
     columnWidthRatios,
     columnAligns: ["center", "left", "left", ...kolomKunci.map<Align>(() => "center")],
     fileName: `Laporan-rekap-absensi-${new Date().toISOString().slice(0, 10)}.pdf`,
@@ -807,18 +817,18 @@ export async function laporanAbsensiRekap(
     },
     footerTable: {
       title: "REKAPITULASI TOTAL KEHADIRAN PER ANGGOTA",
-      columns: ["No", "Nama Anggota", "Hadir", "Izin", "Sakit", "Cuti", "Alpa", "Total"],
+      columns: ["No", "Nama Anggota", "Hadir", "Izin", "Sakit", "Cuti", "Alpa", "Total Kehadiran"],
       rows: rekapRows,
       tableFontSize: FONT_TABLE,
       startNewPage: true,
-      columnWidthRatios: [10, 60, 18, 18, 18, 18, 18, 20],
+      columnWidthRatios: [10, 65, 24, 24, 24, 24, 24, 30],
       columnAligns: ["center", "left", "center", "center", "center", "center", "center", "center"],
     },
   });
 }
 
 // ============================================================
-// 4. LAPORAN KEUANGAN KAS (Kas Chondro & Media) (Landscape F4)
+// 4. LAPORAN KEUANGAN KAS (Kas Chondro & Media) (Landscape A4)
 // ============================================================
 export async function laporanKeuangan(
   transaksi: Transaksi[],
@@ -865,7 +875,7 @@ export async function laporanKeuangan(
 }
 
 // ============================================================
-// 5. LAPORAN TRANSAKSI TEMPORER (Portrait F4)
+// 5. LAPORAN TRANSAKSI TEMPORER (Landscape A4)
 // ============================================================
 export async function laporanTransaksi(
   group: TransaksiGroupWithStats,
@@ -896,24 +906,26 @@ export async function laporanTransaksi(
   });
 
   const saldo = totalPemasukan - totalPengeluaran;
-  const subtitle = group.keterangan ? `${group.judul} — ${group.keterangan}` : group.judul;
+  const subtitle = group.keterangan
+    ? `Laporan transaksi ${group.judul} — ${group.keterangan}`
+    : `Laporan arus kas mutasi transaksi temporer ${group.judul}`;
 
   await createPdf(
-    "TRANSAKSI TEMPORER",
+    `TRANSAKSI TEMPORER — ${group.judul.toUpperCase()}`,
     subtitle,
     formatTanggalPanjang(group.tanggal),
     {
-      orientation: "portrait",
-      columns: ["No", "Tanggal", "Keterangan / Rincian", "Kategori", "Uang Masuk", "Uang Keluar", "Saldo"],
+      orientation: "landscape",
+      columns: ["No", "Tanggal", "Keterangan / Rincian Transaksi", "Kategori", "Pemasukan", "Pengeluaran", "Saldo Kas"],
       rows,
       summary: [
         { label: "Nama Transaksi", value: group.judul },
-        { label: "Total Transaksi", value: `${details.length}` },
-        { label: "Total Uang Masuk", value: formatRupiah(totalPemasukan) },
-        { label: "Total Uang Keluar", value: formatRupiah(totalPengeluaran) },
-        { label: "Sisa Saldo", value: formatRupiah(saldo) },
+        { label: "Total Transaksi", value: `${details.length} Data` },
+        { label: "Total Pemasukan", value: formatRupiah(totalPemasukan) },
+        { label: "Total Pengeluaran", value: formatRupiah(totalPengeluaran) },
+        { label: "Sisa Saldo Kas", value: formatRupiah(saldo) },
       ],
-      columnWidthRatios: [8, 22, 54, 26, 28, 28, 30],
+      columnWidthRatios: [10, 28, 92, 35, 33, 33, 34],
       columnAligns: ["center", "center", "left", "left", "right", "right", "right"],
       fileName: `Laporan-transaksi-${group.judul.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${new Date().toISOString().slice(0, 10)}.pdf`,
     }
@@ -1224,7 +1236,7 @@ function drawSelectionDecisionBox(doc: jsPDF, startY: number): number {
 }
 
 /**
- * Render 1 lembar khusus untuk 1 calon anggota baru (F4 Portrait) lengkap dengan Pas Foto
+ * Render 1 lembar khusus untuk 1 calon anggota baru (A4 Portrait) lengkap dengan Pas Foto
  */
 async function renderCandidateSheet(
   doc: jsPDF,
@@ -1352,7 +1364,7 @@ export async function laporanRekrutmen(
   submissions: RekrutmenSubmissionWithAnswers[],
   periodLabel?: string
 ) {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: F4 });
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: A4 });
   await ensureFonts(doc);
 
   if (submissions.length === 0) {
@@ -1369,7 +1381,7 @@ export async function laporanRekrutmen(
   } else {
     for (let i = 0; i < submissions.length; i++) {
       if (i > 0) {
-        doc.addPage(F4, "portrait");
+        doc.addPage(A4, "portrait");
       }
       await renderCandidateSheet(doc, form, submissions[i], periodLabel);
     }
@@ -1393,7 +1405,7 @@ export async function laporanRekrutmenDetail(
   form: RekrutmenForm,
   submission: RekrutmenSubmissionWithAnswers
 ) {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: F4 });
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: A4 });
   await ensureFonts(doc);
 
   await renderCandidateSheet(doc, form, submission);

@@ -74,11 +74,12 @@ export function Rekrutmen() {
     CACHE_KEYS.REKRUITMEN_STATS
   );
 
-  const [activeTab, setActiveTab] = useState<"form" | "submissions">("form");
+  const [activeTab, setActiveTab] = useState<"submissions" | "form">("submissions");
   const [modalMode, setModalMode] = useState<"add" | "edit" | null>(null);
   const [formData, setFormData] = useState<FormRekrutmen>(FORM_EMPTY);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [savingForm, setSavingForm] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
     if (form) {
@@ -235,6 +236,8 @@ export function Rekrutmen() {
 
   // Safe calculated statistics
   const subsList = useMemo(() => submissions || [], [submissions]);
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<RekrutmenSubmissionStatus | "">("");
+
   const statsCalculated = useMemo(() => {
     return {
       total: stats?.total ?? subsList.length,
@@ -244,6 +247,11 @@ export function Rekrutmen() {
       tidakLolos: stats?.tidakLolos ?? subsList.filter((s) => s.status === "tidak_lolos").length,
     };
   }, [stats, subsList]);
+
+  const handleCardStatusClick = (st: RekrutmenSubmissionStatus | "") => {
+    setSelectedStatusFilter(st);
+    setActiveTab("submissions");
+  };
 
   const publicFormUrl = form?.id ? `${window.location.origin}/rekrutmen/form/${form.id}` : "";
 
@@ -279,7 +287,7 @@ export function Rekrutmen() {
                 opacity: 0.88,
               }}
             >
-              MB CHONDRO · PENERIMAAN ANGGOTA BARU
+              CHONDRO WONOPRINGGO · PENERIMAAN ANGGOTA BARU
             </span>
             <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: "2px 0 0", color: "#ffffff" }}>
               Ringkasan Rekruitmen
@@ -303,7 +311,7 @@ export function Rekrutmen() {
           )}
         </div>
 
-        {/* 4/5 Stat Cards Grid */}
+        {/* 4/5 Stat Cards Grid - Clickable for Fast Filtering */}
         <div
           style={{
             display: "grid",
@@ -313,13 +321,17 @@ export function Rekrutmen() {
         >
           {/* Card 1: Total */}
           <div
+            onClick={() => handleCardStatusClick("")}
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
+              background: activeTab === "submissions" && selectedStatusFilter === "" ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.12)",
               backdropFilter: "blur(8px)",
               borderRadius: "var(--radius-sm, 10px)",
               padding: "14px 16px",
-              border: "1px solid rgba(255, 255, 255, 0.18)",
+              border: activeTab === "submissions" && selectedStatusFilter === "" ? "1.5px solid #ffffff" : "1px solid rgba(255, 255, 255, 0.18)",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
             }}
+            title="Klik untuk melihat semua pendaftar"
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: 0.9, fontSize: "12px" }}>
               <Users size={14} /> Total Pendaftar
@@ -327,18 +339,22 @@ export function Rekrutmen() {
             <div style={{ fontSize: "clamp(1.25rem, 3.5vw, 1.65rem)", fontWeight: 800, color: "#ffffff", marginTop: 4 }}>
               {statsCalculated.total}
             </div>
-            <span style={{ fontSize: "11px", opacity: 0.8 }}>Calon anggota submit</span>
+            <span style={{ fontSize: "11px", opacity: 0.8 }}>Lihat semua pendaftar ↗</span>
           </div>
 
           {/* Card 2: Menunggu */}
           <div
+            onClick={() => handleCardStatusClick("menunggu")}
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
+              background: activeTab === "submissions" && selectedStatusFilter === "menunggu" ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.12)",
               backdropFilter: "blur(8px)",
               borderRadius: "var(--radius-sm, 10px)",
               padding: "14px 16px",
-              border: "1px solid rgba(255, 255, 255, 0.18)",
+              border: activeTab === "submissions" && selectedStatusFilter === "menunggu" ? "1.5px solid #fde68a" : "1px solid rgba(255, 255, 255, 0.18)",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
             }}
+            title="Klik untuk menyaring pendaftar yang menunggu review"
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: 0.9, fontSize: "12px" }}>
               <Clock size={14} /> Menunggu Seleksi
@@ -346,18 +362,22 @@ export function Rekrutmen() {
             <div style={{ fontSize: "clamp(1.25rem, 3.5vw, 1.65rem)", fontWeight: 800, color: "#ffffff", marginTop: 4 }}>
               {statsCalculated.menunggu}
             </div>
-            <span style={{ fontSize: "11px", opacity: 0.8 }}>🟡 Belum direview</span>
+            <span style={{ fontSize: "11px", opacity: 0.8 }}>🟡 Belum direview ↗</span>
           </div>
 
           {/* Card 3: Lolos */}
           <div
+            onClick={() => handleCardStatusClick("lolos")}
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
+              background: activeTab === "submissions" && selectedStatusFilter === "lolos" ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.12)",
               backdropFilter: "blur(8px)",
               borderRadius: "var(--radius-sm, 10px)",
               padding: "14px 16px",
-              border: "1px solid rgba(255, 255, 255, 0.18)",
+              border: activeTab === "submissions" && selectedStatusFilter === "lolos" ? "1.5px solid #a7f3d0" : "1px solid rgba(255, 255, 255, 0.18)",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
             }}
+            title="Klik untuk menyaring calon yang lolos seleksi"
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: 0.9, fontSize: "12px" }}>
               <CheckCircle2 size={14} /> Lolos Seleksi
@@ -365,109 +385,221 @@ export function Rekrutmen() {
             <div style={{ fontSize: "clamp(1.25rem, 3.5vw, 1.65rem)", fontWeight: 800, color: "#ffffff", marginTop: 4 }}>
               {statsCalculated.lolos}
             </div>
-            <span style={{ fontSize: "11px", opacity: 0.8 }}>🟢 Diterima</span>
+            <span style={{ fontSize: "11px", opacity: 0.8 }}>🟢 Diterima (Training 3x) ↗</span>
           </div>
 
           {/* Card 4: Cadangan (if any) */}
-          {statsCalculated.cadangan > 0 && (
-            <div
-              style={{
-                background: "rgba(255, 255, 255, 0.12)",
-                backdropFilter: "blur(8px)",
-                borderRadius: "var(--radius-sm, 10px)",
-                padding: "14px 16px",
-                border: "1px solid rgba(255, 255, 255, 0.18)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: 0.9, fontSize: "12px" }}>
-                <Bookmark size={14} /> Cadangan
-              </div>
-              <div style={{ fontSize: "clamp(1.25rem, 3.5vw, 1.65rem)", fontWeight: 800, color: "#ffffff", marginTop: 4 }}>
-                {statsCalculated.cadangan}
-              </div>
-              <span style={{ fontSize: "11px", opacity: 0.8 }}>🔵 Waiting list</span>
-            </div>
-          )}
-
-          {/* Card 5: Tidak Lolos */}
           <div
+            onClick={() => handleCardStatusClick("cadangan")}
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
+              background: activeTab === "submissions" && selectedStatusFilter === "cadangan" ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.12)",
               backdropFilter: "blur(8px)",
               borderRadius: "var(--radius-sm, 10px)",
               padding: "14px 16px",
-              border: "1px solid rgba(255, 255, 255, 0.18)",
+              border: activeTab === "submissions" && selectedStatusFilter === "cadangan" ? "1.5px solid #bfdbfe" : "1px solid rgba(255, 255, 255, 0.18)",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
             }}
+            title="Klik untuk menyaring calon cadangan"
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: 0.9, fontSize: "12px" }}>
-              <XCircle size={14} /> Tidak Lolos
+              <Bookmark size={14} /> Cadangan
+            </div>
+            <div style={{ fontSize: "clamp(1.25rem, 3.5vw, 1.65rem)", fontWeight: 800, color: "#ffffff", marginTop: 4 }}>
+              {statsCalculated.cadangan}
+            </div>
+            <span style={{ fontSize: "11px", opacity: 0.8 }}>🔵 Waiting list ↗</span>
+          </div>
+
+          {/* Card 5: Tidak Lolos */}
+          <div
+            onClick={() => handleCardStatusClick("tidak_lolos")}
+            style={{
+              background: activeTab === "submissions" && selectedStatusFilter === "tidak_lolos" ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.12)",
+              backdropFilter: "blur(8px)",
+              borderRadius: "var(--radius-sm, 10px)",
+              padding: "14px 16px",
+              border: activeTab === "submissions" && selectedStatusFilter === "tidak_lolos" ? "1.5px solid #fecaca" : "1px solid rgba(255, 255, 255, 0.18)",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
+            title="Klik untuk menyaring calon yang gagal / tidak lolos"
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: 0.9, fontSize: "12px" }}>
+              <XCircle size={14} /> Gagal / Tidak Lolos
             </div>
             <div style={{ fontSize: "clamp(1.25rem, 3.5vw, 1.65rem)", fontWeight: 800, color: "#ffffff", marginTop: 4 }}>
               {statsCalculated.tidakLolos}
             </div>
-            <span style={{ fontSize: "11px", opacity: 0.8 }}>🔴 Belum memenuhi</span>
+            <span style={{ fontSize: "11px", opacity: 0.8 }}>🔴 Belum memenuhi ↗</span>
           </div>
         </div>
       </div>
 
-      {/* 2. Tab Navigation Switcher */}
+      {/* 2. Quick Public Form Link Bar & Tab Switcher */}
       <div
-        className="segment-group"
         style={{
           display: "flex",
-          gap: 6,
-          background: "var(--bg, #f8fafc)",
-          padding: 4,
-          borderRadius: "var(--radius-sm, 8px)",
-          border: "1px solid var(--border, #e2e8f0)",
-          width: "100%",
-          maxWidth: "480px",
-          boxSizing: "border-box",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 12,
         }}
       >
-        <button
-          type="button"
-          className={`segment-btn ${activeTab === "form" ? "active" : ""}`}
-          onClick={() => setActiveTab("form")}
+        {/* Segmented Tab Switcher */}
+        <div
+          className="segment-group"
           style={{
-            flex: 1,
-            padding: "8px 14px",
-            borderRadius: "var(--radius-xs, 6px)",
-            border: "none",
-            fontSize: "13px",
-            fontWeight: 600,
-            cursor: "pointer",
-            background: activeTab === "form" ? "#ffffff" : "transparent",
-            color: activeTab === "form" ? "var(--primary-700, #b91c1c)" : "var(--text-muted)",
-            boxShadow: activeTab === "form" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-            transition: "all 0.15s ease",
+            display: "flex",
+            gap: 6,
+            background: "#f1f5f9",
+            padding: 4,
+            borderRadius: "var(--radius-sm, 10px)",
+            border: "1px solid var(--border, #e2e8f0)",
+            width: "100%",
+            maxWidth: "460px",
+            boxSizing: "border-box",
           }}
         >
-          📝 Formulir Pendaftaran
-        </button>
-        <button
-          type="button"
-          className={`segment-btn ${activeTab === "submissions" ? "active" : ""}`}
-          onClick={() => setActiveTab("submissions")}
-          style={{
-            flex: 1,
-            padding: "8px 14px",
-            borderRadius: "var(--radius-xs, 6px)",
-            border: "none",
-            fontSize: "13px",
-            fontWeight: 600,
-            cursor: "pointer",
-            background: activeTab === "submissions" ? "#ffffff" : "transparent",
-            color: activeTab === "submissions" ? "var(--primary-700, #b91c1c)" : "var(--text-muted)",
-            boxShadow: activeTab === "submissions" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-            transition: "all 0.15s ease",
-          }}
-        >
-          👥 Daftar Pendaftar ({subsList.length})
-        </button>
+          <button
+            type="button"
+            className={`segment-btn ${activeTab === "submissions" ? "active" : ""}`}
+            onClick={() => setActiveTab("submissions")}
+            style={{
+              flex: 1,
+              padding: "9px 14px",
+              borderRadius: "var(--radius-xs, 7px)",
+              border: "none",
+              fontSize: "13px",
+              fontWeight: 700,
+              cursor: "pointer",
+              background: activeTab === "submissions" ? "#ffffff" : "transparent",
+              color: activeTab === "submissions" ? "var(--primary-700, #b91c1c)" : "#64748b",
+              boxShadow: activeTab === "submissions" ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+              transition: "all 0.15s ease",
+            }}
+          >
+            👥 Daftar Pendaftar ({subsList.length})
+          </button>
+          <button
+            type="button"
+            className={`segment-btn ${activeTab === "form" ? "active" : ""}`}
+            onClick={() => setActiveTab("form")}
+            style={{
+              flex: 1,
+              padding: "9px 14px",
+              borderRadius: "var(--radius-xs, 7px)",
+              border: "none",
+              fontSize: "13px",
+              fontWeight: 700,
+              cursor: "pointer",
+              background: activeTab === "form" ? "#ffffff" : "transparent",
+              color: activeTab === "form" ? "var(--primary-700, #b91c1c)" : "#64748b",
+              boxShadow: activeTab === "form" ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+              transition: "all 0.15s ease",
+            }}
+          >
+            📝 Pengaturan Formulir
+          </button>
+        </div>
+
+        {/* Quick Link Share Box */}
+        {form && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: "#ffffff",
+              padding: "6px 10px 6px 14px",
+              borderRadius: "var(--radius-sm, 10px)",
+              border: "1px solid var(--border, #e2e8f0)",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 500 }}>
+              Link Publik Calon:
+            </span>
+            <code
+              style={{
+                fontSize: "12px",
+                color: "var(--navy-900)",
+                background: "#f8fafc",
+                padding: "3px 8px",
+                borderRadius: 6,
+                border: "1px solid #e2e8f0",
+                maxWidth: "220px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+              title={publicFormUrl}
+            >
+              /rekrutmen/form/{form.id}
+            </code>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => {
+                navigator.clipboard.writeText(publicFormUrl);
+                setCopiedLink(true);
+                toastSuccess("Link formulir berhasil disalin!");
+                setTimeout(() => setCopiedLink(false), 2000);
+              }}
+              style={{ fontSize: "12px", padding: "4px 9px", display: "inline-flex", alignItems: "center", gap: 4 }}
+            >
+              {copiedLink ? "✓ Tersalin" : "Salin Link"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => window.open(publicFormUrl, "_blank")}
+              title="Buka Formulir Publik di Tab Baru"
+              style={{ fontSize: "12px", padding: "4px 8px", color: "var(--primary-700, #b91c1c)" }}
+            >
+              Buka Form ↗
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* TAB 1: FORMULIR PENDAFTARAN BUILDER */}
+      {/* TAB 1: DAFTAR PENDAFTAR & SELEKSI */}
+      {activeTab === "submissions" && (
+        <>
+          {form ? (
+            <SubmissionList
+              form={form}
+              submissions={subsList}
+              loading={loadingSubs}
+              onRefresh={async () => {
+                await refreshSubs();
+                await refreshStats();
+              }}
+              onUpdateStatus={handleSubmissionUpdate}
+              onDeleteSubmission={handleSubmissionDelete}
+              initialStatusFilter={selectedStatusFilter}
+              onStatusFilterChange={setSelectedStatusFilter}
+            />
+          ) : (
+            <div
+              className="card"
+              style={{
+                padding: "36px 20px",
+                textAlign: "center",
+                background: "#ffffff",
+                borderRadius: "var(--radius-md, 12px)",
+              }}
+            >
+              <p style={{ margin: 0, color: "var(--text-muted)" }}>
+                Belum ada formulir aktif untuk melihat pendaftar.
+              </p>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* TAB 2: FORMULIR PENDAFTARAN BUILDER */}
       {activeTab === "form" && (
         <>
           {form ? (
@@ -531,39 +663,6 @@ export function Rekrutmen() {
               <button className="btn btn-primary" onClick={openAddForm}>
                 <Plus size={16} /> Buat Formulir Baru
               </button>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* TAB 2: DAFTAR PENDAFTAR & SELEKSI */}
-      {activeTab === "submissions" && (
-        <>
-          {form ? (
-            <SubmissionList
-              form={form}
-              submissions={subsList}
-              loading={loadingSubs}
-              onRefresh={async () => {
-                await refreshSubs();
-                await refreshStats();
-              }}
-              onUpdateStatus={handleSubmissionUpdate}
-              onDeleteSubmission={handleSubmissionDelete}
-            />
-          ) : (
-            <div
-              className="card"
-              style={{
-                padding: "36px 20px",
-                textAlign: "center",
-                background: "#ffffff",
-                borderRadius: "var(--radius-md, 12px)",
-              }}
-            >
-              <p style={{ margin: 0, color: "var(--text-muted)" }}>
-                Belum ada formulir aktif untuk melihat pendaftar.
-              </p>
             </div>
           )}
         </>

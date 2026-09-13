@@ -6,7 +6,7 @@ import { laporanAnggota } from "../services/pdf";
 import type { Anggota } from "../types";
 import { STATUS_ANGGOTA } from "../config";
 import { formatTanggal } from "../utils/format";
-import { useApi, usePagination } from "../hooks/useApi";
+import { useApi } from "../hooks/useApi";
 import { useToast } from "../contexts/ToastContext";
 import { DataTable } from "../components/ui/DataTable";
 import type { Column } from "../components/ui/DataTable";
@@ -15,7 +15,6 @@ import { Filter } from "../components/ui/Filter";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { Modal } from "../components/ui/Modal";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
-import { Pagination } from "../components/ui/Pagination";
 import { DownloadPdfButton } from "../components/ui/DownloadPdfButton";
 
 interface FormAnggota {
@@ -106,9 +105,6 @@ export function Anggota() {
         return (a.nama ?? "").localeCompare(b.nama ?? "");
       });
   }, [anggota, search, filterDivisi, filterStatus]);
-
-  const pagination = usePagination(filtered.length, 10);
-  const paged = filtered.slice(pagination.start, pagination.end);
 
   const validate = (f: FormAnggota): Record<string, string> => {
     const err: Record<string, string> = {};
@@ -242,7 +238,7 @@ export function Anggota() {
   };
 
   const columns: Column<Anggota>[] = [
-    { key: "no", header: "No", render: (_r, idx) => <>{pagination.start + idx + 1}</> },
+    { key: "no", header: "No", render: (_r, idx) => <>{idx + 1}</> },
     { key: "nama", header: "Nama Lengkap" },
     { key: "divisi", header: "Divisi" },
     { key: "jabatan", header: "Jabatan" },
@@ -287,14 +283,7 @@ export function Anggota() {
           />
         </div>
 
-        <DataTable columns={columns} data={paged} loading={loading} rowKey={(r) => r.id} emptyMessage="Tidak ada anggota ditemukan." />
-        <Pagination
-          page={pagination.page}
-          totalPages={pagination.totalPages}
-          totalItems={filtered.length}
-          pageSize={pagination.pageSize}
-          onPageChange={pagination.setPage}
-        />
+        <DataTable columns={columns} data={filtered} loading={loading} rowKey={(r) => r.id} emptyMessage="Tidak ada anggota ditemukan." />
       </div>
 
       <Modal
