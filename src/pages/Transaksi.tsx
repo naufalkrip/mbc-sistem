@@ -16,7 +16,13 @@ import { laporanTransaksi } from "../services/pdf";
 export function Transaksi() {
   const navigate = useNavigate();
   const { success: toastSuccess, error: toastError } = useToast();
-  const { data, loading, refresh } = useApi<TransaksiGroupWithStats[]>(getTransaksiGroups, "Gagal mengambil data.", CACHE_KEYS.TRANSAKSI);
+  // Faster polling (5s) for real-time feel on transaksi page
+  const { data, loading, refresh } = useApi<TransaksiGroupWithStats[]>(
+    getTransaksiGroups,
+    "Gagal mengambil data transaksi.",
+    CACHE_KEYS.TRANSAKSI,
+    { pollingInterval: 5000, revalidateOnFocus: true, immediate: true }
+  );
 
   const handleSave = async (
     payload: Omit<TransaksiGroupWithStats, "id" | "createdAt" | "updatedAt" | "totalTransaksi" | "totalPemasukan" | "totalPengeluaran" | "saldo">,

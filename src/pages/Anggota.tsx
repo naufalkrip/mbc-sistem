@@ -41,7 +41,13 @@ type ModalMode = "add" | "edit" | null;
 
 export function Anggota() {
   const { success: toastSuccess, error: toastError } = useToast();
-  const { data, loading, refresh } = useApi<Anggota[]>(getAnggota, "Gagal mengambil data.", CACHE_KEYS.ANGGOTA);
+  // Faster polling (5s) for real-time feel on anggota page
+  const { data, loading, refresh } = useApi<Anggota[]>(
+    getAnggota,
+    "Gagal mengambil data anggota.",
+    CACHE_KEYS.ANGGOTA,
+    { pollingInterval: 5000, revalidateOnFocus: true, immediate: true }
+  );
 
   const [search, setSearch] = useState("");
   const [filterDivisi, setFilterDivisi] = useState("");

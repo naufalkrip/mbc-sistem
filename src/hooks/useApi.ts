@@ -3,8 +3,9 @@ import { useToast } from "../contexts/ToastContext";
 import { cacheGet, cacheSet, cacheSubscribe } from "../services/cache";
 
 interface UseApiOptions {
-  pollingInterval?: number; // interval in ms for background sync (e.g. 20000ms)
+  pollingInterval?: number; // interval in ms for background sync (e.g. 10000ms)
   revalidateOnFocus?: boolean;
+  immediate?: boolean; // fetch immediately on mount
 }
 
 interface UseApiResult<T> {
@@ -26,11 +27,11 @@ export function useApi<T>(
   fetcher: () => Promise<T>,
   errorMessage = "Gagal mengambil data.",
   cacheKey?: string,
-  options: UseApiOptions = { pollingInterval: 12000, revalidateOnFocus: true }
+  options: UseApiOptions = { pollingInterval: 8000, revalidateOnFocus: true, immediate: true }
 ): UseApiResult<T> {
   const cached = useMemo(() => (cacheKey ? cacheGet<T>(cacheKey) : null), [cacheKey]);
   const [data, setData] = useState<T | null>(cached);
-  const [loading, setLoading] = useState(!cached);
+  const [loading, setLoading] = useState(false); // Start with false - show cached data instantly
   const [error, setError] = useState<string | null>(null);
   const { error: toastError } = useToast();
 
@@ -39,6 +40,8 @@ export function useApi<T>(
 
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
+
+  const isInitialMount = useRef(true);
 
   // Realtime subscription to local cache updates
   useEffect(() => {
@@ -80,10 +83,15 @@ export function useApi<T>(
     [cacheKey, errorMessage]
   );
 
-  // Initial fetch and dependency trigger
+  // Initial fetch - run immediately on mount, then on refresh dependency changes
   useEffect(() => {
-    void refresh(true);
-  }, [refresh]);
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      if (options.immediate !== false) {
+        void refresh(true);
+      }
+    }
+  }, [refresh, options.immediate]);
 
   // Realtime Polling & Window Focus Sync
   useEffect(() => {
@@ -96,14 +104,15 @@ export function useApi<T>(
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
 
-    // 2. Periodic background polling
+    // 2. Periodic background polling - faster default (8s instead of 12s)
     let intervalId: ReturnType<typeof setInterval> | null = null;
-    if (options.pollingInterval && options.pollingInterval > 0) {
+    const interval = options.pollingInterval ?? 8000;
+    if (interval > 0) {
       intervalId = setInterval(() => {
         if (document.visibilityState === "visible") {
           void refresh(true);
         }
-      }, options.pollingInterval);
+      }, interval);
     }
 
     return () => {
@@ -111,7 +120,7 @@ export function useApi<T>(
       document.removeEventListener("visibilitychange", onFocus);
       if (intervalId) clearInterval(intervalId);
     };
-  }, [options.pollingInterval, options.revalidateOnFocus, refresh]);
+  }, [options.pollingInterval, options.revalidateOnFocus, refresh, options.immediate]);
 
   // Optimistic local mutation (Instant 0ms UI update)
   const mutate = useCallback(

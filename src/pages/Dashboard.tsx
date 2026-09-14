@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -23,7 +23,7 @@ import {
   getKeuanganChondro,
   getKeuanganMedia,
 } from "../services/api";
-import { CACHE_KEYS, cacheGet, cacheSet } from "../services/cache";
+import { CACHE_KEYS } from "../services/cache";
 import type { Absensi, Anggota, DashboardData, Transaksi } from "../types";
 import {
   buatSesiAbsensi,
@@ -32,7 +32,7 @@ import {
 } from "../utils/format";
 import { Skeleton } from "../components/ui/Skeleton";
 import { DonutChart } from "../components/ui/Chart";
-import { useToast } from "../contexts/ToastContext";
+import { useApi } from "../hooks/useApi";
 
 interface AktivitasItem {
   id: string;
@@ -128,71 +128,65 @@ function SummaryCardSkeleton() {
 }
 
 export function Dashboard() {
-  const { error: toastError } = useToast();
-  const [data, setData] = useState<DashboardData | null>(() => cacheGet<DashboardData>(CACHE_KEYS.DASHBOARD));
-  const [absensi, setAbsensi] = useState<Absensi[]>(() => cacheGet<Absensi[]>(CACHE_KEYS.ABSENSI) ?? []);
-  const [anggota, setAnggota] = useState<Anggota[]>(() => cacheGet<Anggota[]>(CACHE_KEYS.ANGGOTA) ?? []);
-  const [transaksi, setTransaksi] = useState<Transaksi[]>(() => cacheGet<Transaksi[]>(CACHE_KEYS.KEUANGAN_CHONDRO) ?? []);
-  const [transaksiMedia, setTransaksiMedia] = useState<Transaksi[]>(() => cacheGet<Transaksi[]>(CACHE_KEYS.KEUANGAN_MEDIA) ?? []);
-  const [loading, setLoading] = useState(!data);
+  // Use useApi hooks for instant cache rendering + background sync
+  const { data: dashboardData, loading: dashboardLoading } = useApi<DashboardData>(
+    getDashboard,
+    "Gagal mengambil data dashboard.",
+    CACHE_KEYS.DASHBOARD,
+    { pollingInterval: 15000, revalidateOnFocus: true, immediate: true }
+  );
+
+  const { data: absensiData } = useApi<Absensi[]>(
+    getAbsensi,
+    "Gagal mengambil data absensi.",
+    CACHE_KEYS.ABSENSI,
+    { pollingInterval: 15000, revalidateOnFocus: true, immediate: true }
+  );
+
+  const { data: anggotaData } = useApi<Anggota[]>(
+    getAnggota,
+    "Gagal mengambil data anggota.",
+    CACHE_KEYS.ANGGOTA,
+    { pollingInterval: 15000, revalidateOnFocus: true, immediate: true }
+  );
+
+  const { data: keuanganData } = useApi<Transaksi[]>(
+    getKeuanganChondro,
+    "Gagal mengambil data keuangan Chondro.",
+    CACHE_KEYS.KEUANGAN_CHONDRO,
+    { pollingInterval: 15000, revalidateOnFocus: true, immediate: true }
+  );
+
+  const { data: keuanganMediaData } = useApi<Transaksi[]>(
+    getKeuanganMedia,
+    "Gagal mengambil data keuangan Media.",
+    CACHE_KEYS.KEUANGAN_MEDIA,
+    { pollingInterval: 15000, revalidateOnFocus: true, immediate: true }
+  );
+
   const [financeModal, setFinanceModal] = useState<{ type: "chondro" | "media" } | null>(null);
   const [memberViewMode, setMemberViewMode] = useState<"status" | "divisi">("status");
 
+  // Combined loading state - show skeleton only if no cached data at all
+  const loading = dashboardLoading && !dashboardData;
+
   const closeFinanceModal = () => setFinanceModal(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(!data);
-      try {
-        const [dashboard, absensiData, anggotaData, keuangan, keuanganMedia] = await Promise.all([
-          getDashboard(),
-          getAbsensi(),
-          getAnggota(),
-          getKeuanganChondro(),
-          getKeuanganMedia(),
-        ]);
-        if (cancelled) return;
-        setData(dashboard);
-        setAbsensi(absensiData);
-        setAnggota(anggotaData);
-        setTransaksi(keuangan);
-        setTransaksiMedia(keuanganMedia);
-        cacheSet(CACHE_KEYS.DASHBOARD, dashboard);
-        cacheSet(CACHE_KEYS.ABSENSI, absensiData);
-        cacheSet(CACHE_KEYS.ANGGOTA, anggotaData);
-        cacheSet(CACHE_KEYS.KEUANGAN_CHONDRO, keuangan);
-        cacheSet(CACHE_KEYS.KEUANGAN_MEDIA, keuanganMedia);
-      } catch (e) {
-        if (!cancelled && !data) toastError(e instanceof Error ? e.message : "Gagal mengambil data.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toastError]);
 
   // Status Keanggotaan Data (Clean Natural Colors)
   const statusDonutData = useMemo(() => {
-    if (!data) return [];
+    if (!dashboardData) return [];
     return [
-      { label: "Aktif", value: data.anggota.aktif, color: "#16a34a" },
-      { label: "Cuti", value: data.anggota.cuti, color: "#f59e0b" },
-      { label: "Tidak Aktif", value: data.anggota.tidakAktif, color: "#dc2626" },
+      { label: "Aktif", value: dashboardData.anggota.aktif, color: "#16a34a" },
+      { label: "Cuti", value: dashboardData.anggota.cuti, color: "#f59e0b" },
+      { label: "Tidak Aktif", value: dashboardData.anggota.tidakAktif, color: "#dc2626" },
     ];
-  }, [data]);
+  }, [dashboardData]);
 
   // Distribusi Divisi Data (Vibrant Multi-palette)
   const divisionDonutData = useMemo(() => {
-    if (!anggota || anggota.length === 0) return [];
+    if (!anggotaData || anggotaData.length === 0) return [];
     const divMap = new Map<string, number>();
-    anggota.forEach((a) => {
+    anggotaData.forEach((a) => {
       const divName = (a.divisi || "Belum Ditentukan").trim();
       divMap.set(divName, (divMap.get(divName) || 0) + 1);
     });
@@ -206,13 +200,13 @@ export function Dashboard() {
         color,
       };
     });
-  }, [anggota]);
+  }, [anggotaData]);
 
   // Feed Aktivitas Terbaru
   const aktivitas = useMemo<AktivitasItem[]>(() => {
     const items: AktivitasItem[] = [];
 
-    const sesiList = buatSesiAbsensi(absensi);
+    const sesiList = buatSesiAbsensi(absensiData ?? []);
     for (const s of sesiList.slice(-4)) {
       items.push({
         id: `ab-${s.key}`,
@@ -224,7 +218,7 @@ export function Dashboard() {
       });
     }
 
-    const anggotaBaru = [...anggota]
+    const anggotaBaru = [...(anggotaData ?? [])]
       .filter((a) => a.tanggalBergabung)
       .sort((a, b) => b.tanggalBergabung.localeCompare(a.tanggalBergabung))
       .slice(0, 4);
@@ -239,7 +233,7 @@ export function Dashboard() {
       });
     }
 
-    const transaksiBaru = [...transaksi, ...transaksiMedia]
+    const transaksiBaru = [...(keuanganData ?? []), ...(keuanganMediaData ?? [])]
       .filter((t) => t.tanggal)
       .sort((a, b) => b.tanggal.localeCompare(a.tanggal))
       .slice(0, 6);
@@ -256,14 +250,14 @@ export function Dashboard() {
     }
 
     return items.sort((a, b) => b.tanggal.localeCompare(a.tanggal)).slice(0, 6);
-  }, [absensi, anggota, transaksi, transaksiMedia]);
+  }, [absensiData, anggotaData, keuanganData, keuanganMediaData]);
 
-  const keuanganChondroSaldo = data?.keuanganChondro.saldo ?? 0;
-  const keuanganMediaSaldo = data?.keuanganMedia.saldo ?? 0;
-  const keuanganChondroPemasukan = data?.keuanganChondro.pemasukan ?? 0;
-  const keuanganChondroPengeluaran = data?.keuanganChondro.pengeluaran ?? 0;
-  const keuanganMediaPemasukan = data?.keuanganMedia.pemasukan ?? 0;
-  const keuanganMediaPengeluaran = data?.keuanganMedia.pengeluaran ?? 0;
+  const keuanganChondroSaldo = dashboardData?.keuanganChondro.saldo ?? 0;
+  const keuanganMediaSaldo = dashboardData?.keuanganMedia.saldo ?? 0;
+  const keuanganChondroPemasukan = dashboardData?.keuanganChondro.pemasukan ?? 0;
+  const keuanganChondroPengeluaran = dashboardData?.keuanganChondro.pengeluaran ?? 0;
+  const keuanganMediaPemasukan = dashboardData?.keuanganMedia.pemasukan ?? 0;
+  const keuanganMediaPengeluaran = dashboardData?.keuanganMedia.pengeluaran ?? 0;
   const totalLikuiditas = keuanganChondroSaldo + keuanganMediaSaldo;
 
   // Calculate Cash Ratio
@@ -308,7 +302,7 @@ export function Dashboard() {
 
       {/* 2. 4 ELEVATED SUMMARY CARDS (CLEAN MINIMALIST) */}
       <div className="dash-summary-grid">
-        {loading || !data ? (
+        {loading || !dashboardData ? (
           <>
             <SummaryCardSkeleton />
             <SummaryCardSkeleton />
@@ -319,17 +313,17 @@ export function Dashboard() {
           <>
             <SummaryCard
               label="Total Anggota"
-              value={data.anggota.total.toLocaleString("id-ID")}
-              sub={`${data.anggota.aktif} Aktif · ${data.anggota.cuti} Cuti`}
-              badge={`${data.anggota.total > 0 ? Math.round((data.anggota.aktif / data.anggota.total) * 100) : 0}% Aktif`}
+              value={dashboardData.anggota.total.toLocaleString("id-ID")}
+              sub={`${dashboardData.anggota.aktif} Aktif · ${dashboardData.anggota.cuti} Cuti`}
+              badge={`${dashboardData.anggota.total > 0 ? Math.round((dashboardData.anggota.aktif / dashboardData.anggota.total) * 100) : 0}% Aktif`}
               icon={<Users size={20} />}
               iconClass="summary-card-icon-primary"
             />
             <SummaryCard
               label="Kehadiran Anggota"
-              value={`${data.absensi.persentase}%`}
-              sub={`${data.absensi.hadir} Hadir · ${data.absensi.izin + data.absensi.sakit} Izin`}
-              badge={data.absensi.persentase >= 80 ? "Sangat Baik" : "Stabil"}
+              value={`${dashboardData.absensi.persentase}%`}
+              sub={`${dashboardData.absensi.hadir} Hadir · ${dashboardData.absensi.izin + dashboardData.absensi.sakit} Izin`}
+              badge={dashboardData.absensi.persentase >= 80 ? "Sangat Baik" : "Stabil"}
               icon={<ClipboardCheck size={20} />}
               iconClass="summary-card-icon-green"
             />
@@ -370,7 +364,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {loading || !data ? (
+        {loading || !dashboardData ? (
           <div className="rekap-keuangan-skeleton" style={{ padding: "16px 0" }}>
             <Skeleton height={46} borderRadius={12} style={{ marginBottom: 16 }} />
             <Skeleton height={140} borderRadius={14} style={{ marginBottom: 12 }} />
@@ -556,7 +550,7 @@ export function Dashboard() {
             </div>
           </div>
 
-          {loading || !data ? (
+          {loading || !dashboardData ? (
             <div className="status-section-skeleton" style={{ padding: "20px 0" }}>
               <Skeleton width={180} height={180} borderRadius={9999} style={{ margin: "0 auto 16px" }} />
               <Skeleton height={20} width="80%" style={{ margin: "0 auto" }} />
@@ -592,7 +586,7 @@ export function Dashboard() {
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Sparkles size={16} style={{ color: "var(--primary-700, #b91c1c)" }} />
                     <span style={{ fontSize: "12.5px", fontWeight: 600, color: "var(--navy-900, #0f172a)" }}>
-                      Rasio Keaktifan: {data.anggota.total > 0 ? Math.round((data.anggota.aktif / data.anggota.total) * 100) : 0}%
+                      Rasio Keaktifan: {dashboardData.anggota.total > 0 ? Math.round((dashboardData.anggota.aktif / dashboardData.anggota.total) * 100) : 0}%
                     </span>
                   </div>
                   <Link

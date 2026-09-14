@@ -21,6 +21,8 @@ import {
   deleteTransaksiDetailItem,
 } from "../../services/api";
 import { useToast } from "../../contexts/ToastContext";
+import { useApi } from "../../hooks/useApi";
+import { CACHE_KEYS } from "../../services/cache";
 
 interface FormDetail {
   tanggal: string;
@@ -50,21 +52,30 @@ export function TransaksiDetail() {
 
   const [group, setGroup] = useState<TransaksiGroupWithStats | null>(null);
   const [loadingGroup, setLoadingGroup] = useState(true);
-  const [details, setDetails] = useState<TransaksiDetail[]>([]);
-  const [loadingDetails, setLoadingDetails] = useState(true);
 
+  // Use useApi for details with fast polling and cache
+  const { data: details, loading: loadingDetails, refresh: refreshDetails } = useApi<TransaksiDetail[]>(
+    useCallback(() => id ? getTransaksiDetails(id) : Promise.resolve([]), [id]),
+    "Gagal memuat rincian transaksi.",
+    id ? `${CACHE_KEYS.TRANSAKSI_DETAIL}:${id}` : undefined,
+    { pollingInterval: 5000, revalidateOnFocus: true, immediate: true }
+  );
+
+  // Filter & Search state
   const [search, setSearch] = useState("");
   const [filterDari, setFilterDari] = useState("");
   const [filterSampai, setFilterSampai] = useState("");
   const [filterJenis, setFilterJenis] = useState("");
   const [filterKategori, setFilterKategori] = useState("");
 
+  // Modal state
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [form, setForm] = useState<FormDetail>(FORM_EMPTY);
   const [editing, setEditing] = useState<TransaksiDetail | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
+  // Delete confirmation
   const [toDelete, setToDelete] = useState<TransaksiDetail | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -85,40 +96,23 @@ export function TransaksiDetail() {
     } finally {
       setLoadingGroup(false);
     }
-
-    try {
-      setLoadingDetails(true);
-      const data = await getTransaksiDetails(id);
-      setDetails(data);
-    } catch (e) {
-      toastError(e instanceof Error ? e.message : "Gagal memuat rincian transaksi.");
-    } finally {
-      setLoadingDetails(false);
-    }
   }, [id, navigate, toastError]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
 
-  const reloadDetailsOnly = async () => {
-    if (!id) return;
-    try {
-      const data = await getTransaksiDetails(id);
-      setDetails(data);
-    } catch (e) {
-      toastError(e instanceof Error ? e.message : "Gagal memperbarui rincian transaksi.");
-    }
-  };
-
+  // Kategori options for filter
   const kategoriOptions = useMemo(() => {
-    const set = new Set(details.map((t) => t.kategori).filter(Boolean));
+    const data = details ?? [];
+    const set = new Set(data.map((t) => t.kategori).filter(Boolean));
     return Array.from(set).sort().map((k) => ({ value: k, label: k }));
   }, [details]);
 
   // Hitung running balance untuk setiap baris
   const chronologicalDetails = useMemo(() => {
-    return [...details].sort((a, b) => (a.tanggal || "").localeCompare(b.tanggal || "") || (a.id || "").localeCompare(b.id || ""));
+    const data = details ?? [];
+    return [...data].sort((a, b) => (a.tanggal || "").localeCompare(b.tanggal || "") || (a.id || "").localeCompare(b.id || ""));
   }, [details]);
 
   const runningBalancesMap = useMemo(() => {
@@ -137,7 +131,8 @@ export function TransaksiDetail() {
   }, [chronologicalDetails]);
 
   const filtered = useMemo(() => {
-    return details
+    const data = details ?? [];
+    return data
       .filter((t) => {
         if (search.trim()) {
           const q = search.toLowerCase();
@@ -153,15 +148,16 @@ export function TransaksiDetail() {
   }, [details, search, filterDari, filterSampai, filterJenis, filterKategori]);
 
   const stats = useMemo(() => {
+    const data = details ?? [];
     let totalPemasukan = 0;
     let totalPengeluaran = 0;
-    details.forEach((t) => {
+    data.forEach((t) => {
       const nom = Number(t.nominal) || 0;
       if (t.jenis === "Pemasukan") totalPemasukan += nom;
       else totalPengeluaran += nom;
     });
     return {
-      totalTransaksi: details.length,
+      totalTransaksi: data.length,
       totalPemasukan,
       totalPengeluaran,
       saldo: totalPemasukan - totalPengeluaran,
@@ -233,7 +229,7 @@ export function TransaksiDetail() {
       if (result.success) {
         toastSuccess(editing ? "Rincian transaksi berhasil diperbarui." : "Transaksi berhasil ditambahkan.");
         setModalMode(null);
-        void reloadDetailsOnly();
+        void refreshDetails(true);
       } else {
         toastError(result.message);
       }
@@ -251,7 +247,7 @@ export function TransaksiDetail() {
     if (result.success) {
       toastSuccess("Rincian transaksi berhasil dihapus.");
       setToDelete(null);
-      void reloadDetailsOnly();
+      void refreshDetails(true);
     } else {
       toastError(result.message);
     }
@@ -266,7 +262,7 @@ export function TransaksiDetail() {
       totalPengeluaran: stats.totalPengeluaran,
       saldo: stats.saldo,
     };
-    await laporanTransaksi(updatedGroup, details);
+    await laporanTransaksi(updatedGroup, details ?? []);
   };
 
   const setField = (key: keyof FormDetail, value: string | number) => {

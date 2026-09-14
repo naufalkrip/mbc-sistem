@@ -53,7 +53,8 @@ export function Rekrutmen() {
   const { data: form, refresh: refreshForm } = useApi<RekrutmenFormWithFields | null>(
     getRekrutmenFormData,
     "Gagal mengambil data formulir.",
-    CACHE_KEYS.REKRUITMEN_FORM
+    CACHE_KEYS.REKRUITMEN_FORM,
+    { pollingInterval: 8000, revalidateOnFocus: true, immediate: true }
   );
 
   const formId = form?.id || "";
@@ -65,13 +66,15 @@ export function Rekrutmen() {
   >(
     fetchSubmissions,
     "Gagal mengambil data pendaftar.",
-    CACHE_KEYS.REKRUITMEN_SUBMISSIONS
+    CACHE_KEYS.REKRUITMEN_SUBMISSIONS,
+    { pollingInterval: 8000, revalidateOnFocus: true, immediate: true }
   );
 
   const { data: stats, refresh: refreshStats } = useApi(
     fetchStats,
     "Gagal mengambil statistik rekruitmen.",
-    CACHE_KEYS.REKRUITMEN_STATS
+    CACHE_KEYS.REKRUITMEN_STATS,
+    { pollingInterval: 8000, revalidateOnFocus: true, immediate: true }
   );
 
   const [activeTab, setActiveTab] = useState<"submissions" | "form">("submissions");

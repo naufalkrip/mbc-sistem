@@ -12,7 +12,13 @@ import { CACHE_KEYS } from "../services/cache";
 
 export function KeuanganMedia() {
   const { success: toastSuccess, error: toastError } = useToast();
-  const { data, loading, refresh } = useApi<Transaksi[]>(getKeuanganMedia, "Gagal mengambil data.", CACHE_KEYS.KEUANGAN_MEDIA);
+  // Faster polling (5s) for real-time feel
+  const { data, loading, refresh } = useApi<Transaksi[]>(
+    getKeuanganMedia,
+    "Gagal mengambil data keuangan media.",
+    CACHE_KEYS.KEUANGAN_MEDIA,
+    { pollingInterval: 5000, revalidateOnFocus: true, immediate: true }
+  );
 
   const handleSave = async (payload: Omit<Transaksi, "id">, id?: string): Promise<boolean> => {
     const result = id

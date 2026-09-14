@@ -97,8 +97,19 @@ function StatusSelect({
 
 export function Absensi() {
   const { success: toastSuccess, error: toastError } = useToast();
-  const { data: anggotaData, loading: loadingAnggota } = useApi<Anggota[]>(getAnggota, "Gagal mengambil data.", CACHE_KEYS.ANGGOTA);
-  const { data: absensiData, loading: loadingAbsensi, refresh } = useApi<Absensi[]>(getAbsensi, "Gagal mengambil data.", CACHE_KEYS.ABSENSI);
+  // Faster polling (5s) for real-time feel on absensi page
+  const { data: anggotaData, loading: loadingAnggota } = useApi<Anggota[]>(
+    getAnggota,
+    "Gagal mengambil data anggota.",
+    CACHE_KEYS.ANGGOTA,
+    { pollingInterval: 5000, revalidateOnFocus: true, immediate: true }
+  );
+  const { data: absensiData, loading: loadingAbsensi, refresh } = useApi<Absensi[]>(
+    getAbsensi,
+    "Gagal mengambil data absensi.",
+    CACHE_KEYS.ABSENSI,
+    { pollingInterval: 5000, revalidateOnFocus: true, immediate: true }
+  );
 
   const anggota = useMemo(() => anggotaData ?? [], [anggotaData]);
   const absensi = useMemo(() => absensiData ?? [], [absensiData]);

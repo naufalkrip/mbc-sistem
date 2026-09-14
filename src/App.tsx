@@ -15,39 +15,48 @@ import { Rekrutmen } from "./pages/Rekrutmen";
 import { RekrutmenDaftar } from "./pages/RekrutmenDaftar";
 import { PublicForm } from "./components/rekrutmen/PublicForm";
 import { NotFound } from "./pages/NotFound";
+import { usePreloadCriticalData } from "./hooks/usePreload";
+
+function AppRoutes() {
+  usePreloadCriticalData();
+
+  return (
+    <Routes>
+      {/* Public Login Route */}
+      <Route path="/login" element={<Login />} />
+
+      {/* Standalone Public Recruitment Form (No Admin Sidebar/Header, No Auth Required) */}
+      <Route path="/rekrutmen/form" element={<PublicForm />} />
+      <Route path="/rekrutmen/form/:id" element={<PublicForm />} />
+
+      {/* Internal Protected Admin Management Routes */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/anggota" element={<Anggota />} />
+        <Route path="/absensi" element={<Absensi />} />
+        <Route path="/keuangan" element={<KeuanganChondro />} />
+        <Route path="/keuangan-media" element={<KeuanganMedia />} />
+        <Route path="/transaksi" element={<Transaksi />} />
+        <Route path="/transaksi/:id" element={<TransaksiDetailPage />} />
+        <Route path="/rekrutmen" element={<Rekrutmen />} />
+        <Route path="/rekrutmen/daftar" element={<RekrutmenDaftar />} />
+        <Route path="*" element={<NotFound />} />
+      </Route>
+    </Routes>
+  );
+}
 
 export default function App() {
   return (
     <ConnectionProvider>
       <AuthProvider>
-        <Routes>
-          {/* Public Login Route */}
-          <Route path="/login" element={<Login />} />
-
-          {/* Standalone Public Recruitment Form (No Admin Sidebar/Header, No Auth Required) */}
-          <Route path="/rekrutmen/form" element={<PublicForm />} />
-          <Route path="/rekrutmen/form/:id" element={<PublicForm />} />
-
-          {/* Internal Protected Admin Management Routes */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/anggota" element={<Anggota />} />
-            <Route path="/absensi" element={<Absensi />} />
-            <Route path="/keuangan" element={<KeuanganChondro />} />
-            <Route path="/keuangan-media" element={<KeuanganMedia />} />
-            <Route path="/transaksi" element={<Transaksi />} />
-            <Route path="/transaksi/:id" element={<TransaksiDetailPage />} />
-            <Route path="/rekrutmen" element={<Rekrutmen />} />
-            <Route path="/rekrutmen/daftar" element={<RekrutmenDaftar />} />
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Routes>
+        <AppRoutes />
       </AuthProvider>
     </ConnectionProvider>
   );
