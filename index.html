@@ -14,6 +14,19 @@
     <title>MB CHONDRO — Sistem Manajemen Organisasi</title>
     <script>
       (function() {
+        try {
+          var mode = localStorage.getItem('mbc_view_mode');
+          if (mode === 'desktop') {
+            var screenWidth = window.screen.width || window.innerWidth || 390;
+            var scale = Math.max(0.25, Math.min(1.0, +(screenWidth / 1180).toFixed(2)));
+            var meta = document.querySelector('meta[name="viewport"]');
+            if (meta) {
+              meta.content = 'width=1180, initial-scale=' + scale + ', maximum-scale=3.0, user-scalable=yes';
+            }
+            document.documentElement.classList.add('desktop-mode-active');
+          }
+        } catch (e) {}
+
         var redirect = sessionStorage.redirect;
         delete sessionStorage.redirect;
         if (redirect && redirect != location.href) {

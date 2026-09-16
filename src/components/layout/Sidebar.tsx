@@ -4,6 +4,8 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
+  Monitor,
+  Smartphone,
   UserPlus,
   Users,
   Wallet,
@@ -12,6 +14,7 @@ import {
 } from "lucide-react";
 import logo from "../../aset/logo.png";
 import { useAuth } from "../../contexts/AuthContext";
+import { useViewMode } from "../../contexts/ViewModeContext";
 
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -30,6 +33,7 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const { user, logout } = useAuth();
+  const { viewMode, toggleViewMode } = useViewMode();
 
   const handleLogout = () => {
     if (window.confirm("Apakah Anda yakin ingin keluar dari sistem mbc sistem?")) {
@@ -89,6 +93,24 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             </button>
           </div>
         )}
+
+        {/* View Mode Switcher (Desktop / Mobile Mode) */}
+        <div
+          className="sidebar-mode-toggle"
+          onClick={toggleViewMode}
+          role="button"
+          tabIndex={0}
+          title="Beralih antara Mode Mobile dan Mode Desktop"
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") toggleViewMode(); }}
+        >
+          <div className="sidebar-mode-info">
+            {viewMode === "desktop" ? <Monitor size={15} /> : <Smartphone size={15} />}
+            <span>{viewMode === "desktop" ? "Mode Desktop" : "Mode Ringkas"}</span>
+          </div>
+          <div className={`sidebar-switch ${viewMode === "desktop" ? "active" : ""}`}>
+            <div className="sidebar-switch-thumb" />
+          </div>
+        </div>
 
         <div className="sidebar-footer">
           <span>© {new Date().getFullYear()} mbc sistem</span>
