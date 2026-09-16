@@ -1,7 +1,6 @@
-import { Menu, Calendar, Monitor, Smartphone } from "lucide-react";
+import { Menu, Calendar } from "lucide-react";
 import { formatTanggalPanjang } from "../../utils/format";
 import { useHeaderAction } from "../../contexts/HeaderActionContext";
-import { useViewMode } from "../../contexts/ViewModeContext";
 import { ConnectionIndicator } from "./ConnectionIndicator";
 
 interface HeaderProps {
@@ -12,7 +11,6 @@ interface HeaderProps {
 
 export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
   const { action } = useHeaderAction();
-  const { viewMode, toggleViewMode } = useViewMode();
   const today = formatTanggalPanjang(new Date().toISOString());
 
   return (
@@ -28,15 +26,7 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
       </div>
       <div className="header-right">
         {action && <div className="header-action">{action}</div>}
-        <button
-          type="button"
-          className="btn-icon view-mode-btn"
-          onClick={toggleViewMode}
-          title={viewMode === "desktop" ? "Beralih ke Tampilan Ringkas Mobile" : "Beralih ke Tampilan Desktop Penuh"}
-          aria-label="Ubah mode tampilan"
-        >
-          {viewMode === "desktop" ? <Smartphone size={18} /> : <Monitor size={18} />}
-        </button>
+
         <ConnectionIndicator />
         <div className="header-date">
           <span className="header-date-label">HARI INI</span>
