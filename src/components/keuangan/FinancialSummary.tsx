@@ -217,152 +217,56 @@ export function FinancialSummary(props: FinancialSummaryProps) {
       </div>
 
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))",
-          gap: 12,
-        }}
+        className="financial-cards-grid"
       >
         {/* Total Pemasukan */}
-        <div
-          style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(4px)",
-            borderRadius: 10,
-            padding: "14px 16px",
-            border: "1px solid rgba(255, 255, 255, 0.18)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: 12.5, fontWeight: 600 }}>
-            <div
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 8,
-                background: "rgba(255, 255, 255, 0.2)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#ffffff",
-                flexShrink: 0,
-              }}
-            >
-              <ArrowUp size={16} />
+        <div className="financial-stat-card-custom">
+          <div className="financial-stat-head">
+            <div className="financial-stat-icon-wrap">
+              <ArrowUp size={15} />
             </div>
             <span>Total Pemasukan</span>
           </div>
-          <div style={{ fontSize: "clamp(16px, 3.5vw, 22px)", fontWeight: 700, color: "#ffffff", marginTop: 4, wordBreak: "break-word" }}>
+          <div className="financial-stat-value-custom positive">
             {formatRupiah(saldo.pemasukan)}
           </div>
         </div>
 
         {/* Total Pengeluaran */}
-        <div
-          style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(4px)",
-            borderRadius: 10,
-            padding: "14px 16px",
-            border: "1px solid rgba(255, 255, 255, 0.18)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: 12.5, fontWeight: 600 }}>
-            <div
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 8,
-                background: "rgba(255, 255, 255, 0.2)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#ffffff",
-                flexShrink: 0,
-              }}
-            >
-              <ArrowDown size={16} />
+        <div className="financial-stat-card-custom">
+          <div className="financial-stat-head">
+            <div className="financial-stat-icon-wrap">
+              <ArrowDown size={15} />
             </div>
             <span>Total Pengeluaran</span>
           </div>
-          <div style={{ fontSize: "clamp(16px, 3.5vw, 22px)", fontWeight: 700, color: "#ffffff", marginTop: 4, wordBreak: "break-word" }}>
+          <div className="financial-stat-value-custom negative">
             {formatRupiah(saldo.pengeluaran)}
           </div>
         </div>
 
         {/* Saldo Kas */}
-        <div
-          style={{
-            background: "rgba(255, 255, 255, 0.16)",
-            backdropFilter: "blur(4px)",
-            borderRadius: 10,
-            padding: "14px 16px",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: 12.5, fontWeight: 600 }}>
-            <div
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 8,
-                background: "rgba(255, 255, 255, 0.2)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#ffffff",
-                flexShrink: 0,
-              }}
-            >
-              <Wallet size={16} />
+        <div className="financial-stat-card-custom highlight">
+          <div className="financial-stat-head">
+            <div className="financial-stat-icon-wrap">
+              <Wallet size={15} />
             </div>
             <span>Sisa Saldo Kas</span>
           </div>
-          <div style={{ fontSize: "clamp(16px, 3.5vw, 22px)", fontWeight: 700, color: "#ffffff", marginTop: 4, wordBreak: "break-word" }}>
+          <div className="financial-stat-value-custom highlight-text">
             {formatRupiah(saldo.saldo)}
           </div>
         </div>
 
         {/* Persentase Penggunaan */}
-        <div
-          style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(4px)",
-            borderRadius: 10,
-            padding: "14px 16px",
-            border: "1px solid rgba(255, 255, 255, 0.18)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: 12.5, fontWeight: 600 }}>
-            <div
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 8,
-                background: "rgba(255, 255, 255, 0.2)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#ffffff",
-                flexShrink: 0,
-              }}
-            >
-              <TrendingUp size={16} />
+        <div className="financial-stat-card-custom">
+          <div className="financial-stat-head">
+            <div className="financial-stat-icon-wrap">
+              <TrendingUp size={15} />
             </div>
-            <span>Penggunaan ({filteredCount} transaksi)</span>
+            <span>Pengeluaran ({filteredCount} trx)</span>
           </div>
-          <div style={{ fontSize: "clamp(16px, 3.5vw, 22px)", fontWeight: 700, color: "#ffffff", marginTop: 4 }}>
+          <div className="financial-stat-value-custom">
             {percentage}%
           </div>
         </div>

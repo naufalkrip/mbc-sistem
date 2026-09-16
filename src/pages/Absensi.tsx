@@ -581,225 +581,81 @@ export function Absensi() {
             onChange={setSummaryRange}
           />
         </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 140px), 1fr))",
-            gap: 12,
-          }}
-        >
+        <div className="absensi-summary-grid">
           {/* Hadir */}
-          <div
-            style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(4px)",
-              borderRadius: 10,
-              padding: "14px 16px",
-              border: "1px solid rgba(255, 255, 255, 0.18)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: 12.5, fontWeight: 600 }}>
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  background: "rgba(255, 255, 255, 0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#ffffff",
-                  flexShrink: 0,
-                }}
-              >
-                <CheckCircle2 size={16} />
+          <div className="absensi-stat-card">
+            <div className="absensi-stat-head">
+              <div className="absensi-stat-icon">
+                <CheckCircle2 size={15} />
               </div>
               <span>Hadir</span>
             </div>
-            <div style={{ fontSize: "clamp(18px, 4vw, 24px)", fontWeight: 700, color: "#ffffff", marginTop: 4 }}>
+            <div className="absensi-stat-value">
               {summaryStat.hadir.toLocaleString("id-ID")}
             </div>
           </div>
 
           {/* Izin */}
-          <div
-            style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(4px)",
-              borderRadius: 10,
-              padding: "14px 16px",
-              border: "1px solid rgba(255, 255, 255, 0.18)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: 12.5, fontWeight: 600 }}>
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  background: "rgba(255, 255, 255, 0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#ffffff",
-                  flexShrink: 0,
-                }}
-              >
-                <FileText size={16} />
+          <div className="absensi-stat-card">
+            <div className="absensi-stat-head">
+              <div className="absensi-stat-icon">
+                <FileText size={15} />
               </div>
               <span>Izin</span>
             </div>
-            <div style={{ fontSize: "clamp(18px, 4vw, 24px)", fontWeight: 700, color: "#ffffff", marginTop: 4 }}>
+            <div className="absensi-stat-value">
               {summaryStat.izin.toLocaleString("id-ID")}
             </div>
           </div>
 
           {/* Sakit */}
-          <div
-            style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(4px)",
-              borderRadius: 10,
-              padding: "14px 16px",
-              border: "1px solid rgba(255, 255, 255, 0.18)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: 12.5, fontWeight: 600 }}>
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  background: "rgba(255, 255, 255, 0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#ffffff",
-                  flexShrink: 0,
-                }}
-              >
-                <Thermometer size={16} />
+          <div className="absensi-stat-card">
+            <div className="absensi-stat-head">
+              <div className="absensi-stat-icon">
+                <Thermometer size={15} />
               </div>
               <span>Sakit</span>
             </div>
-            <div style={{ fontSize: "clamp(18px, 4vw, 24px)", fontWeight: 700, color: "#ffffff", marginTop: 4 }}>
+            <div className="absensi-stat-value">
               {summaryStat.sakit.toLocaleString("id-ID")}
             </div>
           </div>
 
           {/* Cuti */}
-          <div
-            style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(4px)",
-              borderRadius: 10,
-              padding: "14px 16px",
-              border: "1px solid rgba(255, 255, 255, 0.18)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: 12.5, fontWeight: 600 }}>
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  background: "rgba(255, 255, 255, 0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#ffffff",
-                  flexShrink: 0,
-                }}
-              >
-                <CalendarOff size={16} />
+          <div className="absensi-stat-card">
+            <div className="absensi-stat-head">
+              <div className="absensi-stat-icon">
+                <CalendarOff size={15} />
               </div>
               <span>Cuti</span>
             </div>
-            <div style={{ fontSize: "clamp(18px, 4vw, 24px)", fontWeight: 700, color: "#ffffff", marginTop: 4 }}>
+            <div className="absensi-stat-value">
               {summaryStat.cuti.toLocaleString("id-ID")}
             </div>
           </div>
 
           {/* Alpa */}
-          <div
-            style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(4px)",
-              borderRadius: 10,
-              padding: "14px 16px",
-              border: "1px solid rgba(255, 255, 255, 0.18)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: 12.5, fontWeight: 600 }}>
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  background: "rgba(255, 255, 255, 0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#ffffff",
-                  flexShrink: 0,
-                }}
-              >
-                <XCircle size={16} />
+          <div className="absensi-stat-card">
+            <div className="absensi-stat-head">
+              <div className="absensi-stat-icon">
+                <XCircle size={15} />
               </div>
               <span>Alpa</span>
             </div>
-            <div style={{ fontSize: "clamp(18px, 4vw, 24px)", fontWeight: 700, color: "#ffffff", marginTop: 4 }}>
+            <div className="absensi-stat-value">
               {summaryStat.alpa.toLocaleString("id-ID")}
             </div>
           </div>
 
           {/* Persentase Kehadiran */}
-          <div
-            style={{
-              background: "rgba(255, 255, 255, 0.16)",
-              backdropFilter: "blur(4px)",
-              borderRadius: 10,
-              padding: "14px 16px",
-              border: "1px solid rgba(255, 255, 255, 0.25)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: 12.5, fontWeight: 600 }}>
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  background: "rgba(255, 255, 255, 0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#ffffff",
-                  flexShrink: 0,
-                }}
-              >
-                <Percent size={16} />
+          <div className="absensi-stat-card highlight">
+            <div className="absensi-stat-head">
+              <div className="absensi-stat-icon">
+                <Percent size={15} />
               </div>
-              <span>Kehadiran ({summaryStat.total} catatan)</span>
+              <span>Kehadiran</span>
             </div>
-            <div style={{ fontSize: "clamp(18px, 4vw, 24px)", fontWeight: 700, color: "#ffffff", marginTop: 4 }}>
+            <div className="absensi-stat-value">
               {summaryStat.persentase}%
             </div>
           </div>

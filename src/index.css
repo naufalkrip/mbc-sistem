@@ -3793,28 +3793,32 @@ body,
 /* ---------------- 4. MOBILE (< 768px) ---------------- */
 @media (max-width: 767px) {
   .main-content {
-    padding: 10px 12px;
+    padding: 6px 8px;
   }
 
   .page-grid {
-    gap: 10px;
+    gap: 8px;
+  }
+
+  .dash-page-grid {
+    gap: 8px !important;
   }
 
   /* Header */
   .header {
-    padding: 8px 12px;
-    min-height: 48px;
-    gap: 8px;
+    padding: 6px 10px;
+    min-height: 44px;
+    gap: 6px;
   }
 
   .header-title h1 {
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.2;
     font-weight: 700;
   }
 
   .header-title p {
-    font-size: 11px;
+    font-size: 10.5px;
     margin-top: 1px;
   }
 
@@ -3823,8 +3827,8 @@ body,
     align-items: center;
     background: rgba(0, 0, 0, 0.03);
     border: 1px solid var(--border-soft);
-    padding: 2px 7px;
-    border-radius: 6px;
+    padding: 2px 6px;
+    border-radius: 5px;
   }
 
   .header-date-label {
@@ -3832,20 +3836,49 @@ body,
   }
 
   .header-date-value {
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 600;
     color: var(--text-secondary);
   }
 
   .header-right {
-    gap: 6px;
+    gap: 5px;
     align-items: center;
+  }
+
+  /* Dashboard Greeting Banner */
+  .dash-greeting-banner {
+    padding: 8px 10px !important;
+    margin-bottom: 6px !important;
+    gap: 6px !important;
+    border-radius: 9px !important;
+  }
+
+  .dash-greeting-title {
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+  }
+
+  .dash-quick-shortcuts {
+    gap: 4px !important;
+  }
+
+  .dash-quick-btn {
+    padding: 3px 7px !important;
+    font-size: 10px !important;
+    gap: 3px !important;
+    border-radius: 6px !important;
+  }
+
+  .dash-quick-btn svg {
+    width: 11px !important;
+    height: 11px !important;
   }
 
   /* Cards */
   .card {
-    padding: 12px 12px;
-    border-radius: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
   }
 
   .card-header {
@@ -3853,19 +3886,24 @@ body,
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 8px;
+    gap: 4px;
+    margin-bottom: 6px;
   }
 
   .card-header h2 {
-    font-size: 14.5px;
+    font-size: 13.5px;
     font-weight: 700;
+  }
+
+  .card-header p {
+    font-size: 10.5px;
+    margin-top: 1px;
   }
 
   .card-header .header-actions {
     width: auto;
     justify-content: flex-end;
-    gap: 6px;
+    gap: 4px;
     flex-wrap: wrap;
   }
 
@@ -3873,72 +3911,202 @@ body,
     flex: 0 1 auto;
   }
 
-  /* Stat & Summary Cards */
+  /* Stat & Summary Cards (Dashboard 4 cards) */
   .dash-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
   }
 
   .summary-card {
-    padding: 10px 10px;
-    gap: 4px;
-    border-radius: 9px;
+    padding: 6px 8px !important;
+    gap: 2px !important;
+    border-radius: 7px !important;
   }
 
   .summary-card-head {
-    gap: 4px;
+    gap: 3px !important;
   }
 
   .summary-card-label {
-    font-size: 11px;
+    font-size: 10px !important;
     font-weight: 600;
   }
 
   .summary-card-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 5px !important;
   }
 
   .summary-card-icon svg {
-    width: 14px;
-    height: 14px;
+    width: 12px !important;
+    height: 12px !important;
   }
 
   .summary-card-value {
-    font-size: 16px;
-    font-weight: 700;
-    line-height: 1.15;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    line-height: 1.15 !important;
   }
 
   .summary-card-sub {
-    font-size: 10.5px;
+    font-size: 9px !important;
+  }
+
+  /* Liquidity Banner */
+  .liquidity-banner {
+    padding: 6px 10px !important;
+    margin-bottom: 6px !important;
+    gap: 6px !important;
+    border-radius: 7px !important;
+  }
+
+  .liquidity-banner-label {
+    font-size: 9px !important;
+  }
+
+  .liquidity-banner-value {
+    font-size: 13.5px !important;
+  }
+
+  .liquidity-banner-badge {
+    font-size: 9px !important;
+    padding: 2px 6px !important;
+  }
+
+  /* Rekap Keuangan Grid & Cards */
+  .rekap-keuangan-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .finance-modern-card {
+    padding: 8px 8px !important;
+    gap: 4px !important;
+    border-radius: 7px !important;
+  }
+
+  .finance-card-icon {
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 5px !important;
+  }
+
+  .finance-card-icon svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .finance-card-name {
+    font-size: 11px !important;
+  }
+
+  .finance-card-tag {
+    font-size: 8.5px !important;
+  }
+
+  .finance-card-balance-block {
+    padding: 2px 5px !important;
+    border-radius: 5px !important;
+    margin: 1px 0 !important;
+  }
+
+  .finance-balance-label {
+    font-size: 8.5px !important;
+  }
+
+  .finance-balance-value {
+    font-size: 13px !important;
+  }
+
+  .finance-flow-grid {
+    gap: 3px !important;
+  }
+
+  .finance-flow-item {
+    padding: 2px 4px !important;
+  }
+
+  .finance-flow-label {
+    font-size: 8.5px !important;
+    gap: 2px !important;
+  }
+
+  .finance-flow-label svg {
+    width: 10px !important;
+    height: 10px !important;
+  }
+
+  .finance-flow-value {
+    font-size: 9px !important;
+  }
+
+  .finance-ratio-bar-wrapper {
+    margin: 1px 0 !important;
+  }
+
+  .finance-ratio-bar-track {
+    height: 4px !important;
+  }
+
+  .finance-ratio-bar-labels {
+    font-size: 8.5px !important;
+  }
+
+  .finance-card-footer {
+    padding-top: 3px !important;
+    gap: 3px !important;
+  }
+
+  .finance-action-btn {
+    font-size: 9px !important;
+    padding: 2px 5px !important;
+  }
+
+  /* Dashboard Main Grid (Struktur & Donut Chart) */
+  .dash-main-grid {
+    gap: 8px !important;
+  }
+
+  .chart-container {
+    height: 130px !important;
+  }
+
+  .status-cards-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 3px !important;
+  }
+
+  .status-card {
+    padding: 4px 5px !important;
+    border-radius: 5px !important;
+    font-size: 10px !important;
   }
 
   .stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
   }
 
   .stat-card {
-    padding: 8px 10px;
-    gap: 6px;
-    border-radius: 8px;
-  }
-
-  .stat-icon {
-    width: 28px;
-    height: 28px;
+    padding: 6px 8px;
+    gap: 4px;
     border-radius: 7px;
   }
 
+  .stat-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+  }
+
   .stat-value {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
   }
 
   .stat-label {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   /* Toolbar, Search & Filter */
@@ -3946,34 +4114,34 @@ body,
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 8px;
+    gap: 4px;
+    margin-bottom: 6px;
   }
 
   .search-bar {
-    flex: 1 1 140px;
+    flex: 1 1 120px;
     width: auto;
     max-width: 100%;
   }
 
   .search-input {
-    height: 32px;
-    font-size: 12px;
-    padding: 0 10px 0 32px;
+    height: 30px;
+    font-size: 11.5px;
+    padding: 0 8px 0 28px;
   }
 
   .filter {
     flex: 0 1 auto;
     width: auto;
-    min-width: 85px;
+    min-width: 80px;
   }
 
   .filter select {
     width: auto;
-    min-width: 85px;
-    height: 32px;
-    font-size: 12px;
-    padding: 0 20px 0 8px;
+    min-width: 80px;
+    height: 30px;
+    font-size: 11.5px;
+    padding: 0 18px 0 6px;
   }
 
   .date-picker {
@@ -3982,9 +4150,9 @@ body,
   }
 
   .date-picker input {
-    height: 32px;
-    font-size: 12px;
-    padding: 0 8px;
+    height: 30px;
+    font-size: 11.5px;
+    padding: 0 6px;
     width: auto;
   }
 
@@ -3996,145 +4164,130 @@ body,
 
   .segment-btn {
     flex: 0 1 auto;
-    font-size: 11px;
-    padding: 5px 8px;
+    font-size: 10.5px;
+    padding: 4px 7px;
   }
 
   /* Buttons */
   .btn {
-    padding: 5px 10px;
-    font-size: 12px;
-    height: 32px;
-    gap: 5px;
-    border-radius: 7px;
+    padding: 4px 9px;
+    font-size: 11.5px;
+    height: 30px;
+    gap: 4px;
+    border-radius: 6px;
   }
 
   .btn-sm {
-    padding: 4px 8px;
-    font-size: 11px;
-    height: 28px;
+    padding: 3px 6px;
+    font-size: 10.5px;
+    height: 26px;
   }
 
   /* Forms */
   .form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
   }
 
   .form-group label {
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 600;
   }
 
   .form-group input,
   .form-group select,
   .form-group textarea {
-    padding: 6px 9px;
-    font-size: 12.5px;
-    height: 34px;
-    border-radius: 7px;
+    padding: 5px 8px;
+    font-size: 12px;
+    height: 32px;
+    border-radius: 6px;
   }
 
   .form-group textarea {
     height: auto;
-    min-height: 55px;
+    min-height: 50px;
   }
 
   .divisi-field {
     flex-direction: row;
-    gap: 6px;
+    gap: 4px;
   }
 
   /* Tables */
   .table-wrapper {
-    border-radius: 8px;
+    border-radius: 7px;
   }
 
   .table-scroll {
-    max-height: 480px;
+    max-height: 440px;
   }
 
   .data-table {
-    min-width: 480px;
-    font-size: 12px;
+    min-width: 440px;
+    font-size: 11.5px;
   }
 
   .data-table thead th {
-    padding: 6px 8px;
-    font-size: 10.5px;
+    padding: 5px 7px;
+    font-size: 10px;
   }
 
   .data-table tbody td {
-    padding: 6px 8px;
+    padding: 5px 7px;
   }
 
   .action-group {
-    gap: 3px;
+    gap: 2px;
   }
 
   .action-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    border-radius: 5px;
   }
 
   .action-btn svg {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
   }
 
   /* Modals */
   .modal-overlay {
-    padding: 8px;
+    padding: 6px;
   }
 
   .modal {
-    max-height: calc(100dvh - 16px);
+    max-height: calc(100dvh - 12px);
     width: 100%;
-    border-radius: 12px;
+    border-radius: 10px;
   }
 
   .modal-header {
-    padding: 10px 14px;
+    padding: 8px 12px;
   }
 
   .modal-header h3 {
-    font-size: 14px;
+    font-size: 13.5px;
   }
 
   .modal-body {
-    padding: 12px 14px;
+    padding: 10px 12px;
   }
 
   .modal-footer {
-    padding: 8px 14px;
-    flex-wrap: wrap;
-    gap: 6px;
+    padding: 6px 12px;
+    gap: 5px;
     flex-direction: row;
     justify-content: flex-end;
   }
 
   .modal-footer .btn {
     flex: 0 1 auto;
-    min-width: 70px;
-    padding: 5px 12px;
-    font-size: 12px;
+    min-width: 60px;
+    padding: 4px 10px;
+    font-size: 11.5px;
     width: auto;
     justify-content: center;
-  }
-
-  /* Dropdowns */
-  .date-range-dropdown,
-  .financial-summary-period-dropdown {
-    max-width: min(92vw, 340px);
-    right: 0;
-    left: auto;
-  }
-
-  .custom-inputs,
-  .financial-summary-custom-inputs {
-    grid-template-columns: 1fr;
-    gap: 8px;
   }
 
   /* Pagination */
@@ -4142,8 +4295,9 @@ body,
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    gap: 6px;
-    font-size: 11px;
+    gap: 4px;
+    font-size: 10.5px;
+    padding: 6px 0;
   }
 
   .pagination-controls {
@@ -4154,84 +4308,73 @@ body,
   /* Toast */
   .toast-container {
     top: auto;
-    left: 10px;
-    right: 10px;
-    bottom: 12px;
+    left: 8px;
+    right: 8px;
+    bottom: 10px;
     pointer-events: none;
   }
 
   .toast {
     max-width: 100%;
-    padding: 8px 12px;
-    font-size: 12px;
+    padding: 6px 10px;
+    font-size: 11.5px;
   }
 }
 
 /* ---------------- 5. MOBILE KECIL (< 480px) ---------------- */
 @media (max-width: 479px) {
   .main-content {
-    padding: 8px 10px;
+    padding: 6px 6px;
   }
 
   .dash-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-  }
-
-  .summary-card {
-    padding: 8px 8px;
-    gap: 3px;
-  }
-
-  .summary-card-head {
     gap: 4px;
   }
 
+  .summary-card {
+    padding: 6px 6px !important;
+    gap: 2px !important;
+  }
+
+  .summary-card-head {
+    gap: 3px !important;
+  }
+
   .summary-card-label {
-    font-size: 10.5px;
+    font-size: 9.5px !important;
   }
 
   .summary-card-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 4px !important;
   }
 
   .summary-card-icon svg {
-    width: 13px;
-    height: 13px;
+    width: 11px !important;
+    height: 11px !important;
   }
 
   .summary-card-value {
-    font-size: 15px;
+    font-size: 13.5px !important;
   }
 
   .summary-card-sub {
-    font-size: 9.5px;
+    font-size: 8.5px !important;
   }
 
   .stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-  }
-
-  .stat-value {
-    font-size: 14.5px;
-  }
-
-  .btn {
-    padding: 5px 9px;
-    font-size: 11.5px;
     gap: 4px;
   }
 
-  .btn-sm {
-    padding: 4px 7px;
-    font-size: 10.5px;
+  .stat-value {
+    font-size: 13.5px;
   }
 
   .chart-container {
-    height: 220px;
+    height: 120px !important;
   }
 
   .status-donut-wrapper {
@@ -4416,6 +4559,289 @@ body,
   }
   .summary-stat-label {
     font-size: 9.5px;
+  }
+}
+
+/* ---------------- ABSENSI SUMMARY GRID ---------------- */
+.absensi-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+
+.absensi-stat-card {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(4px);
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.absensi-stat-card.highlight {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.absensi-stat-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.absensi-stat-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.absensi-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+@media (max-width: 1023px) {
+  .absensi-summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .absensi-summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+  }
+  .absensi-stat-card {
+    padding: 6px 8px;
+    border-radius: 7px;
+    gap: 2px;
+  }
+  .absensi-stat-head {
+    font-size: 10px;
+    gap: 5px;
+  }
+  .absensi-stat-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+  }
+  .absensi-stat-icon svg {
+    width: 12px;
+    height: 12px;
+  }
+  .absensi-stat-value {
+    font-size: 13.5px;
+    margin-top: 1px;
+  }
+}
+
+@media (max-width: 480px) {
+  .absensi-summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+  .absensi-stat-card {
+    padding: 5px 6px;
+  }
+  .absensi-stat-value {
+    font-size: 13px;
+  }
+}
+
+/* ---------------- FINANCIAL CARDS GRID (KEUANGAN) ---------------- */
+.financial-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.financial-stat-card-custom {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(4px);
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.financial-stat-card-custom.highlight {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.financial-stat-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.financial-stat-icon-wrap {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.financial-stat-value-custom {
+  font-size: 19px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-top: 2px;
+  word-break: break-word;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+@media (max-width: 1023px) {
+  .financial-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .financial-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  .financial-stat-card-custom {
+    padding: 6px 8px;
+    border-radius: 7px;
+    gap: 2px;
+  }
+  .financial-stat-head {
+    font-size: 10.5px;
+    gap: 5px;
+  }
+  .financial-stat-icon-wrap {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+  }
+  .financial-stat-icon-wrap svg {
+    width: 12px;
+    height: 12px;
+  }
+  .financial-stat-value-custom {
+    font-size: 13.5px;
+    margin-top: 1px;
+  }
+}
+
+/* ---------------- REKRUTMEN STATS GRID ---------------- */
+.rekrutmen-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.rekrutmen-stat-card {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rekrutmen-stat-card.active {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: #ffffff;
+}
+
+.rekrutmen-stat-card:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.rekrutmen-stat-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.9;
+  font-size: 11.5px;
+  color: #ffffff;
+}
+
+.rekrutmen-stat-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.1;
+}
+
+.rekrutmen-stat-sub {
+  font-size: 10.5px;
+  opacity: 0.8;
+  color: #ffffff;
+}
+
+@media (max-width: 1023px) {
+  .rekrutmen-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .rekrutmen-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+  }
+  .rekrutmen-stat-card {
+    padding: 6px 8px;
+    border-radius: 7px;
+    gap: 2px;
+  }
+  .rekrutmen-stat-head {
+    font-size: 10px;
+  }
+  .rekrutmen-stat-head svg {
+    width: 12px;
+    height: 12px;
+  }
+  .rekrutmen-stat-value {
+    font-size: 14px;
+  }
+  .rekrutmen-stat-sub {
+    font-size: 9.5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .rekrutmen-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
   }
 }
 

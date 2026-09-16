@@ -12,6 +12,14 @@ const STORAGE_KEY = "mbc_view_mode";
 
 const ViewModeContext = createContext<ViewModeContextType | null>(null);
 
+function checkIsMobile(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.innerWidth < 768 ||
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  );
+}
+
 function applyViewport(mode: ViewMode) {
   let meta = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
   if (!meta) {
@@ -20,6 +28,8 @@ function applyViewport(mode: ViewMode) {
     document.head.appendChild(meta);
   }
 
+  const isMobile = checkIsMobile();
+
   if (mode === "desktop") {
     // Menetapkan viewport lebar desktop 1180px dengan initial scale proporsional
     const screenWidth = window.screen.width || window.innerWidth || 390;
@@ -27,16 +37,25 @@ function applyViewport(mode: ViewMode) {
     meta.content = `width=1180, initial-scale=${initialScale}, maximum-scale=3.0, user-scalable=yes`;
     document.documentElement.classList.add("desktop-mode-active");
     document.body.classList.add("desktop-mode-active");
+    document.documentElement.classList.remove("is-mobile-device");
   } else {
-    // Mode compact responsive mobile
+    // Mode compact responsive minimalis untuk mobile
     meta.content = "width=device-width, initial-scale=1.0, maximum-scale=3.0";
     document.documentElement.classList.remove("desktop-mode-active");
     document.body.classList.remove("desktop-mode-active");
+    if (isMobile) {
+      document.documentElement.classList.add("is-mobile-device");
+    }
   }
 }
 
 export function ViewModeProvider({ children }: { children: ReactNode }) {
   const [viewMode, setViewModeState] = useState<ViewMode>(() => {
+    // Jika diakses dari HP / layar mobile, selalu terapkan tampilan minimalis
+    const isMobile = checkIsMobile();
+    if (isMobile) {
+      return "compact";
+    }
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       return saved === "desktop" ? "desktop" : "compact";

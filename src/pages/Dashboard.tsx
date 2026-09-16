@@ -270,7 +270,7 @@ export function Dashboard() {
   const mediaOutflowPct = 100 - mediaInflowPct;
 
   return (
-    <div className="page-grid" style={{ gap: 22 }}>
+    <div className="page-grid dash-page-grid">
       {/* 1. GREETING BANNER (PROUD SIGNATURE RED BOX) */}
       <div className="dash-greeting-banner animate-fade-slide-up">
         <div>

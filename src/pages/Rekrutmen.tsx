@@ -315,126 +315,80 @@ export function Rekrutmen() {
         </div>
 
         {/* 4/5 Stat Cards Grid - Clickable for Fast Filtering */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 130px), 1fr))",
-            gap: 12,
-          }}
-        >
+        <div className="rekrutmen-stats-grid">
           {/* Card 1: Total */}
           <div
             onClick={() => handleCardStatusClick("")}
-            style={{
-              background: activeTab === "submissions" && selectedStatusFilter === "" ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(8px)",
-              borderRadius: "var(--radius-sm, 10px)",
-              padding: "14px 16px",
-              border: activeTab === "submissions" && selectedStatusFilter === "" ? "1.5px solid #ffffff" : "1px solid rgba(255, 255, 255, 0.18)",
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
+            className={`rekrutmen-stat-card ${activeTab === "submissions" && selectedStatusFilter === "" ? "active" : ""}`}
             title="Klik untuk melihat semua pendaftar"
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: 0.9, fontSize: "12px" }}>
+            <div className="rekrutmen-stat-head">
               <Users size={14} /> Total Pendaftar
             </div>
-            <div style={{ fontSize: "clamp(1.25rem, 3.5vw, 1.65rem)", fontWeight: 800, color: "#ffffff", marginTop: 4 }}>
+            <div className="rekrutmen-stat-value">
               {statsCalculated.total}
             </div>
-            <span style={{ fontSize: "11px", opacity: 0.8 }}>Lihat semua pendaftar ↗</span>
+            <span className="rekrutmen-stat-sub">Semua pendaftar ↗</span>
           </div>
 
           {/* Card 2: Menunggu */}
           <div
             onClick={() => handleCardStatusClick("menunggu")}
-            style={{
-              background: activeTab === "submissions" && selectedStatusFilter === "menunggu" ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(8px)",
-              borderRadius: "var(--radius-sm, 10px)",
-              padding: "14px 16px",
-              border: activeTab === "submissions" && selectedStatusFilter === "menunggu" ? "1.5px solid #fde68a" : "1px solid rgba(255, 255, 255, 0.18)",
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
+            className={`rekrutmen-stat-card ${activeTab === "submissions" && selectedStatusFilter === "menunggu" ? "active" : ""}`}
             title="Klik untuk menyaring pendaftar yang menunggu review"
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: 0.9, fontSize: "12px" }}>
+            <div className="rekrutmen-stat-head">
               <Clock size={14} /> Menunggu Seleksi
             </div>
-            <div style={{ fontSize: "clamp(1.25rem, 3.5vw, 1.65rem)", fontWeight: 800, color: "#ffffff", marginTop: 4 }}>
+            <div className="rekrutmen-stat-value">
               {statsCalculated.menunggu}
             </div>
-            <span style={{ fontSize: "11px", opacity: 0.8 }}>🟡 Belum direview ↗</span>
+            <span className="rekrutmen-stat-sub">🟡 Belum direview ↗</span>
           </div>
 
           {/* Card 3: Lolos */}
           <div
             onClick={() => handleCardStatusClick("lolos")}
-            style={{
-              background: activeTab === "submissions" && selectedStatusFilter === "lolos" ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(8px)",
-              borderRadius: "var(--radius-sm, 10px)",
-              padding: "14px 16px",
-              border: activeTab === "submissions" && selectedStatusFilter === "lolos" ? "1.5px solid #a7f3d0" : "1px solid rgba(255, 255, 255, 0.18)",
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
+            className={`rekrutmen-stat-card ${activeTab === "submissions" && selectedStatusFilter === "lolos" ? "active" : ""}`}
             title="Klik untuk menyaring calon yang lolos seleksi"
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: 0.9, fontSize: "12px" }}>
+            <div className="rekrutmen-stat-head">
               <CheckCircle2 size={14} /> Lolos Seleksi
             </div>
-            <div style={{ fontSize: "clamp(1.25rem, 3.5vw, 1.65rem)", fontWeight: 800, color: "#ffffff", marginTop: 4 }}>
+            <div className="rekrutmen-stat-value">
               {statsCalculated.lolos}
             </div>
-            <span style={{ fontSize: "11px", opacity: 0.8 }}>🟢 Diterima (Training 3x) ↗</span>
+            <span className="rekrutmen-stat-sub">🟢 Diterima ↗</span>
           </div>
 
           {/* Card 4: Cadangan (if any) */}
           <div
             onClick={() => handleCardStatusClick("cadangan")}
-            style={{
-              background: activeTab === "submissions" && selectedStatusFilter === "cadangan" ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(8px)",
-              borderRadius: "var(--radius-sm, 10px)",
-              padding: "14px 16px",
-              border: activeTab === "submissions" && selectedStatusFilter === "cadangan" ? "1.5px solid #bfdbfe" : "1px solid rgba(255, 255, 255, 0.18)",
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
+            className={`rekrutmen-stat-card ${activeTab === "submissions" && selectedStatusFilter === "cadangan" ? "active" : ""}`}
             title="Klik untuk menyaring calon cadangan"
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: 0.9, fontSize: "12px" }}>
+            <div className="rekrutmen-stat-head">
               <Bookmark size={14} /> Cadangan
             </div>
-            <div style={{ fontSize: "clamp(1.25rem, 3.5vw, 1.65rem)", fontWeight: 800, color: "#ffffff", marginTop: 4 }}>
+            <div className="rekrutmen-stat-value">
               {statsCalculated.cadangan}
             </div>
-            <span style={{ fontSize: "11px", opacity: 0.8 }}>🔵 Waiting list ↗</span>
+            <span className="rekrutmen-stat-sub">🔵 Waiting list ↗</span>
           </div>
 
           {/* Card 5: Tidak Lolos */}
           <div
             onClick={() => handleCardStatusClick("tidak_lolos")}
-            style={{
-              background: activeTab === "submissions" && selectedStatusFilter === "tidak_lolos" ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(8px)",
-              borderRadius: "var(--radius-sm, 10px)",
-              padding: "14px 16px",
-              border: activeTab === "submissions" && selectedStatusFilter === "tidak_lolos" ? "1.5px solid #fecaca" : "1px solid rgba(255, 255, 255, 0.18)",
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
+            className={`rekrutmen-stat-card ${activeTab === "submissions" && selectedStatusFilter === "tidak_lolos" ? "active" : ""}`}
             title="Klik untuk menyaring calon yang gagal / tidak lolos"
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: 0.9, fontSize: "12px" }}>
-              <XCircle size={14} /> Gagal / Tidak Lolos
+            <div className="rekrutmen-stat-head">
+              <XCircle size={14} /> Gagal
             </div>
-            <div style={{ fontSize: "clamp(1.25rem, 3.5vw, 1.65rem)", fontWeight: 800, color: "#ffffff", marginTop: 4 }}>
+            <div className="rekrutmen-stat-value">
               {statsCalculated.tidakLolos}
             </div>
-            <span style={{ fontSize: "11px", opacity: 0.8 }}>🔴 Belum memenuhi ↗</span>
+            <span className="rekrutmen-stat-sub">🔴 Belum memenuhi ↗</span>
           </div>
         </div>
       </div>

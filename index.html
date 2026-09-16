@@ -15,8 +15,11 @@
     <script>
       (function() {
         try {
+          var isMobile = (window.innerWidth && window.innerWidth < 768) ||
+                         /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
           var mode = localStorage.getItem('mbc_view_mode');
-          if (mode === 'desktop') {
+          
+          if (!isMobile && mode === 'desktop') {
             var screenWidth = window.screen.width || window.innerWidth || 390;
             var scale = Math.max(0.25, Math.min(1.0, +(screenWidth / 1180).toFixed(2)));
             var meta = document.querySelector('meta[name="viewport"]');
@@ -24,6 +27,15 @@
               meta.content = 'width=1180, initial-scale=' + scale + ', maximum-scale=3.0, user-scalable=yes';
             }
             document.documentElement.classList.add('desktop-mode-active');
+          } else {
+            var meta = document.querySelector('meta[name="viewport"]');
+            if (meta) {
+              meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=3.0';
+            }
+            document.documentElement.classList.remove('desktop-mode-active');
+            if (isMobile) {
+              document.documentElement.classList.add('is-mobile-device');
+            }
           }
         } catch (e) {}
 
