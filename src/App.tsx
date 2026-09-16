@@ -1,7 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ConnectionProvider } from "./contexts/ConnectionContext";
-import { ViewModeProvider } from "./contexts/ViewModeContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { Layout } from "./components/layout/Layout";
 import { Login } from "./pages/Login";
@@ -57,9 +56,7 @@ export default function App() {
   return (
     <ConnectionProvider>
       <AuthProvider>
-        <ViewModeProvider>
-          <AppRoutes />
-        </ViewModeProvider>
+        <AppRoutes />
       </AuthProvider>
     </ConnectionProvider>
   );
