@@ -4754,6 +4754,111 @@ body,
   }
 }
 
+/* ---------------- DASHBOARD SUMMARY CARDS GRID (MATCHING KEUANGAN & ABSENSI) ---------------- */
+.dash-summary-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.dash-stat-card {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(4px);
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.dash-stat-card:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.dash-stat-card.highlight {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.dash-stat-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dash-stat-icon-wrap {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.dash-stat-value {
+  font-size: 19px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-top: 2px;
+  word-break: break-word;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.dash-stat-sub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 2px;
+}
+
+@media (max-width: 1023px) {
+  .dash-summary-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dash-summary-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  .dash-stat-card {
+    padding: 6px 8px;
+    border-radius: 7px;
+    gap: 2px;
+  }
+  .dash-stat-head {
+    font-size: 10.5px;
+    gap: 5px;
+  }
+  .dash-stat-icon-wrap {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+  }
+  .dash-stat-icon-wrap svg {
+    width: 12px;
+    height: 12px;
+  }
+  .dash-stat-value {
+    font-size: 13.5px;
+    margin-top: 1px;
+  }
+  .dash-stat-sub {
+    font-size: 9.5px;
+  }
+}
+
 /* ---------------- REKRUTMEN STATS GRID ---------------- */
 .rekrutmen-stats-grid {
   display: grid;

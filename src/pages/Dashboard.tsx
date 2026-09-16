@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -67,65 +66,6 @@ const PALETTE = [
   "#65a30d",
   "#64748b",
 ];
-
-function SummaryCard({
-  label,
-  value,
-  sub,
-  badge,
-  icon,
-  iconClass,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  badge?: string;
-  icon: ReactNode;
-  iconClass: string;
-}) {
-  return (
-    <div className="summary-card animate-fade-slide-up" style={{ minWidth: 0, border: "1px solid var(--border, #e2e8f0)" }}>
-      <div className="summary-card-head">
-        <span className="summary-card-label" style={{ color: "var(--text-muted, #64748b)", fontWeight: 600 }}>{label}</span>
-        <span className={`summary-card-icon ${iconClass}`}>{icon}</span>
-      </div>
-      <span className="summary-card-value" style={{ color: "var(--navy-900, #0f172a)" }}>{value}</span>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 4 }}>
-        <span className="summary-card-sub">{sub}</span>
-        {badge && (
-          <span
-            style={{
-              fontSize: "10.5px",
-              fontWeight: 600,
-              padding: "2px 8px",
-              borderRadius: 999,
-              background: "#f1f5f9",
-              color: "#475569",
-              border: "1px solid #e2e8f0",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-            }}
-          >
-            {badge}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SummaryCardSkeleton() {
-  return (
-    <div className="summary-card summary-card-skeleton animate-fade-slide-up">
-      <div className="summary-card-head">
-        <Skeleton width={120} height={14} />
-        <Skeleton width={44} height={44} borderRadius={12} />
-      </div>
-      <Skeleton width={100} height={32} />
-      <Skeleton width={140} height={13} />
-    </div>
-  );
-}
 
 export function Dashboard() {
   // Use useApi hooks for instant cache rendering + background sync
@@ -271,80 +211,115 @@ export function Dashboard() {
 
   return (
     <div className="page-grid dash-page-grid">
-      {/* 1. GREETING BANNER (PROUD SIGNATURE RED BOX) */}
-      <div className="dash-greeting-banner animate-fade-slide-up">
-        <div>
-          <h1 className="dash-greeting-title">
-            Selamat Datang Di Portal Sistem MB Chondro
-          </h1>
-          <div className="dash-greeting-sub" />
+      {/* 1. RINGKASAN DASHBOARD UTAMA (SIGNATURE SUMMARY PANEL SESUAI HALAMAN LAIN) */}
+      <div className="summary-panel animate-fade-slide-up">
+        <div className="summary-panel-header">
+          <div>
+            <h3>Ringkasan Dashboard MB CHONDRO</h3>
+            <p>Selamat Datang di Portal Sistem MB Chondro</p>
+          </div>
+          <div className="dash-quick-shortcuts">
+            <Link to="/absensi" className="dash-quick-btn">
+              <PlusCircle size={14} />
+              Absensi
+            </Link>
+            <Link to="/keuangan" className="dash-quick-btn">
+              <PlusCircle size={14} />
+              Kas Chondro
+            </Link>
+            <Link to="/keuangan-media" className="dash-quick-btn">
+              <PlusCircle size={14} />
+              Kas Media
+            </Link>
+            <Link to="/anggota" className="dash-quick-btn">
+              <PlusCircle size={14} />
+              Anggota
+            </Link>
+          </div>
         </div>
 
-        <div className="dash-quick-shortcuts">
-          <Link to="/absensi" className="dash-quick-btn">
-            <PlusCircle size={14} />
-            Absensi
-          </Link>
-          <Link to="/keuangan" className="dash-quick-btn">
-            <PlusCircle size={14} />
-            Kas Chondro
-          </Link>
-          <Link to="/keuangan-media" className="dash-quick-btn">
-            <PlusCircle size={14} />
-            Kas Media
-          </Link>
-          <Link to="/anggota" className="dash-quick-btn">
-            <PlusCircle size={14} />
-            Anggota
-          </Link>
-        </div>
-      </div>
+        <div className="dash-summary-cards-grid">
+          {loading || !dashboardData ? (
+            <>
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="dash-stat-card" style={{ opacity: 0.7 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <Skeleton width={24} height={24} borderRadius={7} />
+                    <Skeleton width={90} height={13} />
+                  </div>
+                  <Skeleton width={110} height={24} style={{ margin: "4px 0" }} />
+                  <Skeleton width={80} height={11} />
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              {/* Card 1: Total Anggota */}
+              <div className="dash-stat-card">
+                <div className="dash-stat-head">
+                  <div className="dash-stat-icon-wrap">
+                    <Users size={15} />
+                  </div>
+                  <span>Total Anggota</span>
+                </div>
+                <div className="dash-stat-value">
+                  {dashboardData.anggota.total.toLocaleString("id-ID")}
+                </div>
+                <div className="dash-stat-sub">
+                  {dashboardData.anggota.aktif} Aktif · {dashboardData.anggota.cuti} Cuti
+                </div>
+              </div>
 
-      {/* 2. 4 ELEVATED SUMMARY CARDS (CLEAN MINIMALIST) */}
-      <div className="dash-summary-grid">
-        {loading || !dashboardData ? (
-          <>
-            <SummaryCardSkeleton />
-            <SummaryCardSkeleton />
-            <SummaryCardSkeleton />
-            <SummaryCardSkeleton />
-          </>
-        ) : (
-          <>
-            <SummaryCard
-              label="Total Anggota"
-              value={dashboardData.anggota.total.toLocaleString("id-ID")}
-              sub={`${dashboardData.anggota.aktif} Aktif · ${dashboardData.anggota.cuti} Cuti`}
-              badge={`${dashboardData.anggota.total > 0 ? Math.round((dashboardData.anggota.aktif / dashboardData.anggota.total) * 100) : 0}% Aktif`}
-              icon={<Users size={20} />}
-              iconClass="summary-card-icon-primary"
-            />
-            <SummaryCard
-              label="Kehadiran Anggota"
-              value={`${dashboardData.absensi.persentase}%`}
-              sub={`${dashboardData.absensi.hadir} Hadir · ${dashboardData.absensi.izin + dashboardData.absensi.sakit} Izin`}
-              badge={dashboardData.absensi.persentase >= 80 ? "Sangat Baik" : "Stabil"}
-              icon={<ClipboardCheck size={20} />}
-              iconClass="summary-card-icon-green"
-            />
-            <SummaryCard
-              label="Saldo Kas mbc sistem"
-              value={formatRupiah(keuanganChondroSaldo)}
-              sub="Kas utama organisasi"
-              badge="Kas Utama"
-              icon={<Wallet size={20} />}
-              iconClass="summary-card-icon-primary"
-            />
-            <SummaryCard
-              label="Saldo Kas Media"
-              value={formatRupiah(keuanganMediaSaldo)}
-              sub="Publikasi & media"
-              badge="Kas Media"
-              icon={<WalletCards size={20} />}
-              iconClass="summary-card-icon-primary"
-            />
-          </>
-        )}
+              {/* Card 2: Kehadiran Anggota */}
+              <div className="dash-stat-card">
+                <div className="dash-stat-head">
+                  <div className="dash-stat-icon-wrap">
+                    <ClipboardCheck size={15} />
+                  </div>
+                  <span>Kehadiran Anggota</span>
+                </div>
+                <div className="dash-stat-value">
+                  {dashboardData.absensi.persentase}%
+                </div>
+                <div className="dash-stat-sub">
+                  {dashboardData.absensi.hadir} Hadir · {dashboardData.absensi.izin + dashboardData.absensi.sakit} Izin
+                </div>
+              </div>
+
+              {/* Card 3: Saldo Kas Chondro */}
+              <div className="dash-stat-card highlight">
+                <div className="dash-stat-head">
+                  <div className="dash-stat-icon-wrap">
+                    <Wallet size={15} />
+                  </div>
+                  <span>Kas mbc sistem</span>
+                </div>
+                <div className="dash-stat-value">
+                  {formatRupiah(keuanganChondroSaldo)}
+                </div>
+                <div className="dash-stat-sub">
+                  Kas utama organisasi
+                </div>
+              </div>
+
+              {/* Card 4: Saldo Kas Media */}
+              <div className="dash-stat-card highlight">
+                <div className="dash-stat-head">
+                  <div className="dash-stat-icon-wrap">
+                    <WalletCards size={15} />
+                  </div>
+                  <span>Kas Media</span>
+                </div>
+                <div className="dash-stat-value">
+                  {formatRupiah(keuanganMediaSaldo)}
+                </div>
+                <div className="dash-stat-sub">
+                  Publikasi & dokumentasi
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* 3. REKAPITULASI KEUANGAN ORGANISASI (FULL WIDTH - CLEAN WHITE) */}
