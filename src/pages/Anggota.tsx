@@ -1,5 +1,14 @@
 import { useMemo, useRef, useState } from "react";
-import { Eye, MessageCircle, Pencil, Plus, Trash2, Upload, User } from "lucide-react";
+import {
+  Eye,
+  ListOrdered,
+  MessageCircle,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+  User,
+} from "lucide-react";
 import { addAnggota, deleteAnggota, getAnggota, updateAnggota } from "../services/api";
 import { CACHE_KEYS, cacheMutate } from "../services/cache";
 import { saveMemberPhoto, getMemberPhoto, deleteMemberPhoto } from "../services/photoStorage";
@@ -112,9 +121,16 @@ export function Anggota() {
   type SortDirection = "asc" | "desc";
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [showDivisiModal, setShowDivisiModal] = useState(false);
+  const [customDivisiOrder, setCustomDivisiOrder] = useState<string[]>([]);
+  const [tempDivisiOrder, setTempDivisiOrder] = useState<string[]>([]);
 
   const handleSort = (key: string) => {
-    if (key !== "nama" && key !== "namaPanggilan" && key !== "divisi") return;
+    if (key === "divisi") {
+      openDivisiSortModal();
+      return;
+    }
+    if (key !== "nama" && key !== "namaPanggilan") return;
     if (sortField === key) {
       if (sortDirection === "asc") {
         setSortDirection("desc");
@@ -156,6 +172,67 @@ export function Anggota() {
     return Array.from(set).sort().map((d) => ({ value: d, label: d }));
   }, [divisiOptions, extraDivisi]);
 
+  // Daftar divisi unik untuk modal urutan
+  const uniqueDivisiList = useMemo(() => {
+    const set = new Set<string>();
+    anggota.forEach((a) => {
+      const d = (a.divisi || "").trim();
+      if (d) set.add(d);
+    });
+    extraDivisi.forEach((d) => {
+      const trimmed = d.trim();
+      if (trimmed) set.add(trimmed);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "id"));
+  }, [anggota, extraDivisi]);
+
+  const openDivisiSortModal = () => {
+    const baseList = customDivisiOrder.length > 0 ? [...customDivisiOrder] : [...uniqueDivisiList];
+    uniqueDivisiList.forEach((d) => {
+      if (!baseList.includes(d)) baseList.push(d);
+    });
+    const validOrder = baseList.filter((d) => uniqueDivisiList.includes(d));
+    setTempDivisiOrder(validOrder);
+    setShowDivisiModal(true);
+  };
+
+  const handleChangeRank = (currentIndex: number, newRank: number) => {
+    const targetIndex = newRank - 1;
+    if (currentIndex === targetIndex) return;
+    setTempDivisiOrder((prev) => {
+      const updated = [...prev];
+      const [moved] = updated.splice(currentIndex, 1);
+      updated.splice(targetIndex, 0, moved);
+      return updated;
+    });
+  };
+
+  const handlePresetAZ = () => {
+    setTempDivisiOrder((prev) => [...prev].sort((a, b) => a.localeCompare(b, "id")));
+  };
+
+  const handlePresetZA = () => {
+    setTempDivisiOrder((prev) => [...prev].sort((a, b) => b.localeCompare(a, "id")));
+  };
+
+  const applyDivisiOrder = () => {
+    setCustomDivisiOrder(tempDivisiOrder);
+    setSortField("divisi");
+    setSortDirection("asc");
+    setShowDivisiModal(false);
+    toastSuccess("Urutan prioritas divisi berhasil diterapkan!");
+  };
+
+  const resetDivisiOrder = () => {
+    setCustomDivisiOrder([]);
+    setTempDivisiOrder([...uniqueDivisiList]);
+    if (sortField === "divisi") {
+      setSortField(null);
+    }
+    setShowDivisiModal(false);
+    toastSuccess("Urutan divisi dikembalikan ke default.");
+  };
+
   const tambahDivisi = () => {
     const v = newDivisi.trim();
     if (!v) return;
@@ -180,6 +257,22 @@ export function Anggota() {
       return true;
     });
 
+    if (sortField === "divisi") {
+      const activeOrder = customDivisiOrder.length > 0 ? customDivisiOrder : uniqueDivisiList;
+      const rankMap = new Map(activeOrder.map((d, i) => [d.trim().toLowerCase(), i + 1]));
+
+      return [...list].sort((a, b) => {
+        const divA = (a.divisi ?? "").trim().toLowerCase();
+        const divB = (b.divisi ?? "").trim().toLowerCase();
+        const rankA = rankMap.get(divA) ?? 9999;
+        const rankB = rankMap.get(divB) ?? 9999;
+        if (rankA !== rankB) {
+          return sortDirection === "asc" ? rankA - rankB : rankB - rankA;
+        }
+        return (a.nama ?? "").localeCompare(b.nama ?? "", "id", { sensitivity: "base" });
+      });
+    }
+
     if (sortField) {
       return [...list].sort((a, b) => {
         const valA = String(a[sortField] ?? "").trim();
@@ -199,7 +292,7 @@ export function Anggota() {
       if (divisiCompare !== 0) return divisiCompare;
       return (a.nama ?? "").localeCompare(b.nama ?? "");
     });
-  }, [anggota, search, filterDivisi, filterStatus, sortField, sortDirection]);
+  }, [anggota, search, filterDivisi, filterStatus, sortField, sortDirection, customDivisiOrder, uniqueDivisiList]);
 
   const validate = (f: FormAnggota): Record<string, string> => {
     const err: Record<string, string> = {};
@@ -332,6 +425,17 @@ export function Anggota() {
     if (filterDivisi) parts.push(`Divisi: ${filterDivisi}`);
     if (filterStatus) parts.push(`Status: ${filterStatus}`);
     if (search.trim()) parts.push(`Pencarian: "${search.trim()}"`);
+    if (sortField) {
+      const fieldName =
+        sortField === "nama"
+          ? "Nama Lengkap"
+          : sortField === "namaPanggilan"
+          ? "Nama Panggilan"
+          : customDivisiOrder.length > 0
+          ? "Urutan Prioritas Divisi"
+          : "Divisi";
+      parts.push(`Urut: ${fieldName} (${sortDirection === "asc" ? "A-Z" : "Z-A"})`);
+    }
     const periode = parts.length ? parts.join(" · ") : "Seluruh data anggota";
     await laporanAnggota(filtered, periode);
   };
@@ -430,17 +534,34 @@ export function Anggota() {
             <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <p style={{ margin: 0 }}>{loading ? "Memuat data..." : `${filtered.length} data anggota ditampilkan`}</p>
               {sortField && (
-                <button
-                  type="button"
-                  className="sort-active-badge"
-                  onClick={() => { setSortField(null); setSortDirection("asc"); }}
-                  title="Klik untuk reset urutan default"
-                >
-                  <span>
-                    Urut: {sortField === "nama" ? "Nama Lengkap" : sortField === "namaPanggilan" ? "Nama Panggilan" : "Divisi"} ({sortDirection === "asc" ? "A-Z" : "Z-A"})
-                  </span>
-                  <span className="sort-badge-close">×</span>
-                </button>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <button
+                    type="button"
+                    className="sort-active-badge"
+                    onClick={() => {
+                      if (sortField === "divisi") setCustomDivisiOrder([]);
+                      setSortField(null);
+                      setSortDirection("asc");
+                    }}
+                    title="Klik untuk reset urutan default"
+                  >
+                    <span>
+                      Urut: {sortField === "nama" ? "Nama Lengkap" : sortField === "namaPanggilan" ? "Nama Panggilan" : customDivisiOrder.length > 0 ? "Divisi (Pilihan Urutan)" : "Divisi"} ({sortDirection === "asc" ? "A-Z" : "Z-A"})
+                    </span>
+                    <span className="sort-badge-close">×</span>
+                  </button>
+                  {sortField === "divisi" && (
+                    <button
+                      type="button"
+                      className="divisi-preset-btn"
+                      style={{ padding: "0.2rem 0.55rem" }}
+                      onClick={openDivisiSortModal}
+                      title="Ubah urutan divisi"
+                    >
+                      <ListOrdered size={12} /> Ubah
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -459,6 +580,29 @@ export function Anggota() {
             onChange={setFilterStatus}
             options={STATUS_ANGGOTA.map((s) => ({ value: s, label: s }))}
           />
+          <button
+            type="button"
+            className={`btn ${sortField === "divisi" ? "btn-primary" : "btn-secondary"}`}
+            onClick={openDivisiSortModal}
+            title="Buka popup untuk memilih urutan divisi"
+            style={{ whiteSpace: "nowrap" }}
+          >
+            <ListOrdered size={16} />
+            <span>Urutan Divisi</span>
+            {customDivisiOrder.length > 0 && (
+              <span style={{
+                marginLeft: "4px",
+                fontSize: "0.72rem",
+                backgroundColor: sortField === "divisi" ? "rgba(255,255,255,0.3)" : "rgba(14,165,233,0.18)",
+                color: sortField === "divisi" ? "#fff" : "var(--primary)",
+                padding: "1px 6px",
+                borderRadius: "9999px",
+                fontWeight: 600
+              }}>
+                {customDivisiOrder.length}
+              </span>
+            )}
+          </button>
         </div>
 
         <DataTable
@@ -624,6 +768,92 @@ export function Anggota() {
             <label>Keterangan</label>
             <textarea value={form.keterangan} onChange={(e) => setField("keterangan", e.target.value)} placeholder="Keterangan tambahan (opsional)" />
           </div>
+        </div>
+      </Modal>
+
+      {/* Modal Popup Pilihan Urutan Divisi (Minimalis) */}
+      <Modal
+        open={showDivisiModal}
+        title="Urutan Divisi"
+        onClose={() => setShowDivisiModal(false)}
+        size="sm"
+        footer={
+          <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={resetDivisiOrder}
+              style={{ padding: "0.25rem 0.5rem", fontSize: "0.8rem", color: "var(--text-muted)" }}
+            >
+              Reset
+            </button>
+            <div style={{ display: "flex", gap: "0.4rem" }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowDivisiModal(false)}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={applyDivisiOrder}
+              >
+                Terapkan
+              </button>
+            </div>
+          </div>
+        }
+      >
+        <div className="divisi-sort-modal-body">
+          {tempDivisiOrder.length > 1 && (
+            <div className="divisi-sort-presets">
+              <span className="divisi-sort-preset-label">Atur cepat:</span>
+              <button
+                type="button"
+                className="divisi-preset-btn"
+                onClick={handlePresetAZ}
+                title="Urutkan A ke Z"
+              >
+                A - Z
+              </button>
+              <button
+                type="button"
+                className="divisi-preset-btn"
+                onClick={handlePresetZA}
+                title="Urutkan Z ke A"
+              >
+                Z - A
+              </button>
+            </div>
+          )}
+
+          {tempDivisiOrder.length === 0 ? (
+            <div style={{ padding: "1rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+              Belum ada data divisi.
+            </div>
+          ) : (
+            <div className="divisi-sort-list">
+              {tempDivisiOrder.map((divisiName, index) => (
+                <div key={divisiName} className="divisi-sort-row">
+                  <span className="divisi-name-text">{divisiName}</span>
+                  <select
+                    className="divisi-rank-select"
+                    value={index + 1}
+                    onChange={(e) => handleChangeRank(index, Number(e.target.value))}
+                    title={`Urutan ${divisiName}`}
+                  >
+                    {tempDivisiOrder.map((_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        {i + 1}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </Modal>
 

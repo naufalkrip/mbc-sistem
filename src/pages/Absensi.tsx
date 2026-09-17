@@ -1,10 +1,14 @@
 import { Fragment, useCallback, useMemo, useState } from "react";
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   CheckCircle2,
   CalendarOff,
   Download,
   Eye,
   FileText,
+  ListOrdered,
   Pencil,
   Percent,
   Save,
@@ -136,6 +140,15 @@ export function Absensi() {
   const [memberSearch, setMemberSearch] = useState("");
   const [memberDivisi, setMemberDivisi] = useState("");
 
+  // Sort daftar anggota
+  type MemberSortField = "nama" | "namaPanggilan" | "divisi";
+  type MemberSortDirection = "asc" | "desc";
+  const [memberSortField, setMemberSortField] = useState<MemberSortField | null>(null);
+  const [memberSortDirection, setMemberSortDirection] = useState<MemberSortDirection>("asc");
+  const [showDivisiModal, setShowDivisiModal] = useState(false);
+  const [customDivisiOrder, setCustomDivisiOrder] = useState<string[]>([]);
+  const [tempDivisiOrder, setTempDivisiOrder] = useState<string[]>([]);
+
   // Filter riwayat
   const [riwayatSearch, setRiwayatSearch] = useState("");
   const [periode, setPeriode] = useState<PeriodeType>("");
@@ -176,6 +189,82 @@ export function Absensi() {
     return Array.from(set).sort().map((d) => ({ value: d, label: d }));
   }, [anggota]);
 
+  // Daftar divisi unik untuk modal urutan
+  const uniqueDivisiList = useMemo(() => {
+    const set = new Set<string>();
+    anggota.forEach((a) => {
+      const d = (a.divisi || "").trim();
+      if (d) set.add(d);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "id"));
+  }, [anggota]);
+
+  const openDivisiSortModal = () => {
+    const baseList = customDivisiOrder.length > 0 ? [...customDivisiOrder] : [...uniqueDivisiList];
+    uniqueDivisiList.forEach((d) => {
+      if (!baseList.includes(d)) baseList.push(d);
+    });
+    const validOrder = baseList.filter((d) => uniqueDivisiList.includes(d));
+    setTempDivisiOrder(validOrder);
+    setShowDivisiModal(true);
+  };
+
+  const handleChangeRank = (currentIndex: number, newRank: number) => {
+    const targetIndex = newRank - 1;
+    if (currentIndex === targetIndex) return;
+    setTempDivisiOrder((prev) => {
+      const updated = [...prev];
+      const [moved] = updated.splice(currentIndex, 1);
+      updated.splice(targetIndex, 0, moved);
+      return updated;
+    });
+  };
+
+  const handlePresetAZ = () => {
+    setTempDivisiOrder((prev) => [...prev].sort((a, b) => a.localeCompare(b, "id")));
+  };
+
+  const handlePresetZA = () => {
+    setTempDivisiOrder((prev) => [...prev].sort((a, b) => b.localeCompare(a, "id")));
+  };
+
+  const applyDivisiOrder = () => {
+    setCustomDivisiOrder(tempDivisiOrder);
+    setMemberSortField("divisi");
+    setMemberSortDirection("asc");
+    setShowDivisiModal(false);
+    toastSuccess("Urutan prioritas divisi berhasil diterapkan!");
+  };
+
+  const resetDivisiOrder = () => {
+    setCustomDivisiOrder([]);
+    setTempDivisiOrder([...uniqueDivisiList]);
+    if (memberSortField === "divisi") {
+      setMemberSortField(null);
+    }
+    setShowDivisiModal(false);
+    toastSuccess("Urutan divisi dikembalikan ke default.");
+  };
+
+  const handleMemberSort = (key: string) => {
+    if (key === "divisi") {
+      openDivisiSortModal();
+      return;
+    }
+    if (key !== "nama" && key !== "namaPanggilan") return;
+    if (memberSortField === key) {
+      if (memberSortDirection === "asc") {
+        setMemberSortDirection("desc");
+      } else {
+        setMemberSortField(null);
+        setMemberSortDirection("asc");
+      }
+    } else {
+      setMemberSortField(key as MemberSortField);
+      setMemberSortDirection("asc");
+    }
+  };
+
   // Anggota diurutkan berkelompok sesuai divisi, lalu abjad per nama
   const anggotaTerurut = useMemo(() => {
     return [...anggota].sort((a, b) => {
@@ -187,15 +276,50 @@ export function Absensi() {
   }, [anggota]);
 
   const anggotaFiltered = useMemo(() => {
-    return anggotaTerurut.filter((a) => {
+    const filtered = anggota.filter((a) => {
       if (memberSearch.trim()) {
         const q = memberSearch.toLowerCase();
-        if (!`${a.id} ${a.nama} ${a.divisi}`.toLowerCase().includes(q)) return false;
+        if (!`${a.id} ${a.nama} ${a.namaPanggilan ?? ""} ${a.divisi}`.toLowerCase().includes(q)) return false;
       }
       if (memberDivisi && a.divisi !== memberDivisi) return false;
       return true;
     });
-  }, [anggotaTerurut, memberSearch, memberDivisi]);
+
+    if (memberSortField === "divisi") {
+      const activeOrder = customDivisiOrder.length > 0 ? customDivisiOrder : uniqueDivisiList;
+      const rankMap = new Map(activeOrder.map((d, i) => [d.trim().toLowerCase(), i + 1]));
+
+      return [...filtered].sort((a, b) => {
+        const divA = (a.divisi ?? "").trim().toLowerCase();
+        const divB = (b.divisi ?? "").trim().toLowerCase();
+        const rankA = rankMap.get(divA) ?? 9999;
+        const rankB = rankMap.get(divB) ?? 9999;
+        if (rankA !== rankB) {
+          return memberSortDirection === "asc" ? rankA - rankB : rankB - rankA;
+        }
+        return (a.nama ?? "").localeCompare(b.nama ?? "", "id", { sensitivity: "base" });
+      });
+    }
+
+    if (memberSortField) {
+      return [...filtered].sort((a, b) => {
+        const valA = String(a[memberSortField] ?? "").trim();
+        const valB = String(b[memberSortField] ?? "").trim();
+        if (!valA && valB) return 1;
+        if (valA && !valB) return -1;
+        const cmp = valA.localeCompare(valB, "id", { sensitivity: "base", numeric: true });
+        return memberSortDirection === "asc" ? cmp : -cmp;
+      });
+    }
+
+    // Default: Urut berdasarkan divisi lalu nama lengkap
+    return [...filtered].sort((a, b) => {
+      const da = a.divisi || "Lainnya";
+      const db = b.divisi || "Lainnya";
+      if (da !== db) return da.localeCompare(db);
+      return (a.nama ?? "").localeCompare(b.nama ?? "");
+    });
+  }, [anggota, memberSearch, memberDivisi, memberSortField, memberSortDirection, customDivisiOrder, uniqueDivisiList]);
 
   const periodeRange = useMemo(() => {
     const now = new Date();
@@ -718,9 +842,63 @@ export function Absensi() {
         <p className="form-section-sub">Tentukan status kehadiran setiap anggota</p>
 
         <div className="toolbar">
-          <SearchBar value={memberSearch} onChange={setMemberSearch} placeholder="Cari anggota..." />
+          <SearchBar value={memberSearch} onChange={setMemberSearch} placeholder="Cari nama / nama panggilan / divisi..." />
           <Filter label="Divisi" value={memberDivisi} onChange={setMemberDivisi} options={divisiOptions} />
+          <button
+            type="button"
+            className={`btn ${memberSortField === "divisi" ? "btn-primary" : "btn-secondary"}`}
+            onClick={openDivisiSortModal}
+            title="Buka popup untuk memilih urutan divisi"
+            style={{ whiteSpace: "nowrap" }}
+          >
+            <ListOrdered size={16} />
+            <span>Urutan Divisi</span>
+            {customDivisiOrder.length > 0 && (
+              <span style={{
+                marginLeft: "4px",
+                fontSize: "0.72rem",
+                backgroundColor: memberSortField === "divisi" ? "rgba(255,255,255,0.3)" : "rgba(14,165,233,0.18)",
+                color: memberSortField === "divisi" ? "#fff" : "var(--primary)",
+                padding: "1px 6px",
+                borderRadius: "9999px",
+                fontWeight: 600
+              }}>
+                {customDivisiOrder.length}
+              </span>
+            )}
+          </button>
         </div>
+
+        {memberSortField && (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginBottom: "0.85rem" }}>
+            <button
+              type="button"
+              className="sort-active-badge"
+              onClick={() => {
+                if (memberSortField === "divisi") setCustomDivisiOrder([]);
+                setMemberSortField(null);
+                setMemberSortDirection("asc");
+              }}
+              title="Klik untuk reset urutan default"
+            >
+              <span>
+                Urut: {memberSortField === "nama" ? "Nama Lengkap" : memberSortField === "namaPanggilan" ? "Nama Panggilan" : customDivisiOrder.length > 0 ? "Divisi (Pilihan Urutan)" : "Divisi"} ({memberSortDirection === "asc" ? "A-Z" : "Z-A"})
+              </span>
+              <span className="sort-badge-close">×</span>
+            </button>
+            {memberSortField === "divisi" && (
+              <button
+                type="button"
+                className="divisi-preset-btn"
+                style={{ padding: "0.2rem 0.55rem" }}
+                onClick={openDivisiSortModal}
+                title="Ubah urutan divisi"
+              >
+                <ListOrdered size={12} /> Ubah
+              </button>
+            )}
+          </div>
+        )}
 
         {anggotaFiltered.length === 0 && !loading ? (
           <EmptyState
@@ -735,13 +913,54 @@ export function Absensi() {
           <div className="member-table">
             <div className="member-table-head">
               <span className="member-cell no">No</span>
-              <span className="member-cell name">Nama</span>
-              <span className="member-cell divisi">Divisi</span>
+              <span
+                className={`member-cell name member-th-sortable ${memberSortField === "nama" ? "active" : ""}`}
+                onClick={() => handleMemberSort("nama")}
+                title="Klik untuk mengurutkan Nama Lengkap"
+              >
+                <span>Nama Lengkap</span>
+                <span className={`sort-icon-box ${memberSortField === "nama" ? "active" : "idle"}`}>
+                  {memberSortField === "nama" && memberSortDirection === "asc" ? (
+                    <ArrowUp size={12} className="sort-arrow" />
+                  ) : memberSortField === "nama" && memberSortDirection === "desc" ? (
+                    <ArrowDown size={12} className="sort-arrow" />
+                  ) : (
+                    <ArrowUpDown size={11} className="sort-arrow-idle" />
+                  )}
+                </span>
+              </span>
+              <span
+                className={`member-cell nickname member-th-sortable ${memberSortField === "namaPanggilan" ? "active" : ""}`}
+                onClick={() => handleMemberSort("namaPanggilan")}
+                title="Klik untuk mengurutkan Nama Panggilan"
+              >
+                <span>Nama Panggilan</span>
+                <span className={`sort-icon-box ${memberSortField === "namaPanggilan" ? "active" : "idle"}`}>
+                  {memberSortField === "namaPanggilan" && memberSortDirection === "asc" ? (
+                    <ArrowUp size={12} className="sort-arrow" />
+                  ) : memberSortField === "namaPanggilan" && memberSortDirection === "desc" ? (
+                    <ArrowDown size={12} className="sort-arrow" />
+                  ) : (
+                    <ArrowUpDown size={11} className="sort-arrow-idle" />
+                  )}
+                </span>
+              </span>
+              <span
+                className={`member-cell divisi member-th-sortable ${memberSortField === "divisi" ? "active" : ""}`}
+                onClick={() => handleMemberSort("divisi")}
+                title="Klik untuk mengatur urutan divisi"
+              >
+                <span>Divisi</span>
+                <span className={`sort-icon-box ${memberSortField === "divisi" ? "active" : "idle"}`}>
+                  <ListOrdered size={12} className={memberSortField === "divisi" ? "sort-arrow" : "sort-arrow-idle"} />
+                </span>
+              </span>
               <span className="member-cell status">Status Kehadiran</span>
             </div>
             {anggotaFiltered.map((a, i) => {
+              const showDivisiHeader = !memberSortField || memberSortField === "divisi";
               const prev = i > 0 ? anggotaFiltered[i - 1] : null;
-              const grupBerubah = !prev || (prev.divisi || "Lainnya") !== (a.divisi || "Lainnya");
+              const grupBerubah = showDivisiHeader && (!prev || (prev.divisi || "Lainnya") !== (a.divisi || "Lainnya"));
               return (
                 <Fragment key={a.id}>
                   {grupBerubah && (
@@ -750,6 +969,7 @@ export function Absensi() {
                   <div className="member-row">
                     <span className="member-cell no">{i + 1}</span>
                     <span className="member-cell name">{a.nama}</span>
+                    <span className="member-cell nickname">{a.namaPanggilan || "-"}</span>
                     <span className="member-cell divisi">{a.divisi || "-"}</span>
                     <span className="member-cell status">
                       <StatusSelect
@@ -849,20 +1069,25 @@ export function Absensi() {
                   <thead>
                     <tr>
                       <th>No</th>
-                      <th>Nama</th>
+                      <th>Nama Lengkap</th>
+                      <th>Nama Panggilan</th>
                       <th>Divisi</th>
                       <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {detailSesi.daftar.map((r, i) => (
-                      <tr key={r.id}>
-                        <td>{i + 1}</td>
-                        <td>{r.nama}</td>
-                        <td>{anggota.find((x) => x.id === r.idAnggota)?.divisi || "-"}</td>
-                        <td><StatusBadge value={r.status} /></td>
-                      </tr>
-                    ))}
+                    {detailSesi.daftar.map((r, i) => {
+                      const m = anggota.find((x) => x.id === r.idAnggota);
+                      return (
+                        <tr key={r.id}>
+                          <td>{i + 1}</td>
+                          <td>{r.nama}</td>
+                          <td>{m?.namaPanggilan || "-"}</td>
+                          <td>{m?.divisi || "-"}</td>
+                          <td><StatusBadge value={r.status} /></td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -944,7 +1169,7 @@ export function Absensi() {
                     <div className="member-edit-row">
                       <div className="member-edit-info">
                         <strong>{a.nama}</strong>
-                        <span>{a.id} · {a.divisi || "-"}</span>
+                        <span>{a.namaPanggilan ? `${a.namaPanggilan} · ` : ""}{a.id} · {a.divisi || "-"}</span>
                       </div>
                       <StatusSelect
                         sm
@@ -1132,6 +1357,92 @@ export function Absensi() {
             <span style={{ color: "var(--text-muted)" }}>Periode yang dicetak:</span>
             <strong style={{ color: "var(--navy-900)" }}>{pdfRange.label}</strong>
           </div>
+        </div>
+      </Modal>
+
+      {/* Modal Popup Pilihan Urutan Divisi (Minimalis) */}
+      <Modal
+        open={showDivisiModal}
+        title="Urutan Divisi"
+        onClose={() => setShowDivisiModal(false)}
+        size="sm"
+        footer={
+          <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={resetDivisiOrder}
+              style={{ padding: "0.25rem 0.5rem", fontSize: "0.8rem", color: "var(--text-muted)" }}
+            >
+              Reset
+            </button>
+            <div style={{ display: "flex", gap: "0.4rem" }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowDivisiModal(false)}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={applyDivisiOrder}
+              >
+                Terapkan
+              </button>
+            </div>
+          </div>
+        }
+      >
+        <div className="divisi-sort-modal-body">
+          {tempDivisiOrder.length > 1 && (
+            <div className="divisi-sort-presets">
+              <span className="divisi-sort-preset-label">Atur cepat:</span>
+              <button
+                type="button"
+                className="divisi-preset-btn"
+                onClick={handlePresetAZ}
+                title="Urutkan A ke Z"
+              >
+                A - Z
+              </button>
+              <button
+                type="button"
+                className="divisi-preset-btn"
+                onClick={handlePresetZA}
+                title="Urutkan Z ke A"
+              >
+                Z - A
+              </button>
+            </div>
+          )}
+
+          {tempDivisiOrder.length === 0 ? (
+            <div style={{ padding: "1rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+              Belum ada data divisi.
+            </div>
+          ) : (
+            <div className="divisi-sort-list">
+              {tempDivisiOrder.map((divisiName, index) => (
+                <div key={divisiName} className="divisi-sort-row">
+                  <span className="divisi-name-text">{divisiName}</span>
+                  <select
+                    className="divisi-rank-select"
+                    value={index + 1}
+                    onChange={(e) => handleChangeRank(index, Number(e.target.value))}
+                    title={`Urutan ${divisiName}`}
+                  >
+                    {tempDivisiOrder.map((_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        {i + 1}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </Modal>
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ListOrdered } from "lucide-react";
 import { EmptyState } from "./EmptyState";
 import { Loading } from "./Loading";
 
@@ -62,7 +62,9 @@ export function DataTable<T>({
                         <span>{col.header}</span>
                         {isSortable && (
                           <span className={`sort-icon-box ${isCurrent ? "active" : "idle"}`}>
-                            {isCurrent && sortDirection === "asc" ? (
+                            {col.key === "divisi" ? (
+                              <ListOrdered size={isCurrent ? 13 : 12} className={isCurrent ? "sort-arrow" : "sort-arrow-idle"} />
+                            ) : isCurrent && sortDirection === "asc" ? (
                               <ArrowUp size={13} className="sort-arrow" />
                             ) : isCurrent && sortDirection === "desc" ? (
                               <ArrowDown size={13} className="sort-arrow" />

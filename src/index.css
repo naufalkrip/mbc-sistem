@@ -3511,12 +3511,18 @@ input, select, textarea {
 
 /* ---------------- Absensi: daftar anggota (table + kartu mobile) ---------------- */
 
+.member-table {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .member-table-head,
 .member-row {
   display: grid;
-  gap: 0;
-  grid-template-columns: 52px minmax(160px, 1fr) minmax(120px, 0.9fr) auto;
+  gap: 8px;
+  grid-template-columns: 44px minmax(150px, 1.2fr) minmax(110px, 0.9fr) minmax(110px, 0.9fr) auto;
   align-items: center;
+  min-width: 560px;
 }
 
 .member-table-head {
@@ -3528,6 +3534,23 @@ input, select, textarea {
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.member-th-sortable {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+
+.member-th-sortable:hover {
+  color: var(--primary, #0ea5e9);
+}
+
+.member-th-sortable.active {
+  color: var(--primary, #0ea5e9);
 }
 
 .member-row {
@@ -3551,6 +3574,14 @@ input, select, textarea {
 .member-cell.name {
   font-weight: 600;
   color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-cell.nickname {
+  font-size: 13px;
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3963,6 +3994,105 @@ input, select, textarea {
 .sort-arrow-idle {
   color: currentColor;
 }
+
+/* ============================================================
+   MODAL URUTAN SORTIR DIVISI (MINIMALIST & COMPACT)
+   ============================================================ */
+.divisi-sort-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.divisi-sort-presets {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  padding-bottom: 0.15rem;
+}
+
+.divisi-sort-preset-label {
+  font-size: 0.72rem;
+  color: var(--text-muted, #94a3b8);
+  margin-right: auto;
+}
+
+.divisi-preset-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #f8fafc);
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.divisi-preset-btn:hover {
+  background-color: rgba(14, 165, 233, 0.08);
+  color: var(--primary, #0ea5e9);
+  border-color: rgba(14, 165, 233, 0.3);
+}
+
+.divisi-sort-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.divisi-sort-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 6px;
+  background: var(--surface-card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  transition: all 0.15s ease;
+}
+
+.divisi-sort-row:hover {
+  border-color: rgba(14, 165, 233, 0.3);
+  background-color: var(--surface-hover, #f8fafc);
+}
+
+.divisi-name-text {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary, #0f172a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.divisi-rank-select {
+  width: 52px;
+  text-align: center;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 5px;
+  border: 1px solid var(--border, #cbd5e1);
+  background-color: var(--surface, #f8fafc);
+  color: var(--text-primary, #0f172a);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.divisi-rank-select:focus {
+  border-color: var(--primary, #0ea5e9);
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.18);
+}
+
 
 /* ============================================================
    RESPONSIVE DESIGN SYSTEM — MB CHONDRO

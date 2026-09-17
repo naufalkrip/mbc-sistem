@@ -518,7 +518,7 @@ async function createPdf(
   periode: string,
   opts: CreatePdfOptions
 ) {
-  const orientation = opts.orientation ?? "landscape";
+  const orientation = opts.orientation ?? "portrait";
   const doc = new jsPDF({ orientation, unit: "mm", format: A4 });
   const fontSize = opts.tableFontSize ?? FONT_TABLE;
   await ensureFonts(doc);
@@ -633,7 +633,7 @@ async function createPdf(
 }
 
 // ============================================================
-// 1. LAPORAN DATA ANGGOTA (Landscape A4)
+// 1. LAPORAN DATA ANGGOTA (Portrait A4)
 // ============================================================
 export async function laporanAnggota(anggota: Anggota[], periode: string) {
   const aktif = anggota.filter((a) => a.status === "Aktif").length;
@@ -643,6 +643,7 @@ export async function laporanAnggota(anggota: Anggota[], periode: string) {
   const rows = anggota.map((a, i) => [
     i + 1,
     a.nama || "-",
+    a.namaPanggilan || "-",
     a.divisi || "-",
     a.noHp || "-",
     a.status || "-",
@@ -655,8 +656,17 @@ export async function laporanAnggota(anggota: Anggota[], periode: string) {
     "Rekapitulasi data seluruh anggota aktif dan kepengurusan mbc sistem",
     periode,
     {
-      orientation: "landscape",
-      columns: ["No", "Nama Lengkap", "Divisi", "No. WhatsApp / HP", "Status", "Tgl Bergabung", "Keterangan"],
+      orientation: "portrait",
+      columns: [
+        "No",
+        "Nama Lengkap",
+        "Nama Panggilan",
+        "Divisi",
+        "No. WhatsApp / HP",
+        "Status",
+        "Tgl Bergabung",
+        "Keterangan",
+      ],
       rows,
       summary: [
         { label: "Total Anggota", value: `${anggota.length} Orang` },
@@ -664,15 +674,17 @@ export async function laporanAnggota(anggota: Anggota[], periode: string) {
         { label: "Status Cuti", value: `${cuti} Orang` },
         { label: "Tidak Aktif", value: `${tidakAktif} Orang` },
       ],
-      columnWidthRatios: [10, 52, 32, 36, 26, 34, 75],
-      columnAligns: ["center", "left", "left", "center", "center", "center", "left"],
+      tableFontSize: 7.5,
+      cellPadding: { top: 2, right: 1.8, bottom: 2, left: 1.8 },
+      columnWidthRatios: [8, 34, 22, 22, 26, 18, 22, 26],
+      columnAligns: ["center", "left", "left", "left", "center", "center", "center", "left"],
       fileName: `Laporan-data-anggota-${new Date().toISOString().slice(0, 10)}.pdf`,
     }
   );
 }
 
 // ============================================================
-// 2. LAPORAN RIWAYAT ABSENSI CATATAN (Landscape A4)
+// 2. LAPORAN RIWAYAT ABSENSI CATATAN (Portrait A4)
 // ============================================================
 export async function laporanAbsensi(absensi: Absensi[], periode: string) {
   const stat = hitungStatKehadiran(absensi);
@@ -694,7 +706,7 @@ export async function laporanAbsensi(absensi: Absensi[], periode: string) {
     "Catatan riwayat kehadiran anggota per sesi kegiatan mbc sistem",
     periode,
     {
-      orientation: "landscape",
+      orientation: "portrait",
       columns: ["No", "Nama Lengkap", "Tanggal", "Kegiatan", "Waktu", "Status", "Keterangan"],
       rows,
       summary: [
@@ -705,7 +717,9 @@ export async function laporanAbsensi(absensi: Absensi[], periode: string) {
         { label: "Total Alpa", value: `${stat.alpa} Sesi` },
         { label: "Persentase Kehadiran", value: `${stat.persentase}%` },
       ],
-      columnWidthRatios: [10, 52, 28, 62, 24, 26, 63],
+      tableFontSize: 8,
+      cellPadding: { top: 2, right: 1.8, bottom: 2, left: 1.8 },
+      columnWidthRatios: [8, 34, 22, 38, 20, 20, 36],
       columnAligns: ["center", "left", "center", "left", "center", "center", "left"],
       fileName: `Laporan-riwayat-absensi-${new Date().toISOString().slice(0, 10)}.pdf`,
     }
@@ -713,7 +727,7 @@ export async function laporanAbsensi(absensi: Absensi[], periode: string) {
 }
 
 // ============================================================
-// 3. LAPORAN REKAP KEHADIRAN MATRIKS (Landscape A4)
+// 3. LAPORAN REKAP KEHADIRAN MATRIKS (Portrait A4)
 // ============================================================
 export async function laporanAbsensiRekap(
   anggota: Anggota[],
@@ -783,11 +797,11 @@ export async function laporanAbsensiRekap(
   });
 
   const stat = hitungStatKehadiran(absensi);
-  const dateRatio = 8;
-  const columnWidthRatios = [10, 52, 28, ...kolomKunci.map(() => dateRatio)];
+  const dateRatio = 7;
+  const columnWidthRatios = [8, 38, 22, ...kolomKunci.map(() => dateRatio)];
 
   await createPdf("REKAPITULASI PRESENSI MB CHONDRO", "Matriks rekap kehadiran anggota per kegiatan & tanggal", periode, {
-    orientation: "landscape",
+    orientation: "portrait",
     columns: ["No", "Nama Anggota", "Divisi", ...kolomHeader],
     rows,
     summary: [
@@ -800,7 +814,8 @@ export async function laporanAbsensiRekap(
       { label: "Persentase Kehadiran", value: `${stat.persentase}%` },
     ],
     drawSummaryCustom: drawAbsensiRekapSummary,
-    tableFontSize: Math.max(7, Math.min(FONT_TABLE, 8)),
+    tableFontSize: Math.max(6.5, Math.min(FONT_TABLE, 7.5)),
+    cellPadding: { top: 1.8, right: 1.2, bottom: 1.8, left: 1.2 },
     columnWidthRatios,
     columnAligns: ["center", "left", "left", ...kolomKunci.map<Align>(() => "center")],
     fileName: `Laporan-rekap-absensi-${new Date().toISOString().slice(0, 10)}.pdf`,
@@ -819,16 +834,16 @@ export async function laporanAbsensiRekap(
       title: "REKAPITULASI TOTAL KEHADIRAN PER ANGGOTA",
       columns: ["No", "Nama Anggota", "Hadir", "Izin", "Sakit", "Cuti", "Alpa", "Total Kehadiran"],
       rows: rekapRows,
-      tableFontSize: FONT_TABLE,
+      tableFontSize: 7.5,
       startNewPage: true,
-      columnWidthRatios: [10, 65, 24, 24, 24, 24, 24, 30],
+      columnWidthRatios: [8, 46, 18, 18, 18, 18, 18, 26],
       columnAligns: ["center", "left", "center", "center", "center", "center", "center", "center"],
     },
   });
 }
 
 // ============================================================
-// 4. LAPORAN KEUANGAN KAS (Kas Chondro & Media) (Landscape A4)
+// 4. LAPORAN KEUANGAN KAS (Kas Chondro & Media) (Portrait A4)
 // ============================================================
 export async function laporanKeuangan(
   transaksi: Transaksi[],
@@ -859,7 +874,7 @@ export async function laporanKeuangan(
     `Laporan arus kas pemasukan dan pengeluaran ${judulKas}`,
     periode,
     {
-      orientation: "landscape",
+      orientation: "portrait",
       columns: ["No", "Tanggal", "Keterangan / Rincian Transaksi", "Pemasukan", "Pengeluaran", "Saldo Kas"],
       rows,
       summary: [
@@ -867,7 +882,9 @@ export async function laporanKeuangan(
         { label: "Total Pengeluaran", value: formatRupiah(saldo.pengeluaran) },
         { label: "Sisa Saldo Kas", value: formatRupiah(saldo.saldo) },
       ],
-      columnWidthRatios: [10, 30, 100, 42, 42, 44],
+      tableFontSize: 8,
+      cellPadding: { top: 2.2, right: 2, bottom: 2.2, left: 2 },
+      columnWidthRatios: [8, 22, 58, 30, 30, 30],
       columnAligns: ["center", "center", "left", "right", "right", "right"],
       fileName: `Laporan-${judulKas.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${new Date().toISOString().slice(0, 10)}.pdf`,
     }
@@ -875,7 +892,7 @@ export async function laporanKeuangan(
 }
 
 // ============================================================
-// 5. LAPORAN TRANSAKSI TEMPORER (Landscape A4)
+// 5. LAPORAN TRANSAKSI TEMPORER (Portrait A4)
 // ============================================================
 export async function laporanTransaksi(
   group: TransaksiGroupWithStats,
@@ -915,7 +932,7 @@ export async function laporanTransaksi(
     subtitle,
     formatTanggalPanjang(group.tanggal),
     {
-      orientation: "landscape",
+      orientation: "portrait",
       columns: ["No", "Tanggal", "Keterangan / Rincian Transaksi", "Kategori", "Pemasukan", "Pengeluaran", "Saldo Kas"],
       rows,
       summary: [
@@ -925,7 +942,9 @@ export async function laporanTransaksi(
         { label: "Total Pengeluaran", value: formatRupiah(totalPengeluaran) },
         { label: "Sisa Saldo Kas", value: formatRupiah(saldo) },
       ],
-      columnWidthRatios: [10, 28, 92, 35, 33, 33, 34],
+      tableFontSize: 7.5,
+      cellPadding: { top: 2, right: 1.8, bottom: 2, left: 1.8 },
+      columnWidthRatios: [8, 22, 48, 24, 26, 26, 24],
       columnAligns: ["center", "center", "left", "left", "right", "right", "right"],
       fileName: `Laporan-transaksi-${group.judul.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${new Date().toISOString().slice(0, 10)}.pdf`,
     }
