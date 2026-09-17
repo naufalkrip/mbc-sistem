@@ -3914,6 +3914,56 @@ input, select, textarea {
   letter-spacing: 0.02em;
 }
 
+/* Sortable Table Header Styles */
+.th-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.th-sortable:hover {
+  background-color: rgba(30, 41, 59, 0.05);
+  color: var(--primary, #0ea5e9);
+}
+
+.th-sort-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sort-icon-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  padding: 2px;
+  transition: all 0.15s ease;
+}
+
+.sort-icon-box.idle {
+  opacity: 0.38;
+}
+
+.th-sortable:hover .sort-icon-box.idle {
+  opacity: 0.85;
+  color: var(--primary, #0ea5e9);
+}
+
+.sort-icon-box.active {
+  opacity: 1;
+  color: var(--primary, #0ea5e9);
+  background-color: rgba(14, 165, 233, 0.12);
+}
+
+.sort-arrow {
+  color: var(--primary, #0ea5e9);
+}
+
+.sort-arrow-idle {
+  color: currentColor;
+}
+
 /* ============================================================
    RESPONSIVE DESIGN SYSTEM — MB CHONDRO
    Breakpoints:

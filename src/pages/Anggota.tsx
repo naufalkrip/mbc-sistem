@@ -108,6 +108,27 @@ export function Anggota() {
   const [filterDivisi, setFilterDivisi] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
+  type SortField = "nama" | "namaPanggilan" | "divisi";
+  type SortDirection = "asc" | "desc";
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  const handleSort = (key: string) => {
+    if (key !== "nama" && key !== "namaPanggilan" && key !== "divisi") return;
+    if (sortField === key) {
+      if (sortDirection === "asc") {
+        setSortDirection("desc");
+      } else {
+        // Siklus: Ascending -> Descending -> Reset Default
+        setSortField(null);
+        setSortDirection("asc");
+      }
+    } else {
+      setSortField(key as SortField);
+      setSortDirection("asc");
+    }
+  };
+
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [form, setForm] = useState<FormAnggota>(FORM_EMPTY);
   const [editing, setEditing] = useState<Anggota | null>(null);
@@ -145,28 +166,40 @@ export function Anggota() {
   };
 
   const filtered = useMemo(() => {
-    return anggota
-      .filter((a) => {
-        if (search) {
-          const q = search.toLowerCase();
-          if (
-            !`${a.id} ${a.nama} ${a.namaPanggilan ?? ""} ${a.divisi} ${a.jabatan} ${a.noHp}`.toLowerCase().includes(q)
-          ) {
-            return false;
-          }
+    const list = anggota.filter((a) => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (
+          !`${a.id} ${a.nama} ${a.namaPanggilan ?? ""} ${a.divisi} ${a.jabatan} ${a.noHp}`.toLowerCase().includes(q)
+        ) {
+          return false;
         }
-        if (filterDivisi && a.divisi !== filterDivisi) return false;
-        if (filterStatus && a.status !== filterStatus) return false;
-        return true;
-      })
-      .sort((a, b) => {
-        const divisiA = a.divisi ?? "";
-        const divisiB = b.divisi ?? "";
-        const divisiCompare = divisiA.localeCompare(divisiB);
-        if (divisiCompare !== 0) return divisiCompare;
-        return (a.nama ?? "").localeCompare(b.nama ?? "");
+      }
+      if (filterDivisi && a.divisi !== filterDivisi) return false;
+      if (filterStatus && a.status !== filterStatus) return false;
+      return true;
+    });
+
+    if (sortField) {
+      return [...list].sort((a, b) => {
+        const valA = String(a[sortField] ?? "").trim();
+        const valB = String(b[sortField] ?? "").trim();
+        if (!valA && valB) return 1;
+        if (valA && !valB) return -1;
+        const cmp = valA.localeCompare(valB, "id", { sensitivity: "base", numeric: true });
+        return sortDirection === "asc" ? cmp : -cmp;
       });
-  }, [anggota, search, filterDivisi, filterStatus]);
+    }
+
+    // Default: Urut berdasarkan divisi lalu nama lengkap
+    return [...list].sort((a, b) => {
+      const divisiA = a.divisi ?? "";
+      const divisiB = b.divisi ?? "";
+      const divisiCompare = divisiA.localeCompare(divisiB);
+      if (divisiCompare !== 0) return divisiCompare;
+      return (a.nama ?? "").localeCompare(b.nama ?? "");
+    });
+  }, [anggota, search, filterDivisi, filterStatus, sortField, sortDirection]);
 
   const validate = (f: FormAnggota): Record<string, string> => {
     const err: Record<string, string> = {};
@@ -317,6 +350,7 @@ export function Anggota() {
     {
       key: "nama",
       header: "Nama Lengkap",
+      sortable: true,
       render: (r) => {
         const photoUrl = r.foto || getMemberPhoto(r.id, r.nama);
         return (
@@ -326,10 +360,11 @@ export function Anggota() {
                 src={photoUrl}
                 alt={r.nama}
                 className="member-avatar-img"
+                loading="lazy"
                 onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                  const next = e.currentTarget.nextElementSibling;
-                  if (next) (next as HTMLElement).style.display = "inline-flex";
+                  (e.target as HTMLElement).style.display = "none";
+                  const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement | null;
+                  if (fallback) fallback.style.display = "inline-flex";
                 }}
               />
             ) : null}
@@ -347,9 +382,10 @@ export function Anggota() {
     {
       key: "namaPanggilan",
       header: "Nama Panggilan",
+      sortable: true,
       render: (r) => r.namaPanggilan || "-",
     },
-    { key: "divisi", header: "Divisi" },
+    { key: "divisi", header: "Divisi", sortable: true },
     {
       key: "noHp",
       header: "No. HP",
@@ -391,7 +427,22 @@ export function Anggota() {
         <div className="card-header">
           <div>
             <h2>Daftar Anggota</h2>
-            <p>{loading ? "Memuat data..." : `${filtered.length} data anggota ditampilkan`}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <p style={{ margin: 0 }}>{loading ? "Memuat data..." : `${filtered.length} data anggota ditampilkan`}</p>
+              {sortField && (
+                <button
+                  type="button"
+                  className="sort-active-badge"
+                  onClick={() => { setSortField(null); setSortDirection("asc"); }}
+                  title="Klik untuk reset urutan default"
+                >
+                  <span>
+                    Urut: {sortField === "nama" ? "Nama Lengkap" : sortField === "namaPanggilan" ? "Nama Panggilan" : "Divisi"} ({sortDirection === "asc" ? "A-Z" : "Z-A"})
+                  </span>
+                  <span className="sort-badge-close">×</span>
+                </button>
+              )}
+            </div>
           </div>
           <div className="header-actions">
             <DownloadPdfButton onGenerate={handleDownloadPdf} />
@@ -410,7 +461,16 @@ export function Anggota() {
           />
         </div>
 
-        <DataTable columns={columns} data={filtered} loading={loading} rowKey={(r) => r.id} emptyMessage="Tidak ada anggota ditemukan." />
+        <DataTable
+          columns={columns}
+          data={filtered}
+          loading={loading}
+          rowKey={(r) => r.id}
+          emptyMessage="Tidak ada anggota ditemukan."
+          sortKey={sortField ?? undefined}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+        />
       </div>
 
       <Modal

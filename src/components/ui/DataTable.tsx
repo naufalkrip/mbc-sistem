@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { EmptyState } from "./EmptyState";
 import { Loading } from "./Loading";
 
@@ -7,6 +8,7 @@ export interface Column<T> {
   header: string;
   render?: (row: T, index: number) => ReactNode;
   className?: string;
+  sortable?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -17,6 +19,9 @@ interface DataTableProps<T> {
   emptyTitle?: string;
   rowKey: (row: T) => string;
   onRowClick?: (row: T) => void;
+  sortKey?: string;
+  sortDirection?: "asc" | "desc" | null;
+  onSort?: (key: string) => void;
 }
 
 export function DataTable<T>({
@@ -27,6 +32,9 @@ export function DataTable<T>({
   emptyTitle = "Tidak ada data",
   rowKey,
   onRowClick,
+  sortKey,
+  sortDirection,
+  onSort,
 }: DataTableProps<T>) {
   return (
     <div className="table-wrapper">
@@ -39,11 +47,34 @@ export function DataTable<T>({
           <table className="data-table">
             <thead>
               <tr>
-                {columns.map((col) => (
-                  <th key={col.key} className={col.className}>
-                    {col.header}
-                  </th>
-                ))}
+                {columns.map((col) => {
+                  const isSortable = Boolean(col.sortable);
+                  const isCurrent = sortKey === col.key;
+                  return (
+                    <th
+                      key={col.key}
+                      className={`${col.className ?? ""} ${isSortable ? "th-sortable" : ""}`}
+                      onClick={() => isSortable && onSort?.(col.key)}
+                      style={isSortable ? { cursor: "pointer", userSelect: "none" } : undefined}
+                      title={isSortable ? `Klik untuk mengurutkan ${col.header}` : undefined}
+                    >
+                      <div className="th-sort-wrapper">
+                        <span>{col.header}</span>
+                        {isSortable && (
+                          <span className={`sort-icon-box ${isCurrent ? "active" : "idle"}`}>
+                            {isCurrent && sortDirection === "asc" ? (
+                              <ArrowUp size={13} className="sort-arrow" />
+                            ) : isCurrent && sortDirection === "desc" ? (
+                              <ArrowDown size={13} className="sort-arrow" />
+                            ) : (
+                              <ArrowUpDown size={12} className="sort-arrow-idle" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
