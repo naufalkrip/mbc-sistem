@@ -21,8 +21,9 @@ import type {
   RekrutmenSubmissionStatus,
   User,
 } from "../types";
-import { normAbsensi, normAnggota, normTransaksi } from "../utils/format";
+import { normAbsensi, normAnggota, normTransaksi, normalizeStatusAnggota } from "../utils/format";
 import { CACHE_KEYS, cacheSet, cacheMutate, cacheClear } from "./cache";
+import { saveMemberPhoto, deleteMemberPhoto } from "./photoStorage";
 
 // ============================================================
 // SERVICE LAYER — semua komunikasi ke Google Apps Script
@@ -150,16 +151,22 @@ export async function getAnggota(): Promise<Anggota[]> {
 
 export async function addAnggota(data: Omit<Anggota, "id">): Promise<ApiResult<Anggota>> {
   try {
+    const cleanStatus = normalizeStatusAnggota(data.status);
     const result = await request<Record<string, unknown>>("addAnggota", {
       nama: data.nama,
+      namaPanggilan: data.namaPanggilan || "",
       divisi: data.divisi,
       jabatan: data.jabatan,
       noHp: data.noHp,
-      status: data.status,
+      status: cleanStatus,
       tanggalBergabung: data.tanggalBergabung,
       keterangan: data.keterangan,
+      foto: data.foto || "",
     });
     const item = normAnggota(result);
+    if (data.foto) {
+      saveMemberPhoto(item.id, item.nama, data.foto);
+    }
     cacheMutate<Anggota[]>(CACHE_KEYS.ANGGOTA, (prev) => [...(prev ?? []).filter((a) => a.id !== item.id), item]);
     cacheClear(CACHE_KEYS.DASHBOARD);
     return { success: true, data: item, message: String(result?.message ?? "") };
@@ -170,17 +177,23 @@ export async function addAnggota(data: Omit<Anggota, "id">): Promise<ApiResult<A
 
 export async function updateAnggota(id: string, data: Omit<Anggota, "id">): Promise<ApiResult<Anggota>> {
   try {
+    const cleanStatus = normalizeStatusAnggota(data.status);
     const result = await request<unknown>("updateAnggota", {
       id,
       nama: data.nama,
+      namaPanggilan: data.namaPanggilan || "",
       divisi: data.divisi,
       jabatan: data.jabatan,
       noHp: data.noHp,
-      status: data.status,
+      status: cleanStatus,
       tanggalBergabung: data.tanggalBergabung,
       keterangan: data.keterangan,
+      foto: data.foto || "",
     });
     const item = normAnggota(result as Record<string, unknown>);
+    if (data.foto !== undefined) {
+      saveMemberPhoto(id, data.nama, data.foto);
+    }
     cacheMutate<Anggota[]>(CACHE_KEYS.ANGGOTA, (prev) => (prev ?? []).map((a) => (a.id === id ? item : a)));
     cacheClear(CACHE_KEYS.DASHBOARD);
     return { success: true, data: item };
@@ -192,6 +205,7 @@ export async function updateAnggota(id: string, data: Omit<Anggota, "id">): Prom
 export async function deleteAnggota(id: string): Promise<ApiResult<null>> {
   try {
     await request<unknown>("deleteAnggota", { id });
+    deleteMemberPhoto(id);
     cacheMutate<Anggota[]>(CACHE_KEYS.ANGGOTA, (prev) => (prev ?? []).filter((a) => a.id !== id));
     cacheClear(CACHE_KEYS.DASHBOARD);
     return { success: true, data: null };

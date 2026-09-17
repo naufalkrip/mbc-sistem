@@ -5,12 +5,14 @@ export type { JenisTransaksi, StatusAnggota, StatusKehadiran, WaktuAbsensi };
 export interface Anggota {
   id: string;
   nama: string;
+  namaPanggilan?: string;
   divisi: string;
   jabatan: string;
   noHp: string;
   status: StatusAnggota;
   tanggalBergabung: string;
   keterangan: string;
+  foto?: string;
 }
 
 export interface Absensi {

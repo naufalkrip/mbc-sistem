@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { User, Lock, Eye, EyeOff, LogIn, AlertCircle, ShieldCheck, Clock, RotateCw, Hash } from "lucide-react";
+import { User, Lock, Eye, EyeOff, LogIn, AlertCircle, Clock, RotateCw, Hash } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import logoImg from "../aset/logo.png";
 
@@ -172,10 +172,6 @@ export function Login() {
         <div className="login-header">
           <div className="login-logo-container">
             <img src={logoImg} alt="Logo mbc sistem" className="login-logo-img" />
-          </div>
-          <div className="login-badge">
-            <ShieldCheck size={13} />
-            Portal Manajemen Internal
           </div>
           <h1 className="login-title">MB CHONDRO</h1>
           <p className="login-subtitle">

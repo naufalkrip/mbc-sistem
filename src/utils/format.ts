@@ -1,5 +1,6 @@
 import type { JenisTransaksi, WaktuAbsensi } from "../config";
 import type { Absensi, Anggota, RekapAbsensi, SesiAbsensi, Transaksi } from "../types";
+import { getMemberPhoto, saveMemberPhoto } from "../services/photoStorage";
 
 /** Format angka menjadi Rupiah. Contoh: Rp 1.500.000 */
 export function formatRupiah(nilai: number | string): string {
@@ -324,17 +325,80 @@ export function absensiPerPeriode(absensi: Absensi[], mode: AttendancePeriod): A
   return { labels, datasets };
 }
 
+/** Normalisasi status anggota agar selalu berupa 'Aktif' | 'Cuti' | 'Tidak Aktif' */
+export function normalizeStatusAnggota(rawStatus: unknown): Anggota["status"] {
+  const s = String(rawStatus || "").trim().toLowerCase();
+  if (s === "cuti" || s === "leave") return "Cuti";
+  if (
+    s === "tidak aktif" ||
+    s === "tidakaktif" ||
+    s === "tidak_aktif" ||
+    s === "nonaktif" ||
+    s === "non-aktif" ||
+    s === "non_aktif" ||
+    s === "inactive"
+  ) {
+    return "Tidak Aktif";
+  }
+  return "Aktif";
+}
+
+/** Normalisasi nomor HP agar angka '0' di depan tidak hilang dan bersih dari karakter aneh */
+export function formatNoHp(raw: unknown): string {
+  if (raw === null || raw === undefined) return "";
+  let s = String(raw).trim();
+  if (!s) return "";
+  if (s.startsWith("'")) {
+    s = s.slice(1).trim();
+  }
+  // Jika angka dimulai dengan 8 (misal 85123456 karena Excel/Google Sheets menghapus angka 0 di depan)
+  if (/^8\d{6,14}$/.test(s)) {
+    s = "0" + s;
+  }
+  return s;
+}
+
+/** Menghasilkan tautan langsung ke WhatsApp Web / App (https://wa.me/62...) */
+export function toWaLink(phone: string): string {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("62")) {
+    return `https://wa.me/${digits}`;
+  }
+  if (digits.startsWith("0")) {
+    return `https://wa.me/62${digits.slice(1)}`;
+  }
+  if (digits.startsWith("8")) {
+    return `https://wa.me/62${digits}`;
+  }
+  return `https://wa.me/${digits}`;
+}
+
 /** Normalisasi data anggota dari API (Apps Script dapat mengirim data dengan kunci berbeda) */
 export function normAnggota(raw: Record<string, unknown>): Anggota {
+  const id = String(raw.IDAnggota ?? raw.id ?? "");
+  const nama = String(raw.NamaLengkap ?? raw.nama ?? "");
+  const rawPhoto = raw.Foto ? String(raw.Foto) : raw.foto ? String(raw.foto) : undefined;
+  const cleanServerPhoto = rawPhoto && rawPhoto.trim() ? rawPhoto.trim() : undefined;
+
+  if (cleanServerPhoto) {
+    saveMemberPhoto(id, nama, cleanServerPhoto);
+  }
+
+  const foto = cleanServerPhoto || getMemberPhoto(id, nama);
+
   return {
-    id: String(raw.IDAnggota ?? raw.id ?? ""),
-    nama: String(raw.NamaLengkap ?? raw.nama ?? ""),
+    id,
+    nama,
+    namaPanggilan: raw.NamaPanggilan ? String(raw.NamaPanggilan) : raw.namaPanggilan ? String(raw.namaPanggilan) : undefined,
     divisi: String(raw.Divisi ?? raw.divisi ?? ""),
     jabatan: String(raw.Jabatan ?? raw.jabatan ?? ""),
-    noHp: String(raw.NoHP ?? raw.noHp ?? ""),
-    status: (raw.Status ?? raw.status ?? "Aktif") as Anggota["status"],
+    noHp: formatNoHp(raw.NoHP ?? raw.noHp ?? ""),
+    status: normalizeStatusAnggota(raw.Status ?? raw.status),
     tanggalBergabung: String(raw.TanggalBergabung ?? raw.tanggalBergabung ?? ""),
     keterangan: String(raw.Keterangan ?? raw.keterangan ?? ""),
+    foto,
   };
 }
 

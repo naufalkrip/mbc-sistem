@@ -34,8 +34,8 @@ var SHEET_CONFIG = [
     key: "ANGGOTA",
     name: "ANGGOTA",
     idPrefix: "MB",
-    headers: ["ID Anggota", "Nama Lengkap", "Divisi", "Jabatan", "No. HP", "Status", "Tanggal Bergabung", "Keterangan"],
-    keys: ["id", "nama", "divisi", "jabatan", "noHp", "status", "tanggalBergabung", "keterangan"],
+    headers: ["ID Anggota", "Nama Lengkap", "Nama Panggilan", "Divisi", "Jabatan", "No. HP", "Status", "Tanggal Bergabung", "Keterangan", "Foto"],
+    keys: ["id", "nama", "namaPanggilan", "divisi", "jabatan", "noHp", "status", "tanggalBergabung", "keterangan", "foto"],
     idCol: 0
   },
   {
@@ -180,6 +180,8 @@ function executeAction(action, data) {
       return updateAnggota(data);
     case "deleteAnggota":
       return deleteAnggota(data);
+    case "repairDataAnggota":
+      return repairDataAnggota();
 
     // Absensi
     case "getAbsensi":
@@ -336,6 +338,93 @@ function ensureSetup() {
   }
 }
 
+// Daftar alias header umum untuk mapping kolom yang fleksibel dan kebal pergeseran
+var HEADER_ALIASES = {
+  "id": ["id", "id anggota", "id_anggota", "id absensi", "id transaksi", "kode"],
+  "nama": ["nama", "nama lengkap", "nama_lengkap", "namalengkap", "full name"],
+  "namapanggilan": ["nama panggilan", "nama_panggilan", "namapanggilan", "panggilan", "nickname", "alias"],
+  "divisi": ["divisi", "division", "seksi", "bidang"],
+  "jabatan": ["jabatan", "role", "posisi", "position"],
+  "nohp": ["nohp", "no. hp", "no hp", "nomor hp", "nomor handphone", "telepon", "phone", "wa"],
+  "status": ["status", "status keaktifan", "keaktifan"],
+  "tanggalbergabung": ["tanggal bergabung", "tanggal_bergabung", "tanggalbergabung", "tgl bergabung", "join date"],
+  "keterangan": ["keterangan", "catatan", "notes", "ket"],
+  "foto": ["foto", "photo", "image", "avatar", "foto profil", "gambar"]
+};
+
+function resolveColumnIndex(colMap, key, header) {
+  var k = String(key || "").trim().toLowerCase();
+  var h = String(header || "").trim().toLowerCase();
+
+  // 1. Cek langsung key atau header
+  if (k && colMap[k] !== undefined) return colMap[k];
+  if (h && colMap[h] !== undefined) return colMap[h];
+
+  // 2. Cek alias
+  var candidates = HEADER_ALIASES[k] || HEADER_ALIASES[h] || [];
+  for (var i = 0; i < candidates.length; i++) {
+    var c = candidates[i].toLowerCase();
+    if (colMap[c] !== undefined) return colMap[c];
+  }
+
+  // 3. Normalisasi alfanumerik (hilangkan spasi, titik, underscore)
+  var cleanK = k.replace(/[^a-z0-9]/g, "");
+  var cleanH = h.replace(/[^a-z0-9]/g, "");
+  for (var mapKey in colMap) {
+    var cleanMapKey = String(mapKey).replace(/[^a-z0-9]/g, "");
+    if ((cleanK && cleanMapKey === cleanK) || (cleanH && cleanMapKey === cleanH)) {
+      return colMap[mapKey];
+    }
+  }
+
+  return -1;
+}
+
+function ensureAnggotaStructure(sheet) {
+  if (!sheet) return;
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return;
+
+  var headerRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var colMap = {};
+  for (var c = 0; c < headerRow.length; c++) {
+    var hText = String(headerRow[c] || "").trim().toLowerCase();
+    if (hText) colMap[hText] = c;
+  }
+
+  // Cek apakah kolom "Nama Panggilan" sudah ada
+  var hasPanggilan = resolveColumnIndex(colMap, "namapanggilan", "Nama Panggilan") !== -1;
+  if (!hasPanggilan) {
+    // Jika kolom 3 adalah "Divisi", sisipkan kolom "Nama Panggilan" tepat di kolom C (index 3)
+    var col3Text = headerRow.length >= 3 ? String(headerRow[2] || "").trim().toLowerCase() : "";
+    if (col3Text.indexOf("divisi") !== -1) {
+      sheet.insertColumnBefore(3);
+      sheet.getRange(1, 3).setValue("Nama Panggilan").setFontWeight("bold");
+    } else {
+      // Sisipkan di kolom terakhir
+      sheet.getRange(1, lastCol + 1).setValue("Nama Panggilan").setFontWeight("bold");
+    }
+  }
+
+  // Refresh kolom setelah kemungkinan penambahan kolom
+  lastCol = sheet.getLastColumn();
+  headerRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  colMap = {};
+  for (var c2 = 0; c2 < headerRow.length; c2++) {
+    var hText2 = String(headerRow[c2] || "").trim().toLowerCase();
+    if (hText2) colMap[hText2] = c2;
+  }
+
+  // Cek apakah kolom "Foto" sudah ada
+  var hasFoto = resolveColumnIndex(colMap, "foto", "Foto") !== -1;
+  if (!hasFoto) {
+    sheet.getRange(1, lastCol + 1).setValue("Foto").setFontWeight("bold");
+  }
+
+  sheet.setFrozenRows(1);
+}
+
 function ensureHeaders(sheet, cfg) {
   var lastRow = sheet.getLastRow();
   var lastCol = sheet.getLastColumn();
@@ -354,17 +443,24 @@ function ensureHeaders(sheet, cfg) {
     sheet.setFrozenRows(1);
     return;
   }
+
+  // Khusus sheet ANGGOTA: pastikan struktur kolom terjaga
+  if (cfg.key === "ANGGOTA") {
+    ensureAnggotaStructure(sheet);
+    return;
+  }
+
   // Cek apakah ada header baru yang belum ada di spreadsheet
   var existingMap = {};
   for (var i = 0; i < firstRow.length; i++) {
     var txt = String(firstRow[i] || "").trim().toLowerCase();
-    if (txt) existingMap[txt] = true;
+    if (txt) existingMap[txt] = i;
   }
   var missing = [];
   for (var j = 0; j < cfg.headers.length; j++) {
     var hName = cfg.headers[j];
     var kName = cfg.keys[j];
-    if (!existingMap[String(hName).toLowerCase()] && !existingMap[String(kName).toLowerCase()]) {
+    if (resolveColumnIndex(existingMap, kName, hName) === -1) {
       missing.push(hName);
     }
   }
@@ -421,8 +517,8 @@ function readRows(cfg) {
     var idColIdx = cfg.idCol;
     var idKey = String(cfg.keys[cfg.idCol] || "").toLowerCase();
     var idHeader = String(cfg.headers[cfg.idCol] || "").toLowerCase();
-    if (colMap[idKey] !== undefined) idColIdx = colMap[idKey];
-    else if (colMap[idHeader] !== undefined) idColIdx = colMap[idHeader];
+    var resolvedIdCol = resolveColumnIndex(colMap, idKey, idHeader);
+    if (resolvedIdCol !== -1) idColIdx = resolvedIdCol;
 
     var idRaw = row[idColIdx];
     if (idRaw === "" || idRaw === null || idRaw === undefined) continue;
@@ -431,14 +527,22 @@ function readRows(cfg) {
     for (var c = 0; c < cfg.keys.length; c++) {
       var kName = cfg.keys[c];
       var hName = cfg.headers[c];
-      var idx = c;
-      if (colMap[String(kName).toLowerCase()] !== undefined) {
-        idx = colMap[String(kName).toLowerCase()];
-      } else if (colMap[String(hName).toLowerCase()] !== undefined) {
-        idx = colMap[String(hName).toLowerCase()];
+      var idx = resolveColumnIndex(colMap, kName, hName);
+      
+      // JANGAN PERNAH fallback ke idx = c jika kolom tidak ditemukan di sheet!
+      if (idx === -1 || idx >= row.length) {
+        obj[kName] = "";
+      } else {
+        var raw = row[idx];
+        if (kName === "noHp") {
+          var strHp = String(raw === null || raw === undefined ? "" : raw).trim();
+          if (strHp.startsWith("'")) strHp = strHp.slice(1);
+          if (/^8\d{6,14}$/.test(strHp)) strHp = "0" + strHp;
+          obj[kName] = strHp;
+        } else {
+          obj[kName] = raw instanceof Date ? formatDate(raw) : (raw === null || raw === undefined ? "" : raw);
+        }
       }
-      var raw = idx < row.length ? row[idx] : "";
-      obj[kName] = raw instanceof Date ? formatDate(raw) : raw;
     }
     result.push(obj);
   }
@@ -511,8 +615,8 @@ function getHeaderIndexMap(sheet) {
 }
 
 function buildRowArray(sheet, cfg, dataObj) {
-  var lastCol = Math.max(sheet.getLastColumn(), cfg.keys.length);
   var headerMap = getHeaderIndexMap(sheet);
+  var lastCol = Math.max(sheet.getLastColumn(), cfg.keys.length);
   var row = new Array(lastCol).fill("");
 
   // Isi array dengan mencocokkan nama key / header ke kolom sheet sebenarnya
@@ -522,15 +626,18 @@ function buildRowArray(sheet, cfg, dataObj) {
     var val = dataObj[key];
     if (val === undefined || val === null) val = "";
 
-    var colIdx = -1;
-    if (headerMap[String(key).toLowerCase()] !== undefined) {
-      colIdx = headerMap[String(key).toLowerCase()];
-    } else if (headerMap[String(header).toLowerCase()] !== undefined) {
-      colIdx = headerMap[String(header).toLowerCase()];
-    } else if (k < row.length) {
-      colIdx = k;
+    // Jaga agar angka '0' di awal nomor HP tidak hilang di Google Sheets
+    if (key === "noHp" || String(header).toLowerCase().indexOf("hp") !== -1) {
+      if (val !== "") {
+        var cleanHp = String(val).trim();
+        if (cleanHp.startsWith("'")) cleanHp = cleanHp.slice(1);
+        if (/^8\d{6,14}$/.test(cleanHp)) cleanHp = "0" + cleanHp;
+        // Beri awalan tanda petik satu (') agar Google Sheets memperlakukannya murni sebagai string/teks
+        val = "'" + cleanHp;
+      }
     }
 
+    var colIdx = resolveColumnIndex(headerMap, key, header);
     if (colIdx >= 0 && colIdx < row.length) {
       row[colIdx] = val;
     }
@@ -599,45 +706,61 @@ function getDashboard() {
 // ============================================================
 
 function getAnggota() {
-  return readRows(getSheetConfig("ANGGOTA"));
+  var cfg = getSheetConfig("ANGGOTA");
+  var sheet = getOrCreateSheet(cfg);
+  ensureAnggotaStructure(sheet);
+  return readRows(cfg);
+}
+
+function normalizeStatusAnggota(status) {
+  var s = String(status || "").trim().toLowerCase();
+  if (s === "cuti" || s === "leave") return "Cuti";
+  if (
+    s === "tidak aktif" ||
+    s === "tidakaktif" ||
+    s === "tidak_aktif" ||
+    s === "nonaktif" ||
+    s === "non-aktif" ||
+    s === "non_aktif" ||
+    s === "inactive"
+  ) {
+    return "Tidak Aktif";
+  }
+  return "Aktif";
 }
 
 function validateAnggota(data) {
-  if (!data.nama || !String(data.nama).trim()) throw new Error("Nama wajib diisi.");
-  if (!data.status) throw new Error("Status anggota wajib dipilih.");
-  if (!data.tanggalBergabung) throw new Error("Tanggal bergabung wajib diisi.");
-  var status = String(data.status);
-  if (["Aktif", "Cuti", "Tidak Aktif"].indexOf(status) === -1) {
-    throw new Error("Status anggota tidak valid.");
+  if (!data.nama || !String(data.nama).trim()) throw new Error("Nama lengkap wajib diisi.");
+  // Otomatis normalisasi status ke salah satu dari ['Aktif', 'Cuti', 'Tidak Aktif']
+  data.status = normalizeStatusAnggota(data.status);
+  if (!data.tanggalBergabung || !String(data.tanggalBergabung).trim()) {
+    data.tanggalBergabung = formatDate(new Date());
   }
 }
 
 function addAnggota(data) {
   validateAnggota(data);
   var cfg = getSheetConfig("ANGGOTA");
+  var sheet = getOrCreateSheet(cfg);
+  ensureAnggotaStructure(sheet);
+
   var id = generateId(cfg);
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName(cfg.name);
-  var row = [
-    id,
-    String(data.nama || "").trim(),
-    String(data.divisi || "").trim(),
-    String(data.jabatan || "").trim(),
-    String(data.noHp || "").trim(),
-    String(data.status || "Aktif"),
-    String(data.tanggalBergabung || ""),
-    String(data.keterangan || "").trim()
-  ];
+  data.id = id;
+
+  var row = buildRowArray(sheet, cfg, data);
   sheet.appendRow(row);
+
   return {
     id: id,
-    nama: row[1],
-    divisi: row[2],
-    jabatan: row[3],
-    noHp: row[4],
-    status: row[5],
-    tanggalBergabung: row[6],
-    keterangan: row[7],
+    nama: String(data.nama || "").trim(),
+    namaPanggilan: String(data.namaPanggilan || "").trim(),
+    divisi: String(data.divisi || "").trim(),
+    jabatan: String(data.jabatan || "").trim(),
+    noHp: String(data.noHp || "").trim(),
+    status: String(data.status || "Aktif"),
+    tanggalBergabung: String(data.tanggalBergabung || ""),
+    keterangan: String(data.keterangan || "").trim(),
+    foto: String(data.foto || "").trim(),
     message: "Data berhasil disimpan."
   };
 }
@@ -648,29 +771,108 @@ function updateAnggota(data) {
   var cfg = getSheetConfig("ANGGOTA");
   var rowIndex = findRowIndex(cfg, data.id);
   if (rowIndex === -1) throw new Error("Anggota tidak ditemukan.");
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName(cfg.name);
-  var row = [
-    data.id,
-    String(data.nama || "").trim(),
-    String(data.divisi || "").trim(),
-    String(data.jabatan || "").trim(),
-    String(data.noHp || "").trim(),
-    String(data.status || "Aktif"),
-    String(data.tanggalBergabung || ""),
-    String(data.keterangan || "").trim()
-  ];
-  sheet.getRange(rowIndex, 1, 1, cfg.keys.length).setValues([row]);
+
+  var sheet = getOrCreateSheet(cfg);
+  ensureAnggotaStructure(sheet);
+
+  var row = buildRowArray(sheet, cfg, data);
+  sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+
   return {
     id: data.id,
-    nama: row[1],
-    divisi: row[2],
-    jabatan: row[3],
-    noHp: row[4],
-    status: row[5],
-    tanggalBergabung: row[6],
-    keterangan: row[7],
+    nama: String(data.nama || "").trim(),
+    namaPanggilan: String(data.namaPanggilan || "").trim(),
+    divisi: String(data.divisi || "").trim(),
+    jabatan: String(data.jabatan || "").trim(),
+    noHp: String(data.noHp || "").trim(),
+    status: String(data.status || "Aktif"),
+    tanggalBergabung: String(data.tanggalBergabung || ""),
+    keterangan: String(data.keterangan || "").trim(),
+    foto: String(data.foto || "").trim(),
     message: "Data berhasil disimpan."
+  };
+}
+
+/**
+ * Otomatis mendeteksi dan memperbaiki baris data anggota yang bergeser akibat bug versi sebelumnya.
+ * Dapat dipanggil via Web App URL (?action=repairDataAnggota) atau langsung dijalankan di Apps Script Editor.
+ */
+function repairDataAnggota() {
+  var cfg = getSheetConfig("ANGGOTA");
+  var sheet = getOrCreateSheet(cfg);
+  ensureAnggotaStructure(sheet);
+
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) {
+    return { success: true, message: "Sheet kosong atau belum ada data.", fixedCount: 0 };
+  }
+
+  var headerMap = getHeaderIndexMap(sheet);
+  var namaIdx = resolveColumnIndex(headerMap, "nama", "Nama Lengkap");
+  var panggilanIdx = resolveColumnIndex(headerMap, "namapanggilan", "Nama Panggilan");
+  var divisiIdx = resolveColumnIndex(headerMap, "divisi", "Divisi");
+  var jabatanIdx = resolveColumnIndex(headerMap, "jabatan", "Jabatan");
+  var noHpIdx = resolveColumnIndex(headerMap, "nohp", "No. HP");
+  var statusIdx = resolveColumnIndex(headerMap, "status", "Status");
+  var tglIdx = resolveColumnIndex(headerMap, "tanggalbergabung", "Tanggal Bergabung");
+  var ketIdx = resolveColumnIndex(headerMap, "keterangan", "Keterangan");
+
+  var values = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  var fixedCount = 0;
+
+  for (var r = 0; r < values.length; r++) {
+    var row = values[r];
+    var valStatus = String(row[statusIdx] || "").trim();
+    var valTgl = String(row[tglIdx] || "").trim();
+
+    // Deteksi shift: Jika kolom "Tanggal Bergabung" berisi status ("Aktif", "Cuti", "Tidak Aktif"),
+    // dan kolom "Status" berisi no HP, berarti baris ini tergeser satu kolom ke kanan akibat bug appendRow sebelumnya!
+    var statusWords = ["Aktif", "Cuti", "Tidak Aktif"];
+    var isTglActuallyStatus = statusWords.indexOf(valTgl) !== -1;
+
+    if (isTglActuallyStatus) {
+      // Unshift data yang tergeser:
+      var shiftedPanggilan = row[divisiIdx];
+      var shiftedDivisi = row[jabatanIdx];
+      var shiftedJabatan = row[noHpIdx];
+      var shiftedNoHp = row[statusIdx];
+      var shiftedStatus = row[tglIdx];
+      var shiftedTgl = row[ketIdx];
+
+      row[panggilanIdx] = shiftedPanggilan;
+      row[divisiIdx] = shiftedDivisi;
+      row[jabatanIdx] = shiftedJabatan;
+      row[noHpIdx] = shiftedNoHp;
+      row[statusIdx] = shiftedStatus;
+      row[tglIdx] = shiftedTgl instanceof Date ? formatDate(shiftedTgl) : shiftedTgl;
+      if (ketIdx !== -1 && ketIdx < row.length) {
+        row[ketIdx] = "";
+      }
+      fixedCount++;
+    }
+
+    // Pastikan nomor HP pada baris tidak kehilangan angka 0 di depan
+    if (noHpIdx !== -1 && noHpIdx < row.length) {
+      var rawHp = String(row[noHpIdx] || "").trim();
+      if (rawHp.startsWith("'")) rawHp = rawHp.slice(1);
+      if (/^8\d{6,14}$/.test(rawHp)) {
+        row[noHpIdx] = "'0" + rawHp;
+        fixedCount++;
+      } else if (rawHp.startsWith("0")) {
+        row[noHpIdx] = "'" + rawHp;
+      }
+    }
+  }
+
+  if (fixedCount > 0) {
+    sheet.getRange(2, 1, values.length, lastCol).setValues(values);
+  }
+
+  return {
+    success: true,
+    message: "Pemeriksaan selesai. Berhasil memperbaiki " + fixedCount + " baris data yang tergeser.",
+    fixedCount: fixedCount
   };
 }
 
