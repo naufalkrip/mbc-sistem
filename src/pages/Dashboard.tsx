@@ -7,42 +7,25 @@ import {
   WalletCards,
   X,
   ExternalLink,
-  Activity,
-  Layers,
   ArrowUpRight,
   ArrowDownRight,
-  Sparkles,
   PlusCircle,
   ArrowRight,
   Calendar,
 } from "lucide-react";
 import {
-  getAbsensi,
-  getAnggota,
   getDashboard,
   getKeuanganChondro,
   getKeuanganMedia,
 } from "../services/api";
 import { CACHE_KEYS } from "../services/cache";
-import type { Absensi, Anggota, DashboardData, Transaksi } from "../types";
+import type { DashboardData, Transaksi } from "../types";
 import {
-  buatSesiAbsensi,
-  formatTanggalPendek,
   formatRupiah,
 } from "../utils/format";
 import { Skeleton } from "../components/ui/Skeleton";
-import { DonutChart } from "../components/ui/Chart";
 import { FinancialBarChart, type MonthlyBalanceData } from "../components/ui/FinancialBarChart";
 import { useApi } from "../hooks/useApi";
-
-interface AktivitasItem {
-  id: string;
-  tanggal: string;
-  warna: string;
-  iconType: "absensi" | "anggota" | "keuangan_in" | "keuangan_out";
-  judul: string;
-  deskripsi: string;
-}
 
 const MONTH_NAMES_FULL = [
   "Januari",
@@ -127,51 +110,12 @@ function computeMonthlyBalances(transaksi: Transaksi[], year: number): MonthlyBa
   return result;
 }
 
-const DIVISION_COLORS: Record<string, string> = {
-  Brass: "#0284c7",
-  Percussion: "#7c3aed",
-  "Battery Percussion": "#7c3aed",
-  "Pit Instrument": "#d97706",
-  "Color Guard": "#db2777",
-  Management: "#059669",
-  Staff: "#475569",
-  Official: "#475569",
-  Lainnya: "#64748b",
-};
-
-const PALETTE = [
-  "#0284c7",
-  "#7c3aed",
-  "#059669",
-  "#db2777",
-  "#d97706",
-  "#ea580c",
-  "#0891b2",
-  "#4f46e5",
-  "#65a30d",
-  "#64748b",
-];
-
 export function Dashboard() {
   // Use useApi hooks for instant cache rendering + background sync
   const { data: dashboardData, loading: dashboardLoading } = useApi<DashboardData>(
     getDashboard,
     "Gagal mengambil data dashboard.",
     CACHE_KEYS.DASHBOARD,
-    { pollingInterval: 15000, revalidateOnFocus: true, immediate: true }
-  );
-
-  const { data: absensiData } = useApi<Absensi[]>(
-    getAbsensi,
-    "Gagal mengambil data absensi.",
-    CACHE_KEYS.ABSENSI,
-    { pollingInterval: 15000, revalidateOnFocus: true, immediate: true }
-  );
-
-  const { data: anggotaData } = useApi<Anggota[]>(
-    getAnggota,
-    "Gagal mengambil data anggota.",
-    CACHE_KEYS.ANGGOTA,
     { pollingInterval: 15000, revalidateOnFocus: true, immediate: true }
   );
 
@@ -190,92 +134,11 @@ export function Dashboard() {
   );
 
   const [financeModal, setFinanceModal] = useState<{ type: "chondro" | "media" } | null>(null);
-  const [memberViewMode, setMemberViewMode] = useState<"status" | "divisi">("status");
 
   // Combined loading state - show skeleton only if no cached data at all
   const loading = dashboardLoading && !dashboardData;
 
   const closeFinanceModal = () => setFinanceModal(null);
-
-  // Status Keanggotaan Data (Clean Natural Colors)
-  const statusDonutData = useMemo(() => {
-    if (!dashboardData) return [];
-    return [
-      { label: "Aktif", value: dashboardData.anggota.aktif, color: "#16a34a" },
-      { label: "Cuti", value: dashboardData.anggota.cuti, color: "#f59e0b" },
-      { label: "Tidak Aktif", value: dashboardData.anggota.tidakAktif, color: "#dc2626" },
-    ];
-  }, [dashboardData]);
-
-  // Distribusi Divisi Data (Vibrant Multi-palette)
-  const divisionDonutData = useMemo(() => {
-    if (!anggotaData || anggotaData.length === 0) return [];
-    const divMap = new Map<string, number>();
-    anggotaData.forEach((a) => {
-      const divName = (a.divisi || "Belum Ditentukan").trim();
-      divMap.set(divName, (divMap.get(divName) || 0) + 1);
-    });
-
-    const sorted = Array.from(divMap.entries()).sort((a, b) => b[1] - a[1]);
-    return sorted.map(([divName, count], idx) => {
-      const color = DIVISION_COLORS[divName] || PALETTE[idx % PALETTE.length];
-      return {
-        label: divName,
-        value: count,
-        color,
-      };
-    });
-  }, [anggotaData]);
-
-  // Feed Aktivitas Terbaru
-  const aktivitas = useMemo<AktivitasItem[]>(() => {
-    const items: AktivitasItem[] = [];
-
-    const sesiList = buatSesiAbsensi(absensiData ?? []);
-    for (const s of sesiList.slice(-4)) {
-      items.push({
-        id: `ab-${s.key}`,
-        tanggal: s.tanggal,
-        warna: "#0284c7",
-        iconType: "absensi",
-        judul: `Absensi ${s.kegiatan}`,
-        deskripsi: `${s.jumlahAnggota} anggota · ${s.waktu}`,
-      });
-    }
-
-    const anggotaBaru = [...(anggotaData ?? [])]
-      .filter((a) => a.tanggalBergabung)
-      .sort((a, b) => b.tanggalBergabung.localeCompare(a.tanggalBergabung))
-      .slice(0, 4);
-    for (const a of anggotaBaru) {
-      items.push({
-        id: `ag-${a.id}`,
-        tanggal: a.tanggalBergabung,
-        warna: "#10b981",
-        iconType: "anggota",
-        judul: "Anggota baru bergabung",
-        deskripsi: `${a.nama} (${a.divisi || "Umum"})`,
-      });
-    }
-
-    const transaksiBaru = [...(keuanganData ?? []), ...(keuanganMediaData ?? [])]
-      .filter((t) => t.tanggal)
-      .sort((a, b) => b.tanggal.localeCompare(a.tanggal))
-      .slice(0, 6);
-    for (const t of transaksiBaru) {
-      const masuk = t.jenis === "Pemasukan";
-      items.push({
-        id: `tr-${t.id}`,
-        tanggal: t.tanggal,
-        warna: masuk ? "#10b981" : "#ef4444",
-        iconType: masuk ? "keuangan_in" : "keuangan_out",
-        judul: masuk ? "Pemasukan Kas" : "Pengeluaran Kas",
-        deskripsi: `${t.kategori || t.keterangan || "Transaksi"} · ${formatRupiah(t.nominal)}`,
-      });
-    }
-
-    return items.sort((a, b) => b.tanggal.localeCompare(a.tanggal)).slice(0, 6);
-  }, [absensiData, anggotaData, keuanganData, keuanganMediaData]);
 
   const keuanganChondroSaldo = dashboardData?.keuanganChondro.saldo ?? 0;
   const keuanganMediaSaldo = dashboardData?.keuanganMedia.saldo ?? 0;
@@ -641,175 +504,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* 4. STRUKTUR ANGGOTA & LOG AKTIVITAS TERKINI (2-COLUMN GRID - CLEAN WHITE) */}
-      <div className="dash-main-grid" style={{ alignItems: "stretch" }}>
-        {/* LEFT COLUMN: STATUS & DISTRIBUSI ANGGOTA */}
-        <div className="card animate-fade-slide-up stagger-3" style={{ display: "flex", flexDirection: "column" }}>
-          <div className="card-header" style={{ flexWrap: "wrap", gap: 12 }}>
-            <div>
-              <h2>Struktur & Distribusi Anggota</h2>
-              <p>Visualisasi sebaran anggota mbc sistem</p>
-            </div>
 
-            {/* SEGMENTED TAB SWITCHER */}
-            <div className="card-segmented-tabs">
-              <button
-                type="button"
-                className={`card-tab-btn ${memberViewMode === "status" ? "active" : ""}`}
-                onClick={() => setMemberViewMode("status")}
-              >
-                Status
-              </button>
-              <button
-                type="button"
-                className={`card-tab-btn ${memberViewMode === "divisi" ? "active" : ""}`}
-                onClick={() => setMemberViewMode("divisi")}
-              >
-                Divisi / Sektor
-              </button>
-            </div>
-          </div>
-
-          {loading || !dashboardData ? (
-            <div className="status-section-skeleton" style={{ padding: "20px 0" }}>
-              <Skeleton width={180} height={180} borderRadius={9999} style={{ margin: "0 auto 16px" }} />
-              <Skeleton height={20} width="80%" style={{ margin: "0 auto" }} />
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 20, flex: 1, justifyContent: "space-between" }}>
-              {/* INTERACTIVE DONUT CHART */}
-              <div style={{ padding: "8px 0" }}>
-                <DonutChart
-                  data={memberViewMode === "status" ? statusDonutData : divisionDonutData}
-                  size={210}
-                  thickness={24}
-                  centerSubtitle={memberViewMode === "status" ? "Anggota" : "Total Divisi"}
-                  showLegend={true}
-                  legendPosition="right"
-                />
-              </div>
-
-              {/* HEALTH INDICATOR PILL AT BOTTOM */}
-              {memberViewMode === "status" ? (
-                <div
-                  style={{
-                    background: "var(--surface-hover, #f8fafc)",
-                    border: "1px solid var(--border, #e2e8f0)",
-                    borderRadius: 10,
-                    padding: "10px 14px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Sparkles size={16} style={{ color: "var(--primary-700, #b91c1c)" }} />
-                    <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--navy-900, #0f172a)" }}>
-                      Rasio Keaktifan: {dashboardData.anggota.total > 0 ? Math.round((dashboardData.anggota.aktif / dashboardData.anggota.total) * 100) : 0}%
-                    </span>
-                  </div>
-                  <Link
-                    to="/anggota"
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: 500,
-                      color: "var(--primary-700, #b91c1c)",
-                      textDecoration: "none",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    Kelola Anggota <ExternalLink size={12} />
-                  </Link>
-                </div>
-              ) : (
-                <div
-                  style={{
-                    background: "var(--surface-hover, #f8fafc)",
-                    border: "1px solid var(--border, #e2e8f0)",
-                    borderRadius: 10,
-                    padding: "10px 14px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Layers size={16} style={{ color: "var(--primary-700, #b91c1c)" }} />
-                    <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--navy-900, #0f172a)" }}>
-                      {divisionDonutData.length} Sektor Divisi Aktif
-                    </span>
-                  </div>
-                  <Link
-                    to="/anggota"
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: 500,
-                      color: "var(--primary-700, #b91c1c)",
-                      textDecoration: "none",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    Lihat Daftar <ExternalLink size={12} />
-                  </Link>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT COLUMN: LOG & AKTIVITAS TERKINI */}
-        <div className="card animate-fade-slide-up stagger-4" style={{ display: "flex", flexDirection: "column" }}>
-          <div className="card-header">
-            <div>
-              <h2>Log & Aktivitas Terkini</h2>
-              <p>Riwayat kegiatan & mutasi mbc sistem</p>
-            </div>
-          </div>
-          {loading ? (
-            <div className="aktivitas-list">
-              <Skeleton height={48} />
-              <Skeleton height={48} />
-              <Skeleton height={48} />
-              <Skeleton height={48} />
-            </div>
-          ) : aktivitas.length === 0 ? (
-            <div className="aktivitas-empty">
-              <Activity size={32} style={{ color: "#98a1b0", marginBottom: 8 }} />
-              <p style={{ fontSize: 13, color: "#98a1b0", margin: 0 }}>Belum ada aktivitas terbaru</p>
-              <p style={{ fontSize: 11, color: "#98a1b0", marginTop: 4 }}>
-                Seluruh mutasi keuangan, sesi absensi, dan data anggota baru akan tercatat di sini.
-              </p>
-            </div>
-          ) : (
-            <div className="aktivitas-list" style={{ flex: 1 }}>
-              {aktivitas.map((a) => (
-                <div key={a.id} className="aktivitas-item">
-                  <span
-                    className="aktivitas-dot"
-                    style={{
-                      background: a.warna,
-                      boxShadow: `0 0 0 3px ${a.warna}20`,
-                    }}
-                  />
-                  <div className="aktivitas-body">
-                    <div className="aktivitas-title" style={{ fontWeight: 600, color: "var(--navy-900, #0f172a)" }}>
-                      {a.judul}
-                    </div>
-                    <div className="aktivitas-desc">{a.deskripsi}</div>
-                  </div>
-                  <span className="aktivitas-date">{formatTanggalPendek(a.tanggal)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* 5. FINANCE DETAIL MODAL */}
       {financeModal && (

@@ -37,6 +37,7 @@ export function Modal({ open, title, onClose, children, size = "md", footer }: M
         aria-modal="true"
         aria-label={title}
       >
+        <div className="modal-handle-bar" />
         <div className="modal-header" style={{ flexShrink: 0 }}>
           <h3>{title}</h3>
           <button className="btn-icon" onClick={onClose} aria-label="Tutup">

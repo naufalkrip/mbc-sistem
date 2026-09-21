@@ -1,9 +1,11 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { useLocation, Outlet } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import { BottomNav } from "./BottomNav";
 import { PageTransition } from "../ui/PageTransition";
+import { Outlet } from "react-router-dom";
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/": { title: "Dashboard", subtitle: "Ringkasan data organisasi" },
@@ -30,6 +32,7 @@ export function Layout({ children }: { children?: ReactNode }) {
           <PageTransition>{children ?? <Outlet />}</PageTransition>
         </main>
       </div>
+      <BottomNav />
     </div>
   );
 }
