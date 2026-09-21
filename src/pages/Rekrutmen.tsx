@@ -261,40 +261,11 @@ export function Rekrutmen() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* 1. Header Ringkasan Merah Standout mbc sistem */}
-      <div
-        style={{
-          background: "linear-gradient(135deg, #c8101e 0%, #a41111 50%, #8a1414 100%)",
-          borderRadius: "var(--radius-lg, 14px)",
-          padding: "16px 20px",
-          color: "#ffffff",
-          boxShadow: "0 6px 20px rgba(185, 28, 28, 0.22)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 10,
-            marginBottom: 14,
-          }}
-        >
+      <div className="summary-panel animate-fade-slide-up">
+        <div className="summary-panel-header">
           <div>
-            <span
-              style={{
-                fontSize: "11px",
-                fontWeight: 600,
-                letterSpacing: "0.5px",
-                textTransform: "uppercase",
-                opacity: 0.88,
-              }}
-            >
-              CHONDRO WONOPRINGGO · PENERIMAAN ANGGOTA BARU
-            </span>
-            <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: "2px 0 0", color: "#ffffff" }}>
-              Ringkasan Rekruitmen
-            </h2>
+            <h3>Ringkasan Rekruitmen</h3>
+            <p>Pilih filter status untuk melihat ringkasan data pendaftar</p>
           </div>
           {form && (
             <div
@@ -303,8 +274,8 @@ export function Rekrutmen() {
                 background: "rgba(255, 255, 255, 0.15)",
                 backdropFilter: "blur(8px)",
                 borderRadius: "20px",
-                fontSize: "12.5px",
-                fontWeight: 600,
+                fontSize: "12px",
+                fontWeight: 500,
                 color: "#ffffff",
                 border: "1px solid rgba(255, 255, 255, 0.2)",
               }}
@@ -428,7 +399,7 @@ export function Rekrutmen() {
               borderRadius: "var(--radius-xs, 7px)",
               border: "none",
               fontSize: "13px",
-              fontWeight: 700,
+              fontWeight: 500,
               cursor: "pointer",
               background: activeTab === "submissions" ? "#ffffff" : "transparent",
               color: activeTab === "submissions" ? "var(--primary-700, #b91c1c)" : "#64748b",
@@ -448,7 +419,7 @@ export function Rekrutmen() {
               borderRadius: "var(--radius-xs, 7px)",
               border: "none",
               fontSize: "13px",
-              fontWeight: 700,
+              fontWeight: 500,
               cursor: "pointer",
               background: activeTab === "form" ? "#ffffff" : "transparent",
               color: activeTab === "form" ? "var(--primary-700, #b91c1c)" : "#64748b",
@@ -602,17 +573,18 @@ export function Rekrutmen() {
               >
                 <Sparkles size={28} />
               </div>
-              <h3 style={{ margin: "0 0 6px", fontSize: "1.1rem", fontWeight: 700, color: "var(--navy-900)" }}>
+              <h3 style={{ margin: "0 0 6px", fontSize: "16px", fontWeight: 600, color: "var(--navy-900)", lineHeight: 1.4 }}>
                 Belum Ada Formulir Pendaftaran
               </h3>
               <p
                 style={{
                   margin: "0 0 18px",
-                  fontSize: "13px",
+                  fontSize: "14px",
                   color: "var(--text-muted)",
                   maxWidth: 440,
                   marginLeft: "auto",
                   marginRight: "auto",
+                  lineHeight: 1.5,
                 }}
               >
                 Buat formulir pendaftaran pertama untuk mulai menerima calon anggota baru mbc sistem.
@@ -644,35 +616,35 @@ export function Rekrutmen() {
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div className="form-group" style={{ gap: 4 }}>
-            <label style={{ fontSize: "13px", fontWeight: 600 }}>Nama / Judul Formulir *</label>
+            <label style={{ fontSize: "13px", fontWeight: 500 }}>Nama / Judul Formulir *</label>
             <input
               value={formData.title}
               onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
               placeholder="Contoh: Formulir Pendaftaran Anggota Baru mbc sistem 2026"
-              style={{ height: 40, padding: "8px 12px", fontSize: "13.5px" }}
+              style={{ height: 40, padding: "8px 12px", fontSize: "14px" }}
             />
             {formErrors.title && (
-              <span style={{ fontSize: "12px", color: "#dc2626" }}>{formErrors.title}</span>
+              <span style={{ fontSize: "12px", fontWeight: 500, color: "#dc2626" }}>{formErrors.title}</span>
             )}
           </div>
 
           <div className="form-group" style={{ gap: 4 }}>
-            <label style={{ fontSize: "13px", fontWeight: 600 }}>Deskripsi / Petunjuk Pengisian</label>
+            <label style={{ fontSize: "13px", fontWeight: 500 }}>Deskripsi / Petunjuk Pengisian</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
               placeholder="Silakan isi seluruh data dengan benar dan lengkap untuk proses seleksi calon anggota mbc sistem."
               rows={3}
-              style={{ padding: "8px 12px", fontSize: "13px", resize: "vertical" }}
+              style={{ padding: "8px 12px", fontSize: "14px", resize: "vertical" }}
             />
           </div>
 
           <div className="form-group" style={{ gap: 4 }}>
-            <label style={{ fontSize: "13px", fontWeight: 600 }}>Status Formulir Awal</label>
+            <label style={{ fontSize: "13px", fontWeight: 500 }}>Status Formulir Awal</label>
             <select
               value={formData.status}
               onChange={(e) => setFormData((p) => ({ ...p, status: e.target.value as "dibuka" | "ditutup" }))}
-              style={{ height: 40, padding: "8px 12px", fontSize: "13.5px" }}
+              style={{ height: 40, padding: "8px 12px", fontSize: "14px" }}
             >
               <option value="dibuka">🟢 Langsung Aktif (Dibuka untuk umum)</option>
               <option value="ditutup">🔴 Simpan sebagai Draft (Ditutup sementara)</option>

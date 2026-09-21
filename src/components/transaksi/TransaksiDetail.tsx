@@ -398,7 +398,7 @@ export function TransaksiDetail() {
                   {formatTanggal(group.tanggal)}
                 </span>
               </div>
-              <p style={{ margin: "2px 0 0" }}>
+              <p style={{ margin: "4px 0 0", color: "var(--text-muted)", fontSize: "14px", lineHeight: 1.5 }}>
                 {group.keterangan || "Rincian pemasukan & pengeluaran untuk kegiatan/transaksi ini"}
               </p>
             </div>
@@ -413,45 +413,21 @@ export function TransaksiDetail() {
         </div>
 
         {/* Ringkasan Keuangan Transaksi - Panel Merah Standout Seperti Absensi */}
-        <div
-          className="summary-panel"
-          style={{
-            marginTop: 16,
-            background: "linear-gradient(135deg, #c8101e 0%, #a41111 50%, #8a1414 100%)",
-            borderRadius: "var(--radius, 12px)",
-            padding: "18px 22px",
-            color: "#ffffff",
-            boxShadow: "0 4px 16px rgba(200, 16, 30, 0.25)",
-          }}
-        >
-          <div
-            className="summary-panel-header"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 16,
-              flexWrap: "wrap",
-              gap: 10,
-            }}
-          >
+        <div className="summary-panel" style={{ marginTop: 16 }}>
+          <div className="summary-panel-header">
             <div>
-              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#ffffff", margin: 0, letterSpacing: "-0.01em" }}>
-                Ringkasan Uang Masuk & Keluar
-              </h3>
-              <p style={{ fontSize: 12.5, color: "rgba(255, 255, 255, 0.85)", margin: "3px 0 0" }}>
-                Total rekap keuangan untuk transaksi ini
-              </p>
+              <h3>Ringkasan Uang Masuk & Keluar</h3>
+              <p>Total rekap keuangan untuk transaksi ini</p>
             </div>
             <span
               style={{
-                fontSize: 12,
+                fontSize: "12px",
                 color: "#ffffff",
                 background: "rgba(255, 255, 255, 0.18)",
                 border: "1px solid rgba(255, 255, 255, 0.28)",
                 padding: "4px 12px",
                 borderRadius: 20,
-                fontWeight: 600,
+                fontWeight: 500,
               }}
             >
               {stats.totalTransaksi} Rincian Transaksi
@@ -478,7 +454,7 @@ export function TransaksiDetail() {
                 gap: 4,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: 12.5, fontWeight: 600 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: "13px", fontWeight: 500 }}>
                 <div
                   style={{
                     width: 28,
@@ -514,7 +490,7 @@ export function TransaksiDetail() {
                 gap: 4,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: 12.5, fontWeight: 600 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: "13px", fontWeight: 500 }}>
                 <div
                   style={{
                     width: 28,
@@ -550,7 +526,7 @@ export function TransaksiDetail() {
                 gap: 4,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: 12.5, fontWeight: 600 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: "13px", fontWeight: 500 }}>
                 <div
                   style={{
                     width: 28,
@@ -628,12 +604,12 @@ export function TransaksiDetail() {
         <div className="form-grid" style={{ gap: 10 }}>
           {/* Baris 1: Segmented Switcher for Jenis Transaksi */}
           <div className="form-group" style={{ gridColumn: "1 / -1", gap: 3 }}>
-            <label style={{ fontWeight: 600, fontSize: "11.5px", color: "var(--slate-700)" }}>Jenis Transaksi *</label>
+            <label style={{ fontWeight: 500, fontSize: "13px", color: "var(--slate-700)" }}>Jenis Transaksi *</label>
             <div className="type-toggle-group" style={{ gap: 8 }}>
               <button
                 type="button"
                 className={`type-toggle-btn ${form.jenis === "Pemasukan" ? "active-masuk" : ""}`}
-                style={{ padding: "6px 12px", height: 34, fontSize: "12.5px" }}
+                style={{ padding: "6px 12px", height: 34, fontSize: "13px" }}
                 onClick={() => setField("jenis", "Pemasukan")}
               >
                 <span className="type-toggle-icon" style={{ width: 18, height: 18 }}>
@@ -645,7 +621,7 @@ export function TransaksiDetail() {
               <button
                 type="button"
                 className={`type-toggle-btn ${form.jenis === "Pengeluaran" ? "active-keluar" : ""}`}
-                style={{ padding: "6px 12px", height: 34, fontSize: "12.5px" }}
+                style={{ padding: "6px 12px", height: 34, fontSize: "13px" }}
                 onClick={() => setField("jenis", "Pengeluaran")}
               >
                 <span className="type-toggle-icon" style={{ width: 18, height: 18 }}>
@@ -659,31 +635,31 @@ export function TransaksiDetail() {
 
           {/* Baris 2: Tanggal & Nominal */}
           <div className="form-group" style={{ gap: 3 }}>
-            <label style={{ fontWeight: 600, fontSize: "11.5px", color: "var(--slate-700)" }}>Tanggal Transaksi *</label>
+            <label style={{ fontWeight: 500, fontSize: "13px", color: "var(--slate-700)" }}>Tanggal Transaksi *</label>
             <input
               type="date"
               value={form.tanggal}
               onChange={(e) => setField("tanggal", e.target.value)}
-              style={{ height: 36, padding: "5px 10px", fontSize: "13px" }}
+              style={{ height: 36, padding: "5px 10px", fontSize: "14px" }}
             />
             {errors.tanggal && <span className="field-error">{errors.tanggal}</span>}
           </div>
 
           <div className="form-group" style={{ gap: 3 }}>
-            <label style={{ fontWeight: 600, fontSize: "11.5px", color: "var(--slate-700)" }}>Nominal (Rupiah) *</label>
+            <label style={{ fontWeight: 500, fontSize: "13px", color: "var(--slate-700)" }}>Nominal (Rupiah) *</label>
             <CurrencyInput value={form.nominal} onChange={(v) => setField("nominal", v)} placeholder="0" />
             {errors.nominal && <span className="field-error">{errors.nominal}</span>}
           </div>
 
           {/* Baris 3: Kategori & Keterangan Rincian */}
           <div className="form-group" style={{ gap: 3 }}>
-            <label style={{ fontWeight: 600, fontSize: "11.5px", color: "var(--slate-700)" }}>Kategori</label>
+            <label style={{ fontWeight: 500, fontSize: "13px", color: "var(--slate-700)" }}>Kategori</label>
             <input
               list="kategori-suggestions"
               value={form.kategori}
               onChange={(e) => setField("kategori", e.target.value)}
               placeholder="Pilih atau ketik kategori..."
-              style={{ height: 36, padding: "5px 10px", fontSize: "13px" }}
+              style={{ height: 36, padding: "5px 10px", fontSize: "14px" }}
             />
             <datalist id="kategori-suggestions">
               {(form.jenis === "Pemasukan" ? KATEGORI_SARAN_MASUK : KATEGORI_SARAN_KELUAR).map((k) => (
@@ -693,7 +669,7 @@ export function TransaksiDetail() {
           </div>
 
           <div className="form-group" style={{ gap: 3 }}>
-            <label style={{ fontWeight: 600, fontSize: "11.5px", color: "var(--slate-700)" }}>Keterangan / Rincian *</label>
+            <label style={{ fontWeight: 500, fontSize: "13px", color: "var(--slate-700)" }}>Keterangan / Rincian *</label>
             <input
               type="text"
               value={form.keterangan}
@@ -703,7 +679,7 @@ export function TransaksiDetail() {
                   ? "Contoh: Iuran anggota, Donasi alumni A..."
                   : "Contoh: Beli stik drum, Nasi kotak 15 porsi..."
               }
-              style={{ height: 36, padding: "5px 10px", fontSize: "13px" }}
+              style={{ height: 36, padding: "5px 10px", fontSize: "14px" }}
             />
             {errors.keterangan && <span className="field-error">{errors.keterangan}</span>}
           </div>
@@ -711,14 +687,14 @@ export function TransaksiDetail() {
           {/* Baris 4: Quick Category Pills */}
           <div className="form-group" style={{ gridColumn: "1 / -1", marginTop: -2, gap: 3 }}>
             <div className="category-pill-group" style={{ margin: 0, gap: 5 }}>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", marginRight: 2 }}>Pilihan Cepat:</span>
+              <span style={{ fontSize: "12px", color: "var(--text-muted)", marginRight: 2 }}>Pilihan Cepat:</span>
               {(form.jenis === "Pemasukan" ? KATEGORI_SARAN_MASUK : KATEGORI_SARAN_KELUAR).map((kat) => (
                 <button
                   key={kat}
                   type="button"
                   className={`category-pill ${form.kategori === kat ? "active" : ""}`}
                   onClick={() => setField("kategori", kat)}
-                  style={{ padding: "2px 7px", fontSize: "10.5px" }}
+                  style={{ padding: "3px 8px", fontSize: "12px" }}
                 >
                   {kat}
                 </button>

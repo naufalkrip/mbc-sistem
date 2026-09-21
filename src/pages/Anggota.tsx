@@ -592,7 +592,7 @@ export function Anggota() {
             {customDivisiOrder.length > 0 && (
               <span style={{
                 marginLeft: "4px",
-                fontSize: "0.72rem",
+                fontSize: "11px",
                 backgroundColor: sortField === "divisi" ? "rgba(255,255,255,0.3)" : "rgba(14,165,233,0.18)",
                 color: sortField === "divisi" ? "#fff" : "var(--primary)",
                 padding: "1px 6px",
@@ -783,7 +783,7 @@ export function Anggota() {
               type="button"
               className="btn btn-ghost btn-sm"
               onClick={resetDivisiOrder}
-              style={{ padding: "0.25rem 0.5rem", fontSize: "0.8rem", color: "var(--text-muted)" }}
+              style={{ padding: "0.25rem 0.5rem", fontSize: "13px", color: "var(--text-muted)" }}
             >
               Reset
             </button>
@@ -830,7 +830,7 @@ export function Anggota() {
           )}
 
           {tempDivisiOrder.length === 0 ? (
-            <div style={{ padding: "1rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+            <div style={{ padding: "1rem", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
               Belum ada data divisi.
             </div>
           ) : (

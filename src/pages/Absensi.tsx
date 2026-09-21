@@ -856,7 +856,7 @@ export function Absensi() {
             {customDivisiOrder.length > 0 && (
               <span style={{
                 marginLeft: "4px",
-                fontSize: "0.72rem",
+                fontSize: "11px",
                 backgroundColor: memberSortField === "divisi" ? "rgba(255,255,255,0.3)" : "rgba(14,165,233,0.18)",
                 color: memberSortField === "divisi" ? "#fff" : "var(--primary)",
                 padding: "1px 6px",
@@ -1206,7 +1206,7 @@ export function Absensi() {
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
             <div style={{ fontWeight: 600, fontSize: "14px", color: "var(--navy-900)" }}>Pilih Periode Laporan</div>
-            <p style={{ fontSize: "12.5px", color: "var(--text-muted)", margin: "3px 0 0" }}>
+            <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: "3px 0 0" }}>
               Tentukan rentang tanggal absensi yang akan dimasukkan ke dalam dokumen PDF
             </p>
           </div>
@@ -1232,7 +1232,7 @@ export function Absensi() {
                 borderRadius: "var(--radius-xs, 6px)",
                 border: "none",
                 fontSize: "13px",
-                fontWeight: 600,
+                fontWeight: 500,
                 cursor: "pointer",
                 background: pdfMode === "" ? "#ffffff" : "transparent",
                 color: pdfMode === "" ? "var(--primary-700, #b91c1c)" : "var(--text-muted)",
@@ -1252,7 +1252,7 @@ export function Absensi() {
                 borderRadius: "var(--radius-xs, 6px)",
                 border: "none",
                 fontSize: "13px",
-                fontWeight: 600,
+                fontWeight: 500,
                 cursor: "pointer",
                 background: pdfMode === "bulan" ? "#ffffff" : "transparent",
                 color: pdfMode === "bulan" ? "var(--primary-700, #b91c1c)" : "var(--text-muted)",
@@ -1272,7 +1272,7 @@ export function Absensi() {
                 borderRadius: "var(--radius-xs, 6px)",
                 border: "none",
                 fontSize: "13px",
-                fontWeight: 600,
+                fontWeight: 500,
                 cursor: "pointer",
                 background: pdfMode === "custom" ? "#ffffff" : "transparent",
                 color: pdfMode === "custom" ? "var(--primary-700, #b91c1c)" : "var(--text-muted)",
@@ -1287,11 +1287,11 @@ export function Absensi() {
           {pdfMode === "bulan" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div className="form-group" style={{ gap: 4 }}>
-                <label style={{ fontSize: "12px", fontWeight: 600 }}>Pilih Bulan</label>
+                <label style={{ fontSize: "13px", fontWeight: 500 }}>Pilih Bulan</label>
                 <select
                   value={pdfSelectedBulan}
                   onChange={(e) => setPdfSelectedBulan(e.target.value)}
-                  style={{ height: 38, padding: "6px 10px", fontSize: "13px" }}
+                  style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
                 >
                   {PILIHAN_BULAN.map((b) => (
                     <option key={b.value} value={b.value}>
@@ -1301,11 +1301,11 @@ export function Absensi() {
                 </select>
               </div>
               <div className="form-group" style={{ gap: 4 }}>
-                <label style={{ fontSize: "12px", fontWeight: 600 }}>Pilih Tahun</label>
+                <label style={{ fontSize: "13px", fontWeight: 500 }}>Pilih Tahun</label>
                 <select
                   value={pdfSelectedTahun}
                   onChange={(e) => setPdfSelectedTahun(e.target.value)}
-                  style={{ height: 38, padding: "6px 10px", fontSize: "13px" }}
+                  style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
                 >
                   {PILIHAN_TAHUN.map((yr) => (
                     <option key={yr} value={String(yr)}>
@@ -1320,23 +1320,23 @@ export function Absensi() {
           {pdfMode === "custom" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div className="form-group" style={{ gap: 4 }}>
-                <label style={{ fontSize: "12px", fontWeight: 600 }}>Tanggal Dari</label>
+                <label style={{ fontSize: "13px", fontWeight: 500 }}>Tanggal Dari</label>
                 <input
                   type="date"
                   value={pdfDari}
                   max={pdfSampai || undefined}
                   onChange={(e) => setPdfDari(e.target.value)}
-                  style={{ height: 38, padding: "6px 10px", fontSize: "13px" }}
+                  style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
                 />
               </div>
               <div className="form-group" style={{ gap: 4 }}>
-                <label style={{ fontSize: "12px", fontWeight: 600 }}>Tanggal Sampai</label>
+                <label style={{ fontSize: "13px", fontWeight: 500 }}>Tanggal Sampai</label>
                 <input
                   type="date"
                   value={pdfSampai}
                   min={pdfDari || undefined}
                   onChange={(e) => setPdfSampai(e.target.value)}
-                  style={{ height: 38, padding: "6px 10px", fontSize: "13px" }}
+                  style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
                 />
               </div>
             </div>
@@ -1351,7 +1351,7 @@ export function Absensi() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              fontSize: "12.5px",
+              fontSize: "13px",
             }}
           >
             <span style={{ color: "var(--text-muted)" }}>Periode yang dicetak:</span>
@@ -1372,7 +1372,7 @@ export function Absensi() {
               type="button"
               className="btn btn-ghost btn-sm"
               onClick={resetDivisiOrder}
-              style={{ padding: "0.25rem 0.5rem", fontSize: "0.8rem", color: "var(--text-muted)" }}
+              style={{ padding: "0.25rem 0.5rem", fontSize: "13px", color: "var(--text-muted)" }}
             >
               Reset
             </button>
@@ -1419,7 +1419,7 @@ export function Absensi() {
           )}
 
           {tempDivisiOrder.length === 0 ? (
-            <div style={{ padding: "1rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+            <div style={{ padding: "1rem", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
               Belum ada data divisi.
             </div>
           ) : (

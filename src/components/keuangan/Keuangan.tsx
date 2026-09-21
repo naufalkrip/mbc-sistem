@@ -325,7 +325,7 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
             <div style={{ fontWeight: 600, fontSize: "14px", color: "var(--navy-900)" }}>Pilih Periode Laporan</div>
-            <p style={{ fontSize: "12.5px", color: "var(--text-muted)", margin: "3px 0 0" }}>
+            <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: "3px 0 0" }}>
               Tentukan rentang tanggal transaksi yang akan dimasukkan ke dalam dokumen PDF
             </p>
           </div>
@@ -351,7 +351,7 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
                 borderRadius: "var(--radius-xs, 6px)",
                 border: "none",
                 fontSize: "13px",
-                fontWeight: 600,
+                fontWeight: 500,
                 cursor: "pointer",
                 background: pdfMode === "" ? "#ffffff" : "transparent",
                 color: pdfMode === "" ? "var(--primary-700, #b91c1c)" : "var(--text-muted)",
@@ -371,7 +371,7 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
                 borderRadius: "var(--radius-xs, 6px)",
                 border: "none",
                 fontSize: "13px",
-                fontWeight: 600,
+                fontWeight: 500,
                 cursor: "pointer",
                 background: pdfMode === "bulan" ? "#ffffff" : "transparent",
                 color: pdfMode === "bulan" ? "var(--primary-700, #b91c1c)" : "var(--text-muted)",
@@ -391,7 +391,7 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
                 borderRadius: "var(--radius-xs, 6px)",
                 border: "none",
                 fontSize: "13px",
-                fontWeight: 600,
+                fontWeight: 500,
                 cursor: "pointer",
                 background: pdfMode === "custom" ? "#ffffff" : "transparent",
                 color: pdfMode === "custom" ? "var(--primary-700, #b91c1c)" : "var(--text-muted)",
@@ -406,11 +406,11 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
           {pdfMode === "bulan" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div className="form-group" style={{ gap: 4 }}>
-                <label style={{ fontSize: "12px", fontWeight: 600 }}>Pilih Bulan</label>
+                <label style={{ fontSize: "13px", fontWeight: 500 }}>Pilih Bulan</label>
                 <select
                   value={pdfSelectedBulan}
                   onChange={(e) => setPdfSelectedBulan(e.target.value)}
-                  style={{ height: 38, padding: "6px 10px", fontSize: "13px" }}
+                  style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
                 >
                   {PILIHAN_BULAN.map((b) => (
                     <option key={b.value} value={b.value}>
@@ -420,11 +420,11 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
                 </select>
               </div>
               <div className="form-group" style={{ gap: 4 }}>
-                <label style={{ fontSize: "12px", fontWeight: 600 }}>Pilih Tahun</label>
+                <label style={{ fontSize: "13px", fontWeight: 500 }}>Pilih Tahun</label>
                 <select
                   value={pdfSelectedTahun}
                   onChange={(e) => setPdfSelectedTahun(e.target.value)}
-                  style={{ height: 38, padding: "6px 10px", fontSize: "13px" }}
+                  style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
                 >
                   {PILIHAN_TAHUN.map((yr) => (
                     <option key={yr} value={String(yr)}>
@@ -439,23 +439,23 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
           {pdfMode === "custom" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div className="form-group" style={{ gap: 4 }}>
-                <label style={{ fontSize: "12px", fontWeight: 600 }}>Tanggal Dari</label>
+                <label style={{ fontSize: "13px", fontWeight: 500 }}>Tanggal Dari</label>
                 <input
                   type="date"
                   value={pdfDari}
                   max={pdfSampai || undefined}
                   onChange={(e) => setPdfDari(e.target.value)}
-                  style={{ height: 38, padding: "6px 10px", fontSize: "13px" }}
+                  style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
                 />
               </div>
               <div className="form-group" style={{ gap: 4 }}>
-                <label style={{ fontSize: "12px", fontWeight: 600 }}>Tanggal Sampai</label>
+                <label style={{ fontSize: "13px", fontWeight: 500 }}>Tanggal Sampai</label>
                 <input
                   type="date"
                   value={pdfSampai}
                   min={pdfDari || undefined}
                   onChange={(e) => setPdfSampai(e.target.value)}
-                  style={{ height: 38, padding: "6px 10px", fontSize: "13px" }}
+                  style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
                 />
               </div>
             </div>
@@ -470,7 +470,7 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              fontSize: "12.5px",
+              fontSize: "13px",
             }}
           >
             <span style={{ color: "var(--text-muted)" }}>Periode yang dicetak:</span>
@@ -498,21 +498,21 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
       >
         <div className="form-grid" style={{ gap: 10 }}>
           <div className="form-group" style={{ gap: 3 }}>
-            <label style={{ fontWeight: 600, fontSize: "12px" }}>Tanggal *</label>
+            <label style={{ fontWeight: 500, fontSize: "13px" }}>Tanggal *</label>
             <input
               type="date"
               value={form.tanggal}
               onChange={(e) => setField("tanggal", e.target.value)}
-              style={{ height: 38, padding: "6px 10px", fontSize: "13px" }}
+              style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
             />
             {errors.tanggal && <span className="field-error">{errors.tanggal}</span>}
           </div>
           <div className="form-group" style={{ gap: 3 }}>
-            <label style={{ fontWeight: 600, fontSize: "12px" }}>Jenis Transaksi *</label>
+            <label style={{ fontWeight: 500, fontSize: "13px" }}>Jenis Transaksi *</label>
             <select
               value={form.jenis}
               onChange={(e) => setField("jenis", e.target.value)}
-              style={{ height: 38, padding: "6px 10px", fontSize: "13px" }}
+              style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
             >
               {JENIS_TRANSAKSI.map((j) => (
                 <option key={j} value={j}>{j}</option>
@@ -521,17 +521,17 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
             {errors.jenis && <span className="field-error">{errors.jenis}</span>}
           </div>
           <div className="form-group" style={{ gridColumn: "1 / -1", gap: 3 }}>
-            <label style={{ fontWeight: 600, fontSize: "12px" }}>Nominal (Rupiah) *</label>
+            <label style={{ fontWeight: 500, fontSize: "13px" }}>Nominal (Rupiah) *</label>
             <CurrencyInput value={form.nominal} onChange={(v) => setField("nominal", v)} placeholder="0" />
             {errors.nominal && <span className="field-error">{errors.nominal}</span>}
           </div>
           <div className="form-group" style={{ gridColumn: "1 / -1", gap: 3 }}>
-            <label style={{ fontWeight: 600, fontSize: "12px" }}>Keterangan / Keperluan</label>
+            <label style={{ fontWeight: 500, fontSize: "13px" }}>Keterangan / Keperluan</label>
             <input
               value={form.keterangan}
               onChange={(e) => setField("keterangan", e.target.value)}
               placeholder="Keterangan transaksi (opsional)"
-              style={{ height: 38, padding: "6px 10px", fontSize: "13px" }}
+              style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
             />
           </div>
         </div>

@@ -62,7 +62,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               className={({ isActive }) => `nav-link ${isActive ? "nav-active" : ""}`}
               onClick={onClose}
             >
-              <item.icon size={19} strokeWidth={2} aria-hidden="true" />
+              <item.icon size={18} strokeWidth={2} aria-hidden="true" />
               <span>{item.label}</span>
             </NavLink>
           ))}
