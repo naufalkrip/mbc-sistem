@@ -787,13 +787,87 @@ export function Absensi() {
       </div>
 
       {/* INPUT ABSENSI */}
+      {/* FORM INPUT ABSENSI */}
       <div className="card">
         <div className="card-header">
           <div>
             <h2>Input Absensi</h2>
-            <p>Tentukan tanggal, kegiatan, dan waktu absensi</p>
+            <p>Kelola data absensi kegiatan dan status kehadiran anggota</p>
           </div>
         </div>
+
+        {/* 1. FILTER & PENCARIAN ANGGOTA */}
+        <div className="form-section-title">Daftar Anggota</div>
+        <p className="form-section-sub">Cari dan filter anggota yang akan diabsen</p>
+
+        <div className="toolbar">
+          <SearchBar value={memberSearch} onChange={setMemberSearch} placeholder="Cari nama / nama panggilan / divisi..." />
+          <Filter label="Divisi" value={memberDivisi} onChange={setMemberDivisi} options={divisiOptions} />
+          <div className="filter">
+            <label className="filter-label">Urutan</label>
+            <button
+              type="button"
+              className={`filter-btn ${memberSortField === "divisi" ? "active" : ""}`}
+              onClick={openDivisiSortModal}
+              title="Buka popup untuk memilih urutan divisi"
+            >
+              <ListOrdered size={15} style={{ color: memberSortField === "divisi" ? "var(--primary)" : "var(--text-muted)" }} />
+              <span>Urutan Divisi</span>
+              {customDivisiOrder.length > 0 && (
+                <span
+                  style={{
+                    marginLeft: "2px",
+                    fontSize: "11px",
+                    backgroundColor: memberSortField === "divisi" ? "var(--primary-100)" : "var(--bg-soft, #f1f5f9)",
+                    color: memberSortField === "divisi" ? "var(--primary)" : "var(--text-secondary)",
+                    padding: "1px 6px",
+                    borderRadius: "9999px",
+                    fontWeight: 600,
+                  }}
+                >
+                  {customDivisiOrder.length}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {memberSortField && (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginBottom: "0.85rem" }}>
+            <button
+              type="button"
+              className="sort-active-badge"
+              onClick={() => {
+                if (memberSortField === "divisi") setCustomDivisiOrder([]);
+                setMemberSortField(null);
+                setMemberSortDirection("asc");
+              }}
+              title="Klik untuk reset urutan default"
+            >
+              <span>
+                Urut: {memberSortField === "nama" ? "Nama Lengkap" : memberSortField === "namaPanggilan" ? "Nama Panggilan" : customDivisiOrder.length > 0 ? "Divisi (Pilihan Urutan)" : "Divisi"} ({memberSortDirection === "asc" ? "A-Z" : "Z-A"})
+              </span>
+              <span className="sort-badge-close">×</span>
+            </button>
+            {memberSortField === "divisi" && (
+              <button
+                type="button"
+                className="divisi-preset-btn"
+                style={{ padding: "0.2rem 0.55rem" }}
+                onClick={openDivisiSortModal}
+                title="Ubah urutan divisi"
+              >
+                <ListOrdered size={12} /> Ubah
+              </button>
+            )}
+          </div>
+        )}
+
+        <hr className="form-section-divider" />
+
+        {/* 2. INPUT ABSENSI (DIBAWAH FITUR FILTER DAFTAR ANGGOTA) */}
+        <div className="form-section-title">Input Absensi</div>
+        <p className="form-section-sub">Tentukan tanggal, kegiatan, dan waktu absensi</p>
 
         <div className="absensi-field-grid">
           <div className="form-group">
@@ -838,67 +912,9 @@ export function Absensi() {
 
         <hr className="form-section-divider" />
 
-        <div className="form-section-title">Daftar Anggota</div>
+        {/* 3. STATUS KEHADIRAN ANGGOTA */}
+        <div className="form-section-title">Kehadiran Anggota</div>
         <p className="form-section-sub">Tentukan status kehadiran setiap anggota</p>
-
-        <div className="toolbar">
-          <SearchBar value={memberSearch} onChange={setMemberSearch} placeholder="Cari nama / nama panggilan / divisi..." />
-          <Filter label="Divisi" value={memberDivisi} onChange={setMemberDivisi} options={divisiOptions} />
-          <button
-            type="button"
-            className={`btn ${memberSortField === "divisi" ? "btn-primary" : "btn-secondary"}`}
-            onClick={openDivisiSortModal}
-            title="Buka popup untuk memilih urutan divisi"
-            style={{ whiteSpace: "nowrap" }}
-          >
-            <ListOrdered size={16} />
-            <span>Urutan Divisi</span>
-            {customDivisiOrder.length > 0 && (
-              <span style={{
-                marginLeft: "4px",
-                fontSize: "11px",
-                backgroundColor: memberSortField === "divisi" ? "rgba(255,255,255,0.3)" : "rgba(14,165,233,0.18)",
-                color: memberSortField === "divisi" ? "#fff" : "var(--primary)",
-                padding: "1px 6px",
-                borderRadius: "9999px",
-                fontWeight: 600
-              }}>
-                {customDivisiOrder.length}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {memberSortField && (
-          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginBottom: "0.85rem" }}>
-            <button
-              type="button"
-              className="sort-active-badge"
-              onClick={() => {
-                if (memberSortField === "divisi") setCustomDivisiOrder([]);
-                setMemberSortField(null);
-                setMemberSortDirection("asc");
-              }}
-              title="Klik untuk reset urutan default"
-            >
-              <span>
-                Urut: {memberSortField === "nama" ? "Nama Lengkap" : memberSortField === "namaPanggilan" ? "Nama Panggilan" : customDivisiOrder.length > 0 ? "Divisi (Pilihan Urutan)" : "Divisi"} ({memberSortDirection === "asc" ? "A-Z" : "Z-A"})
-              </span>
-              <span className="sort-badge-close">×</span>
-            </button>
-            {memberSortField === "divisi" && (
-              <button
-                type="button"
-                className="divisi-preset-btn"
-                style={{ padding: "0.2rem 0.55rem" }}
-                onClick={openDivisiSortModal}
-                title="Ubah urutan divisi"
-              >
-                <ListOrdered size={12} /> Ubah
-              </button>
-            )}
-          </div>
-        )}
 
         {anggotaFiltered.length === 0 && !loading ? (
           <EmptyState

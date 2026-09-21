@@ -1894,6 +1894,47 @@ input, select, textarea {
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
 }
 
+.filter-btn {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: var(--font-body, 14px);
+  font-weight: 500;
+  font-family: var(--font);
+  background: var(--surface);
+  color: var(--text);
+  min-width: 140px;
+  height: 42px;
+  min-height: 42px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.filter-btn:hover {
+  border-color: var(--border-hover, #cbd5e1);
+  background: var(--bg-soft, #f8fafc);
+  color: var(--text);
+}
+
+.filter-btn:focus-visible {
+  outline: none;
+  border-color: var(--primary-600);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.filter-btn.active {
+  border-color: var(--primary-300, #fca5a5);
+  background: var(--primary-50, #fef2f2);
+  color: var(--primary, #b91c1c);
+  font-weight: 600;
+}
+
 .filter-label {
   font-size: var(--font-label, 12px);
   font-weight: var(--font-label-weight, 500);

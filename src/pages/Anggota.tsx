@@ -580,29 +580,33 @@ export function Anggota() {
             onChange={setFilterStatus}
             options={STATUS_ANGGOTA.map((s) => ({ value: s, label: s }))}
           />
-          <button
-            type="button"
-            className={`btn ${sortField === "divisi" ? "btn-primary" : "btn-secondary"}`}
-            onClick={openDivisiSortModal}
-            title="Buka popup untuk memilih urutan divisi"
-            style={{ whiteSpace: "nowrap" }}
-          >
-            <ListOrdered size={16} />
-            <span>Urutan Divisi</span>
-            {customDivisiOrder.length > 0 && (
-              <span style={{
-                marginLeft: "4px",
-                fontSize: "11px",
-                backgroundColor: sortField === "divisi" ? "rgba(255,255,255,0.3)" : "rgba(14,165,233,0.18)",
-                color: sortField === "divisi" ? "#fff" : "var(--primary)",
-                padding: "1px 6px",
-                borderRadius: "9999px",
-                fontWeight: 600
-              }}>
-                {customDivisiOrder.length}
-              </span>
-            )}
-          </button>
+          <div className="filter">
+            <label className="filter-label">Urutan</label>
+            <button
+              type="button"
+              className={`filter-btn ${sortField === "divisi" ? "active" : ""}`}
+              onClick={openDivisiSortModal}
+              title="Buka popup untuk memilih urutan divisi"
+            >
+              <ListOrdered size={15} style={{ color: sortField === "divisi" ? "var(--primary)" : "var(--text-muted)" }} />
+              <span>Urutan Divisi</span>
+              {customDivisiOrder.length > 0 && (
+                <span
+                  style={{
+                    marginLeft: "2px",
+                    fontSize: "11px",
+                    backgroundColor: sortField === "divisi" ? "var(--primary-100)" : "var(--bg-soft, #f1f5f9)",
+                    color: sortField === "divisi" ? "var(--primary)" : "var(--text-secondary)",
+                    padding: "1px 6px",
+                    borderRadius: "9999px",
+                    fontWeight: 600,
+                  }}
+                >
+                  {customDivisiOrder.length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         <DataTable

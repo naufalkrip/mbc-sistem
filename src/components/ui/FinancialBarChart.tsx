@@ -15,6 +15,8 @@ interface FinancialBarChartProps {
   subtitle: string;
   year: number;
   data: MonthlyBalanceData[];
+  valueKey?: "saldo" | "pemasukan" | "pengeluaran";
+  metricLabel?: string;
   barColor?: string;
   height?: number;
 }
@@ -74,12 +76,22 @@ export function FinancialBarChart({
   subtitle,
   year,
   data,
+  valueKey = "saldo",
+  metricLabel,
   barColor = "#dc2626",
   height = 290,
 }: FinancialBarChartProps) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [animatedProgress, setAnimatedProgress] = useState(0);
   const chartWrapperRef = useRef<HTMLDivElement>(null);
+
+  const resolvedMetricLabel =
+    metricLabel ??
+    (valueKey === "pemasukan"
+      ? "Pemasukan"
+      : valueKey === "pengeluaran"
+      ? "Pengeluaran"
+      : "Saldo Akhir");
 
   // Animasi halus saat data berganti / komponen pertama kali muncul
   useEffect(() => {
@@ -103,15 +115,15 @@ export function FinancialBarChart({
     frameId = requestAnimationFrame(step);
 
     return () => cancelAnimationFrame(frameId);
-  }, [data, year]);
+  }, [data, year, valueKey]);
 
-  const maxSaldo = useMemo(() => {
-    return Math.max(...data.map((d) => d.saldo), 0);
-  }, [data]);
+  const maxValue = useMemo(() => {
+    return Math.max(...data.map((d) => Number(d[valueKey]) || 0), 0);
+  }, [data, valueKey]);
 
   const { max: yMax, ticks: yTicks } = useMemo(() => {
-    return getNiceYScale(maxSaldo, 4);
-  }, [maxSaldo]);
+    return getNiceYScale(maxValue, 4);
+  }, [maxValue]);
 
   // Dimensi visual SVG internal viewBox
   const viewBoxWidth = 560;
@@ -196,12 +208,13 @@ export function FinancialBarChart({
 
             {/* Diagram Batang (12 Bulan) */}
             {data.map((item, idx) => {
+              const val = Math.max(0, Number(item[valueKey]) || 0);
               const xCenter = (idx + 0.5) * colWidth;
               const xLeft = xCenter - barWidth / 2;
-              const ratio = yMax > 0 ? Math.max(0, item.saldo) / yMax : 0;
+              const ratio = yMax > 0 ? val / yMax : 0;
               const targetBarHeight = ratio * chartEffectiveHeight;
               const animatedBarHeight = Math.max(
-                item.saldo > 0 ? 3 : 0,
+                val > 0 ? 3 : 0,
                 targetBarHeight * animatedProgress
               );
               const yPos =
@@ -221,8 +234,8 @@ export function FinancialBarChart({
                     onMouseEnter={() => setHoveredIdx(idx)}
                   />
 
-                  {/* Batang Saldo */}
-                  {item.saldo > 0 ? (
+                  {/* Batang Nilai */}
+                  {val > 0 ? (
                     <rect
                       x={xLeft}
                       y={yPos}
@@ -245,7 +258,7 @@ export function FinancialBarChart({
                       }}
                     />
                   ) : (
-                    /* Indikator Garis Tipis jika Saldo 0 */
+                    /* Indikator Garis Tipis jika 0 */
                     <rect
                       x={xLeft}
                       y={chartTopPadding + chartEffectiveHeight - 2}
@@ -273,9 +286,9 @@ export function FinancialBarChart({
                 <span className="financial-tooltip-period">
                   {activeItem.monthName} {year}
                 </span>
-                <span className="financial-tooltip-label">Saldo Akhir</span>
+                <span className="financial-tooltip-label">{resolvedMetricLabel}</span>
                 <span className="financial-tooltip-value">
-                  {formatRupiah(activeItem.saldo)}
+                  {formatRupiah(activeItem[valueKey])}
                 </span>
               </div>
             </div>

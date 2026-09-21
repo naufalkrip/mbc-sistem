@@ -320,7 +320,7 @@ export function Dashboard() {
             <div className="rekap-tren-titles">
               <h3 className="rekap-tren-title">Tren Saldo Keuangan</h3>
               <p className="rekap-tren-subtitle">
-                Perkembangan saldo kas MBC System dan Kas Media setiap bulan
+                Perkembangan saldo kas MBC System dan pemasukan bulanan Kas Media
               </p>
             </div>
             <div className="rekap-year-filter">
@@ -357,13 +357,17 @@ export function Dashboard() {
                 subtitle={`Tren saldo kas per bulan (${selectedYear})`}
                 year={selectedYear}
                 data={chondroMonthlyData}
+                valueKey="saldo"
+                metricLabel="Saldo Kas"
                 barColor="#dc2626"
               />
               <FinancialBarChart
                 title="Kas Media"
-                subtitle={`Tren saldo kas per bulan (${selectedYear})`}
+                subtitle={`Pemasukan kas per bulan (${selectedYear})`}
                 year={selectedYear}
                 data={mediaMonthlyData}
+                valueKey="pemasukan"
+                metricLabel="Pemasukan Kas"
                 barColor="#b91c1c"
               />
             </div>
