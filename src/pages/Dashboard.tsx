@@ -347,8 +347,8 @@ export function Dashboard() {
           {/* TWO SIDE-BY-SIDE BAR CHARTS */}
           {loading ? (
             <div className="rekap-charts-grid">
-              <Skeleton height={290} borderRadius={16} />
-              <Skeleton height={290} borderRadius={16} />
+              <Skeleton height={200} borderRadius={16} />
+              <Skeleton height={200} borderRadius={16} />
             </div>
           ) : (
             <div className="rekap-charts-grid">
@@ -360,6 +360,7 @@ export function Dashboard() {
                 valueKey="saldo"
                 metricLabel="Saldo Kas"
                 barColor="#dc2626"
+                height={200}
               />
               <FinancialBarChart
                 title="Kas Media"
@@ -369,6 +370,7 @@ export function Dashboard() {
                 valueKey="pemasukan"
                 metricLabel="Pemasukan Kas"
                 barColor="#b91c1c"
+                height={200}
               />
             </div>
           )}
@@ -385,8 +387,8 @@ export function Dashboard() {
 
           {loading || !dashboardData ? (
             <div className="rekap-kas-grid">
-              <Skeleton height={180} borderRadius={14} />
-              <Skeleton height={180} borderRadius={14} />
+              <Skeleton height={160} borderRadius={14} />
+              <Skeleton height={160} borderRadius={14} />
             </div>
           ) : (
             <div className="rekap-kas-grid">

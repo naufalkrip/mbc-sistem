@@ -2677,10 +2677,10 @@ input, select, textarea {
   background: #ffffff;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 16px;
-  padding: 24px 26px;
+  padding: 18px 22px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03), 0 3px 10px rgba(15, 23, 42, 0.02);
   width: 100%;
 }
@@ -2750,7 +2750,7 @@ input, select, textarea {
 .rekap-tren-section {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   width: 100%;
 }
 
@@ -3027,9 +3027,9 @@ input, select, textarea {
 .rekap-summary-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding-top: 16px;
+  padding-top: 14px;
   border-top: 1px solid #f1f5f9;
 }
 
