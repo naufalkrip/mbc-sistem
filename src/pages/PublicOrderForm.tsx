@@ -361,6 +361,17 @@ export function PublicOrderForm() {
     handleInputChange(fieldId, updated.join(", "));
   };
 
+  const isImageAnswer = (fileData?: { url?: string; type?: string; name?: string }) => {
+    if (!fileData || !fileData.url) return false;
+    return Boolean(
+      fileData.type?.startsWith("image/") ||
+      fileData.url.startsWith("data:image/") ||
+      fileData.url.includes("drive.google") ||
+      fileData.url.includes("googleusercontent") ||
+      /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileData.name || fileData.url)
+    );
+  };
+
   const handleFileUpload = async (field: OrderField, file: File | null) => {
     if (!file) return;
 
@@ -377,7 +388,9 @@ export function PublicOrderForm() {
     setUploadingFiles((prev) => ({ ...prev, [field.id]: true }));
     try {
       let finalUrl = "";
-      if (file.type.startsWith("image/")) {
+      const isImg = file.type.startsWith("image/");
+
+      if (isImg) {
         const upRes = await uploadOrderImageItem(file);
         if (upRes.success && upRes.data?.url) {
           finalUrl = upRes.data.url;
@@ -394,7 +407,7 @@ export function PublicOrderForm() {
           url: finalUrl,
           name: file.name,
           size: file.size,
-          type: file.type,
+          type: file.type || (isImg ? "image/jpeg" : "application/octet-stream"),
         },
       }));
       handleInputChange(field.id, file.name);
@@ -403,7 +416,8 @@ export function PublicOrderForm() {
         delete next[field.id];
         return next;
       });
-    } catch {
+    } catch (err) {
+      console.error("Upload error:", err);
       toastError("Gagal membaca berkas unggahan.");
     } finally {
       setUploadingFiles((prev) => ({ ...prev, [field.id]: false }));
@@ -1788,16 +1802,23 @@ export function PublicOrderForm() {
                             }}
                           >
                             <div style={{ display: "flex", alignItems: "center", gap: 12, overflow: "hidden" }}>
-                              {fileAnswers[field.id].type?.startsWith("image/") ? (
+                              {isImageAnswer(fileAnswers[field.id]) ? (
                                 <img
                                   src={fileAnswers[field.id].url}
                                   alt="Preview Lampiran"
+                                  onClick={() =>
+                                    setActiveLightboxImage({
+                                      url: fileAnswers[field.id].url,
+                                      title: fileAnswers[field.id].name || "Foto Lampiran Customer",
+                                    })
+                                  }
                                   style={{
-                                    width: 50,
-                                    height: 50,
+                                    width: 52,
+                                    height: 52,
                                     objectFit: "cover",
                                     borderRadius: 6,
                                     border: "1px solid #86efac",
+                                    cursor: "zoom-in",
                                   }}
                                 />
                               ) : (
@@ -1957,17 +1978,24 @@ export function PublicOrderForm() {
                       <span style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>
                         {idx + 1}. {field.label}
                       </span>
-                      {fileData && fileData.type?.startsWith("image/") ? (
+                      {fileData && isImageAnswer(fileData) ? (
                         <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                           <img
                             src={fileData.url}
                             alt="Lampiran Pesanan"
+                            onClick={() =>
+                              setActiveLightboxImage({
+                                url: fileData.url,
+                                title: fileData.name || "Foto Lampiran Pesanan",
+                              })
+                            }
                             style={{
                               width: 80,
                               height: 60,
                               objectFit: "cover",
                               borderRadius: 8,
                               border: "1px solid #cbd5e1",
+                              cursor: "zoom-in",
                             }}
                           />
                           <strong style={{ fontSize: "13.5px", color: "var(--navy-900)" }}>
