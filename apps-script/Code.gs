@@ -2792,9 +2792,13 @@ function addOrder(data) {
 
   var ordCfg = getSheetConfig("ORDERS");
   var allOrders = readRows(ordCfg);
-  var nextNum = allOrders.length + 1;
-  var randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
-  var ordId = "ORD-" + ("000" + nextNum).slice(-4) + "-" + randomStr; // e.g. ORD-0001-A1B2
+
+  var ordId = (data.id || data.orderId) ? String(data.id || data.orderId).trim() : "";
+  if (!ordId) {
+    var nextNum = allOrders.length + 1;
+    var randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+    ordId = "ORD-" + ("000" + nextNum).slice(-4) + "-" + randomStr; // e.g. ORD-0001-A1B2
+  }
 
   var now = new Date().toISOString();
   var customerName = String(data.customerName || "").trim();

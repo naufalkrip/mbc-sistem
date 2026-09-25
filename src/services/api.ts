@@ -1691,7 +1691,7 @@ export async function submitCustomerOrderApi(payload: {
   const orders = getLocalOrders();
   const nextNum = orders.length + 1;
   const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
-  const orderId = "ORD-" + ("000" + nextNum).slice(-4) + "-" + randomStr;
+  const clientOrderId = "ORD-" + ("000" + nextNum).slice(-4) + "-" + randomStr;
   const now = new Date().toISOString();
 
   let customerName = payload.customerName || "";
@@ -1709,8 +1709,26 @@ export async function submitCustomerOrderApi(payload: {
     }
   }
 
+  let finalOrderId = clientOrderId;
+
+  // Sync dengan server Google Apps Script (kirim clientOrderId agar ID konsisten)
+  try {
+    const remoteRes = await request<{ id?: string; orderId?: string }>("addOrder", {
+      ...payload,
+      id: clientOrderId,
+      customerName,
+      whatsapp,
+    } as unknown as Record<string, unknown>);
+
+    if (remoteRes && (remoteRes.id || remoteRes.orderId)) {
+      finalOrderId = String(remoteRes.id || remoteRes.orderId);
+    }
+  } catch (err) {
+    console.warn("Sinkronisasi ke Google Apps Script backend dilewati/gagal:", err);
+  }
+
   const newOrder: OrderWithAnswers = {
-    id: orderId,
+    id: finalOrderId,
     formId: payload.formId,
     customerName: customerName || "Customer",
     whatsapp: whatsapp || "-",
@@ -1720,7 +1738,7 @@ export async function submitCustomerOrderApi(payload: {
     updatedAt: now,
     answers: payload.answers.map((a, idx) => ({
       id: "ans-" + idx + "-" + Math.random().toString(36).slice(2, 6),
-      orderId,
+      orderId: finalOrderId,
       fieldId: a.fieldId,
       label: a.label,
       value: a.value,
@@ -1736,15 +1754,10 @@ export async function submitCustomerOrderApi(payload: {
   cacheSet(CACHE_KEYS.ORDERS, orders);
   cacheClear(CACHE_KEYS.ORDER_STATS);
 
-  // Sync with remote Apps Script if available
-  try {
-    await request("addOrder", payload as unknown as Record<string, unknown>);
-  } catch {}
-
   return {
     success: true,
     data: {
-      id: orderId,
+      id: finalOrderId,
       customerName: newOrder.customerName,
       whatsapp: newOrder.whatsapp,
       createdAt: now,
