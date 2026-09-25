@@ -614,3 +614,74 @@ export function buatLinkWhatsAppPesanan(
   const pesan = buatPesanWhatsAppPesanan(nama, orderId, jenisPesanan, statusPesanan);
   return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(pesan)}`;
 }
+
+export interface VariantConfig {
+  price?: number;
+  longSleeveExtra?: number;
+  prices: Record<string, number>;
+  sleeves: string[];
+}
+
+export function parseVariantConfig(field: {
+  price?: number;
+  longSleeveExtra?: number;
+  placeholder?: string;
+}): VariantConfig {
+  let price = field.price !== undefined ? Number(field.price) : 85000;
+  let longSleeveExtra = field.longSleeveExtra !== undefined ? Number(field.longSleeveExtra) : 0;
+  let prices: Record<string, number> = {};
+  let sleeves = ["Lengan Pendek", "Lengan Panjang"];
+
+  const placeholderStr = field.placeholder || "";
+  if (placeholderStr) {
+    try {
+      if (placeholderStr.startsWith("{") && placeholderStr.endsWith("}")) {
+        const obj = JSON.parse(placeholderStr);
+        if (obj.price !== undefined) price = Number(obj.price) || 0;
+        if (obj.longSleeveExtra !== undefined) longSleeveExtra = Number(obj.longSleeveExtra) || 0;
+        if (obj.prices !== undefined) {
+          prices = obj.prices;
+        }
+        if (obj.sleeves) {
+          sleeves = Array.isArray(obj.sleeves)
+            ? obj.sleeves
+            : String(obj.sleeves).split(",").map((s: string) => s.trim()).filter(Boolean);
+        }
+        return { price, longSleeveExtra, prices, sleeves };
+      }
+    } catch {}
+
+    // Check if format has price:...
+    if (placeholderStr.includes("price:")) {
+      const parts = placeholderStr.split("|");
+      const pPart = parts.find((p) => p.startsWith("price:"));
+      if (pPart) {
+        price = Number(pPart.replace("price:", "").trim()) || 0;
+      }
+      const ePart = parts.find((p) => p.startsWith("extra:"));
+      if (ePart) {
+        longSleeveExtra = Number(ePart.replace("extra:", "").trim()) || 0;
+      }
+      const slPart = parts.find((p) => !p.startsWith("price:") && !p.startsWith("extra:"));
+      if (slPart) {
+        sleeves = slPart.split(",").map((s) => s.trim()).filter(Boolean);
+      }
+      return { price, longSleeveExtra, prices, sleeves };
+    }
+
+    // Default plain comma-separated sleeves
+    const splitted = placeholderStr.split(",").map((s) => s.trim()).filter(Boolean);
+    if (splitted.length > 0) sleeves = splitted;
+  }
+
+  return { price, longSleeveExtra, prices, sleeves };
+}
+
+export function serializeVariantConfig(config: VariantConfig): string {
+  return JSON.stringify({
+    price: config.price || 0,
+    longSleeveExtra: config.longSleeveExtra || 0,
+    prices: config.prices || {},
+    sleeves: Array.isArray(config.sleeves) ? config.sleeves.join(", ") : config.sleeves,
+  });
+}

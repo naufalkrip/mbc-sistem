@@ -601,19 +601,18 @@ export function TransaksiDetail() {
           </>
         }
       >
-        <div className="form-grid" style={{ gap: 10 }}>
+        <div className="form-grid">
           {/* Baris 1: Segmented Switcher for Jenis Transaksi */}
-          <div className="form-group" style={{ gridColumn: "1 / -1", gap: 3 }}>
-            <label style={{ fontWeight: 500, fontSize: "13px", color: "var(--slate-700)" }}>Jenis Transaksi *</label>
-            <div className="type-toggle-group" style={{ gap: 8 }}>
+          <div className="form-group full">
+            <label>Jenis Transaksi *</label>
+            <div className="type-toggle-group">
               <button
                 type="button"
                 className={`type-toggle-btn ${form.jenis === "Pemasukan" ? "active-masuk" : ""}`}
-                style={{ padding: "6px 12px", height: 34, fontSize: "13px" }}
                 onClick={() => setField("jenis", "Pemasukan")}
               >
-                <span className="type-toggle-icon" style={{ width: 18, height: 18 }}>
-                  <ArrowDownLeft size={13} />
+                <span className="type-toggle-icon">
+                  <ArrowDownLeft size={15} />
                 </span>
                 <span>Uang Masuk (Pemasukan)</span>
               </button>
@@ -621,11 +620,10 @@ export function TransaksiDetail() {
               <button
                 type="button"
                 className={`type-toggle-btn ${form.jenis === "Pengeluaran" ? "active-keluar" : ""}`}
-                style={{ padding: "6px 12px", height: 34, fontSize: "13px" }}
                 onClick={() => setField("jenis", "Pengeluaran")}
               >
-                <span className="type-toggle-icon" style={{ width: 18, height: 18 }}>
-                  <ArrowUpRight size={13} />
+                <span className="type-toggle-icon">
+                  <ArrowUpRight size={15} />
                 </span>
                 <span>Uang Keluar (Pengeluaran)</span>
               </button>
@@ -634,32 +632,30 @@ export function TransaksiDetail() {
           </div>
 
           {/* Baris 2: Tanggal & Nominal */}
-          <div className="form-group" style={{ gap: 3 }}>
-            <label style={{ fontWeight: 500, fontSize: "13px", color: "var(--slate-700)" }}>Tanggal Transaksi *</label>
+          <div className="form-group">
+            <label>Tanggal Transaksi *</label>
             <input
               type="date"
               value={form.tanggal}
               onChange={(e) => setField("tanggal", e.target.value)}
-              style={{ height: 36, padding: "5px 10px", fontSize: "14px" }}
             />
             {errors.tanggal && <span className="field-error">{errors.tanggal}</span>}
           </div>
 
-          <div className="form-group" style={{ gap: 3 }}>
-            <label style={{ fontWeight: 500, fontSize: "13px", color: "var(--slate-700)" }}>Nominal (Rupiah) *</label>
+          <div className="form-group">
+            <label>Nominal (Rupiah) *</label>
             <CurrencyInput value={form.nominal} onChange={(v) => setField("nominal", v)} placeholder="0" />
             {errors.nominal && <span className="field-error">{errors.nominal}</span>}
           </div>
 
           {/* Baris 3: Kategori & Keterangan Rincian */}
-          <div className="form-group" style={{ gap: 3 }}>
-            <label style={{ fontWeight: 500, fontSize: "13px", color: "var(--slate-700)" }}>Kategori</label>
+          <div className="form-group">
+            <label>Kategori</label>
             <input
               list="kategori-suggestions"
               value={form.kategori}
               onChange={(e) => setField("kategori", e.target.value)}
               placeholder="Pilih atau ketik kategori..."
-              style={{ height: 36, padding: "5px 10px", fontSize: "14px" }}
             />
             <datalist id="kategori-suggestions">
               {(form.jenis === "Pemasukan" ? KATEGORI_SARAN_MASUK : KATEGORI_SARAN_KELUAR).map((k) => (
@@ -668,25 +664,24 @@ export function TransaksiDetail() {
             </datalist>
           </div>
 
-          <div className="form-group" style={{ gap: 3 }}>
-            <label style={{ fontWeight: 500, fontSize: "13px", color: "var(--slate-700)" }}>Keterangan / Rincian *</label>
+          <div className="form-group">
+            <label>Keterangan / Rincian *</label>
             <input
               type="text"
               value={form.keterangan}
               onChange={(e) => setField("keterangan", e.target.value)}
               placeholder={
                 form.jenis === "Pemasukan"
-                  ? "Contoh: Iuran anggota, Donasi alumni A..."
-                  : "Contoh: Beli stik drum, Nasi kotak 15 porsi..."
+                  ? "Contoh: Iuran anggota, Donasi..."
+                  : "Contoh: Beli stik drum, Nasi kotak..."
               }
-              style={{ height: 36, padding: "5px 10px", fontSize: "14px" }}
             />
             {errors.keterangan && <span className="field-error">{errors.keterangan}</span>}
           </div>
 
           {/* Baris 4: Quick Category Pills */}
-          <div className="form-group" style={{ gridColumn: "1 / -1", marginTop: -2, gap: 3 }}>
-            <div className="category-pill-group" style={{ margin: 0, gap: 5 }}>
+          <div className="form-group full">
+            <div className="category-pill-group">
               <span style={{ fontSize: "12px", color: "var(--text-muted)", marginRight: 2 }}>Pilihan Cepat:</span>
               {(form.jenis === "Pemasukan" ? KATEGORI_SARAN_MASUK : KATEGORI_SARAN_KELUAR).map((kat) => (
                 <button
@@ -694,7 +689,6 @@ export function TransaksiDetail() {
                   type="button"
                   className={`category-pill ${form.kategori === kat ? "active" : ""}`}
                   onClick={() => setField("kategori", kat)}
-                  style={{ padding: "3px 8px", fontSize: "12px" }}
                 >
                   {kat}
                 </button>

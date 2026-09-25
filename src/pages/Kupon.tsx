@@ -1046,7 +1046,7 @@ export function Kupon() {
                 {detectingGps ? "Mendeteksi..." : "Ambil GPS Saya"}
               </button>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="coords-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <input
                   value={form.latitude}

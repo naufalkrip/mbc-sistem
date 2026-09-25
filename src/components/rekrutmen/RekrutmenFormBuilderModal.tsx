@@ -316,10 +316,10 @@ export function RekrutmenFormBuilderModal({
       size="xl"
       footer={
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, width: "100%" }}>
-          <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>
+          <button type="button" className="btn btn-outline" onClick={onClose} disabled={saving}>
             Batal
           </button>
-          <button type="button" className="btn-primary" onClick={handleSaveForm} disabled={saving}>
+          <button type="button" className="btn btn-primary" onClick={handleSaveForm} disabled={saving}>
             {saving ? "Menyimpan..." : "Simpan Formulir"}
           </button>
         </div>
@@ -329,13 +329,14 @@ export function RekrutmenFormBuilderModal({
         {/* HEADER SETTINGS */}
         <div
           style={{
-            background: "var(--bg-soft)",
-            padding: 16,
-            borderRadius: "var(--radius-md)",
-            border: "1px solid var(--border)",
+            background: "#ffffff",
+            padding: "20px 22px",
+            borderRadius: "var(--radius-lg, 16px)",
+            border: "1px solid var(--border-soft, #e2e8f0)",
+            boxShadow: "0 2px 12px rgba(0, 0, 0, 0.03)",
             display: "flex",
             flexDirection: "column",
-            gap: 12,
+            gap: 16,
           }}
         >
           <div>
@@ -348,7 +349,7 @@ export function RekrutmenFormBuilderModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Contoh: Pendaftaran Calon Anggota Baru MB Chondro Dimuko 2026"
-              style={{ width: "100%", marginTop: 4 }}
+              style={{ width: "100%", marginTop: 5, borderRadius: 10 }}
             />
           </div>
 
@@ -362,32 +363,84 @@ export function RekrutmenFormBuilderModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Berikan instruksi bagi calon pendaftar yang akan mengisi data..."
-              style={{ width: "100%", marginTop: 4 }}
+              style={{ width: "100%", marginTop: 5, borderRadius: 10 }}
             />
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-            <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+          {/* STATUS FORMULIR SEGMENTED SWITCH */}
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", display: "block", marginBottom: 6 }}>
               Status Formulir:
             </label>
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
-              <input
-                type="radio"
-                name="rekrutmen_form_status"
-                checked={status === "dibuka"}
-                onChange={() => setStatus("dibuka")}
-              />
-              <span style={{ color: "var(--green-700)", fontWeight: 600 }}>🟢 Dibuka (Menerima Pendaftar Baru)</span>
-            </label>
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
-              <input
-                type="radio"
-                name="rekrutmen_form_status"
-                checked={status === "ditutup"}
-                onChange={() => setStatus("ditutup")}
-              />
-              <span style={{ color: "var(--text-muted)" }}>🔴 Ditutup (Pendaftaran Dinonaktifkan)</span>
-            </label>
+            <div
+              style={{
+                display: "inline-flex",
+                background: "var(--bg-soft, #f1f5f9)",
+                padding: 4,
+                borderRadius: 12,
+                gap: 4,
+                border: "1px solid var(--border-soft, #e2e8f0)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setStatus("dibuka")}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "7px 16px",
+                  borderRadius: 9,
+                  border: "none",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  background: status === "dibuka" ? "#ffffff" : "transparent",
+                  color: status === "dibuka" ? "var(--green-700, #15803d)" : "var(--text-muted, #64748b)",
+                  boxShadow: status === "dibuka" ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+                }}
+              >
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: status === "dibuka" ? "var(--green-600, #16a34a)" : "var(--text-muted, #94a3b8)",
+                  }}
+                />
+                <span>Dibuka (Menerima Pendaftar Baru)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatus("ditutup")}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "7px 16px",
+                  borderRadius: 9,
+                  border: "none",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  background: status === "ditutup" ? "#ffffff" : "transparent",
+                  color: status === "ditutup" ? "var(--text, #334155)" : "var(--text-muted, #64748b)",
+                  boxShadow: status === "ditutup" ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+                }}
+              >
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: status === "ditutup" ? "var(--danger, #ef4444)" : "var(--text-muted, #94a3b8)",
+                  }}
+                />
+                <span>Ditutup (Pendaftaran Dinonaktifkan)</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -398,7 +451,7 @@ export function RekrutmenFormBuilderModal({
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: 12,
+              marginBottom: 14,
             }}
           >
             <div>
@@ -409,16 +462,16 @@ export function RekrutmenFormBuilderModal({
             </div>
             <button
               type="button"
-              className="btn-primary"
+              className="btn btn-primary btn-sm"
               onClick={handleAddField}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 14px" }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, padding: "7px 16px", borderRadius: 10 }}
             >
-              <Plus size={14} />
+              <Plus size={15} />
               <span>Tambah Pertanyaan</span>
             </button>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {fields.map((fld, idx) => {
               const hasOptions = ["select", "radio", "checkbox"].includes(fld.fieldType);
 
@@ -427,10 +480,12 @@ export function RekrutmenFormBuilderModal({
                   key={fld.id || idx}
                   style={{
                     background: "#ffffff",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-md)",
-                    padding: 16,
+                    border: "1px solid var(--border-soft, #e2e8f0)",
+                    borderRadius: "var(--radius-lg, 16px)",
+                    padding: "18px 20px",
                     position: "relative",
+                    boxShadow: "0 2px 10px rgba(0, 0, 0, 0.03)",
+                    transition: "box-shadow 0.15s ease",
                   }}
                 >
                   {/* Field Header Control */}
@@ -440,25 +495,26 @@ export function RekrutmenFormBuilderModal({
                       alignItems: "center",
                       justifyContent: "space-between",
                       gap: 8,
-                      marginBottom: 10,
-                      borderBottom: "1px solid var(--border-soft)",
-                      paddingBottom: 8,
+                      marginBottom: 14,
+                      borderBottom: "1px solid var(--border-soft, #f1f5f9)",
+                      paddingBottom: 10,
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span
                         style={{
-                          background: "var(--primary-100)",
-                          color: "var(--primary-800)",
-                          borderRadius: 6,
-                          padding: "2px 7px",
-                          fontSize: 11,
+                          background: "rgba(185, 28, 28, 0.08)",
+                          color: "var(--primary-700, #b91c1c)",
+                          borderRadius: 20,
+                          padding: "3px 10px",
+                          fontSize: 11.5,
                           fontWeight: 700,
+                          letterSpacing: 0.5,
                         }}
                       >
                         #{idx + 1}
                       </span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)" }}>
                         Pertanyaan {idx + 1}
                       </span>
                     </div>
@@ -466,30 +522,30 @@ export function RekrutmenFormBuilderModal({
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <button
                         type="button"
-                        className="btn-icon"
+                        className="btn btn-ghost btn-sm btn-icon"
                         onClick={() => handleMoveField(idx, "up")}
                         disabled={idx === 0}
                         title="Geser ke atas"
-                        style={{ padding: 4 }}
+                        style={{ width: 30, height: 30, padding: 0, borderRadius: 8 }}
                       >
                         <ChevronUp size={16} />
                       </button>
                       <button
                         type="button"
-                        className="btn-icon"
+                        className="btn btn-ghost btn-sm btn-icon"
                         onClick={() => handleMoveField(idx, "down")}
                         disabled={idx === fields.length - 1}
                         title="Geser ke bawah"
-                        style={{ padding: 4 }}
+                        style={{ width: 30, height: 30, padding: 0, borderRadius: 8 }}
                       >
                         <ChevronDown size={16} />
                       </button>
                       <button
                         type="button"
-                        className="btn-icon"
+                        className="btn btn-ghost btn-sm btn-icon"
                         onClick={() => handleRemoveField(idx)}
                         title="Hapus pertanyaan"
-                        style={{ padding: 4, color: "var(--danger)" }}
+                        style={{ width: 30, height: 30, padding: 0, borderRadius: 8, color: "var(--danger)" }}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -497,7 +553,7 @@ export function RekrutmenFormBuilderModal({
                   </div>
 
                   {/* Field Inputs */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: 12 }}>
+                  <div className="builder-field-grid">
                     <div>
                       <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
                         Judul Pertanyaan
@@ -508,7 +564,7 @@ export function RekrutmenFormBuilderModal({
                         value={fld.label}
                         onChange={(e) => updateFieldProperty(idx, { label: e.target.value })}
                         placeholder="Contoh: Nama Lengkap / Pilihan Instrumen"
-                        style={{ width: "100%", marginTop: 4 }}
+                        style={{ width: "100%", marginTop: 4, borderRadius: 10 }}
                       />
                     </div>
 
@@ -534,7 +590,7 @@ export function RekrutmenFormBuilderModal({
                               : [],
                           });
                         }}
-                        style={{ width: "100%", marginTop: 4 }}
+                        style={{ width: "100%", marginTop: 4, borderRadius: 10 }}
                       >
                         {REKRUTMEN_FIELD_TYPE_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>
@@ -546,7 +602,7 @@ export function RekrutmenFormBuilderModal({
                   </div>
 
                   {/* Secondary settings: Description & Required */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12, marginTop: 10 }}>
+                  <div className="builder-secondary-grid">
                     <div>
                       <input
                         type="text"
@@ -554,25 +610,32 @@ export function RekrutmenFormBuilderModal({
                         value={fld.description || ""}
                         onChange={(e) => updateFieldProperty(idx, { description: e.target.value })}
                         placeholder="Deskripsi / petunjuk pengisian singkat (opsional)"
-                        style={{ width: "100%", fontSize: 12 }}
+                        style={{ width: "100%", fontSize: 12, borderRadius: 10 }}
                       />
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center" }}>
+                    <div>
                       <label
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
-                          gap: 6,
-                          fontSize: 12,
+                          gap: 7,
+                          fontSize: 12.5,
                           fontWeight: 600,
                           cursor: "pointer",
+                          padding: "7px 14px",
+                          borderRadius: 9,
+                          background: fld.required ? "rgba(185, 28, 28, 0.06)" : "var(--bg-soft, #f8fafc)",
+                          color: fld.required ? "var(--primary-700)" : "var(--text-secondary)",
+                          border: fld.required ? "1px solid rgba(185, 28, 28, 0.2)" : "1px solid var(--border-soft)",
+                          transition: "all 0.15s ease",
                         }}
                       >
                         <input
                           type="checkbox"
                           checked={Boolean(fld.required)}
                           onChange={(e) => updateFieldProperty(idx, { required: e.target.checked })}
+                          style={{ cursor: "pointer" }}
                         />
                         <span>Wajib Diisi</span>
                       </label>
@@ -583,10 +646,11 @@ export function RekrutmenFormBuilderModal({
                   {hasOptions && (
                     <div
                       style={{
-                        marginTop: 12,
-                        padding: 12,
-                        background: "var(--bg-soft)",
-                        borderRadius: "var(--radius-sm)",
+                        marginTop: 14,
+                        padding: "14px 16px",
+                        background: "var(--bg-soft, #f8fafc)",
+                        borderRadius: "var(--radius-md, 12px)",
+                        border: "1px solid var(--border-soft, #e2e8f0)",
                       }}
                     >
                       <div
@@ -594,25 +658,20 @@ export function RekrutmenFormBuilderModal({
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "center",
-                          marginBottom: 8,
+                          marginBottom: 10,
                         }}
                       >
-                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)" }}>
                           Daftar Pilihan Jawaban:
                         </span>
                         <button
                           type="button"
+                          className="btn btn-outline btn-sm"
                           onClick={() => handleAddOption(idx)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: "var(--primary-700)",
-                            fontSize: 11,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                          }}
+                          style={{ padding: "3px 10px", fontSize: 11.5, borderRadius: 8 }}
                         >
-                          + Tambah Opsi
+                          <Plus size={13} />
+                          <span>Tambah Opsi</span>
                         </button>
                       </div>
 
@@ -625,12 +684,13 @@ export function RekrutmenFormBuilderModal({
                               alignItems: "center",
                               gap: 8,
                               background: "#ffffff",
-                              padding: "4px 8px",
-                              borderRadius: 6,
-                              border: "1px solid var(--border-soft)",
+                              padding: "5px 10px",
+                              borderRadius: 10,
+                              border: "1px solid var(--border-soft, #e2e8f0)",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
                             }}
                           >
-                            <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>
+                            <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 700, minWidth: 20 }}>
                               {optIdx + 1}.
                             </span>
                             <input
@@ -639,7 +699,7 @@ export function RekrutmenFormBuilderModal({
                               value={opt.label}
                               onChange={(e) => handleUpdateOption(idx, optIdx, e.target.value)}
                               placeholder={`Pilihan ${optIdx + 1}`}
-                              style={{ flex: 1, padding: "5px 8px", fontSize: 12, border: "none", background: "transparent" }}
+                              style={{ flex: 1, padding: "5px 8px", fontSize: 12.5, border: "none", background: "transparent" }}
                             />
                             <button
                               type="button"
@@ -647,16 +707,13 @@ export function RekrutmenFormBuilderModal({
                                 e.stopPropagation();
                                 handleRemoveOption(idx, optIdx);
                               }}
+                              className="btn btn-ghost btn-sm btn-icon"
                               style={{
-                                background: "none",
-                                border: "none",
+                                width: 26,
+                                height: 26,
+                                padding: 0,
+                                borderRadius: 6,
                                 color: (fld.options || []).length > 1 ? "var(--danger)" : "var(--text-muted)",
-                                cursor: "pointer",
-                                padding: "4px 6px",
-                                borderRadius: 4,
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
                                 opacity: (fld.options || []).length > 1 ? 0.85 : 0.4,
                               }}
                               disabled={(fld.options || []).length <= 1}
@@ -673,32 +730,29 @@ export function RekrutmenFormBuilderModal({
                   {/* FOTO KETERANGAN PERTANYAAN (OPSIONAL) */}
                   <div
                     style={{
-                      marginTop: 10,
-                      padding: "8px 12px",
-                      background: fld.exampleImageUrl ? "#ffffff" : "transparent",
-                      border: fld.exampleImageUrl ? "1px solid #e2e8f0" : "1px dashed #e2e8f0",
-                      borderRadius: 6,
+                      marginTop: 12,
+                      padding: "10px 14px",
+                      background: fld.exampleImageUrl ? "var(--bg-soft, #f8fafc)" : "transparent",
+                      border: fld.exampleImageUrl ? "1px solid var(--border-soft, #e2e8f0)" : "1px dashed var(--border-soft, #cbd5e1)",
+                      borderRadius: "var(--radius-md, 12px)",
                     }}
                   >
                     {!fld.exampleImageUrl ? (
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                        <span style={{ fontSize: 11.5, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 5 }}>
-                          <Camera size={13} />
-                          Lampirkan foto contoh/visual untuk pertanyaan ini (opsional)
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
+                          <Camera size={14} />
+                          Lampirkan foto contoh / visual untuk pertanyaan ini (opsional)
                         </span>
                         <label
+                          className="btn btn-outline btn-sm"
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
-                            gap: 4,
-                            padding: "4px 8px",
-                            background: "#f8fafc",
-                            border: "1px solid #cbd5e1",
-                            borderRadius: 4,
-                            fontSize: 11,
-                            fontWeight: 600,
+                            gap: 5,
+                            padding: "4px 10px",
+                            fontSize: 11.5,
                             cursor: "pointer",
-                            color: "var(--primary-700)",
+                            borderRadius: 8,
                           }}
                         >
                           <Upload size={12} />
@@ -717,23 +771,23 @@ export function RekrutmenFormBuilderModal({
                         </label>
                       </div>
                     ) : (
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
                           <img
                             src={fld.exampleImageUrl}
                             alt="Foto Keterangan"
-                            style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 4, border: "1px solid #cbd5e1", flexShrink: 0 }}
+                            style={{ width: 46, height: 46, objectFit: "cover", borderRadius: 8, border: "1px solid #cbd5e1", flexShrink: 0 }}
                           />
-                          <div style={{ minWidth: 0 }}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
                             <input
                               type="text"
                               className="form-input"
                               value={fld.exampleImageTitle || ""}
                               onChange={(e) => updateFieldProperty(idx, { exampleImageTitle: e.target.value })}
                               placeholder="Keterangan foto pertanyaan..."
-                              style={{ fontSize: 11.5, padding: "3px 6px", width: "100%" }}
+                              style={{ fontSize: 12, padding: "4px 8px", width: "100%", borderRadius: 8 }}
                             />
-                            <span style={{ fontSize: 10.5, color: "var(--green-700)", fontWeight: 600, marginTop: 2, display: "block" }}>
+                            <span style={{ fontSize: 11, color: "var(--green-700)", fontWeight: 600, marginTop: 3, display: "block" }}>
                               ✓ Foto visual pertanyaan terpasang
                             </span>
                           </div>
@@ -741,17 +795,15 @@ export function RekrutmenFormBuilderModal({
 
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                           <label
+                            className="btn btn-outline btn-sm"
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
-                              gap: 4,
-                              padding: "4px 8px",
-                              background: "#f1f5f9",
-                              border: "1px solid #cbd5e1",
-                              borderRadius: 4,
-                              fontSize: 11,
-                              fontWeight: 600,
+                              gap: 5,
+                              padding: "4px 10px",
+                              fontSize: 11.5,
                               cursor: "pointer",
+                              borderRadius: 8,
                             }}
                           >
                             <span>Ganti</span>
@@ -769,16 +821,13 @@ export function RekrutmenFormBuilderModal({
                           </label>
                           <button
                             type="button"
+                            className="btn btn-ghost btn-sm"
                             onClick={() => updateFieldProperty(idx, { exampleImageUrl: undefined, exampleImageTitle: undefined })}
                             style={{
-                              padding: "4px 8px",
-                              background: "#fee2e2",
-                              border: "1px solid #fca5a5",
-                              color: "#dc2626",
-                              borderRadius: 4,
-                              fontSize: 11,
-                              fontWeight: 600,
-                              cursor: "pointer",
+                              padding: "4px 10px",
+                              fontSize: 11.5,
+                              borderRadius: 8,
+                              color: "var(--danger)",
                             }}
                           >
                             Hapus

@@ -104,7 +104,7 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
           <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
             ID Pesanan: <strong>{order.id}</strong>
           </div>
-          <button type="button" className="btn-secondary" onClick={onClose}>
+          <button type="button" className="btn btn-outline" onClick={onClose}>
             Tutup
           </button>
         </div>
@@ -381,12 +381,98 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
                             href={ans.fileUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="btn-secondary"
+                            className="btn btn-outline btn-sm"
                             style={{ display: "inline-flex", gap: 6, fontSize: 12, padding: "5px 10px" }}
                           >
                             <ExternalLink size={13} />
                             Lihat File Berkas
                           </a>
+                        )}
+                      </div>
+                    ) : ans.value && ans.value.includes("•") ? (
+                      <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
+                        {ans.value
+                          .split("\n")
+                          .filter((l) => l.trim().startsWith("•"))
+                          .map((line, lIdx) => {
+                            const match = line.match(
+                              /•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\](?:\s*@\s*(.*?)=\s*(.*?))?$/i
+                            );
+                            if (match) {
+                              const [, qty, size, sleeve, unitPrice, subtotal] = match;
+                              return (
+                                <div
+                                  key={lIdx}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: 8,
+                                    background: "#ffffff",
+                                    padding: "7px 12px",
+                                    borderRadius: 6,
+                                    border: "1px solid var(--border-soft)",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span
+                                      style={{
+                                        background: "rgba(185, 28, 28, 0.1)",
+                                        color: "var(--primary-700)",
+                                        fontWeight: 700,
+                                        fontSize: 11.5,
+                                        padding: "2px 7px",
+                                        borderRadius: 4,
+                                      }}
+                                    >
+                                      {qty} pcs
+                                    </span>
+                                    <strong style={{ fontSize: 13, color: "var(--text)" }}>
+                                      Ukuran {size}
+                                    </strong>
+                                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                                      · {sleeve}
+                                    </span>
+                                  </div>
+                                  {subtotal && (
+                                    <div style={{ textAlign: "right" }}>
+                                      <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--navy-900, #0f172a)" }}>
+                                        {subtotal.trim()}
+                                      </span>
+                                      {unitPrice && (
+                                        <span style={{ display: "block", fontSize: 10.5, color: "var(--text-muted)" }}>
+                                          @{unitPrice.trim()}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+                            return (
+                              <div key={lIdx} style={{ fontSize: 13, color: "var(--text)" }}>
+                                {line}
+                              </div>
+                            );
+                          })}
+                        {ans.value.split("\n").find((l) => l.includes("Total:")) && (
+                          <div
+                            style={{
+                              fontSize: 12.5,
+                              fontWeight: 700,
+                              color: "var(--primary-700)",
+                              background: "rgba(185, 28, 28, 0.08)",
+                              padding: "6px 12px",
+                              borderRadius: 8,
+                              marginTop: 4,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                            }}
+                          >
+                            <span>📦</span>
+                            <span>{ans.value.split("\n").find((l) => l.includes("Total:"))}</span>
+                          </div>
                         )}
                       </div>
                     ) : (
@@ -426,7 +512,7 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
             <button
               type="button"
-              className="btn-secondary"
+              className="btn btn-primary btn-sm"
               onClick={handleSaveNote}
               disabled={updating}
               style={{ fontSize: 12, padding: "6px 14px" }}

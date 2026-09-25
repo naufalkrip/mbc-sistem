@@ -6,13 +6,14 @@ import { createPortal } from "react-dom";
 interface ModalProps {
   open: boolean;
   title: string;
+  description?: ReactNode;
   onClose: () => void;
   children: ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
   footer?: ReactNode;
 }
 
-export function Modal({ open, title, onClose, children, size = "md", footer }: ModalProps) {
+export function Modal({ open, title, description, onClose, children, size = "md", footer }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -39,7 +40,14 @@ export function Modal({ open, title, onClose, children, size = "md", footer }: M
       >
         <div className="modal-handle-bar" />
         <div className="modal-header" style={{ flexShrink: 0 }}>
-          <h3>{title}</h3>
+          <div style={{ minWidth: 0, flex: 1, paddingRight: 12 }}>
+            <h3>{title}</h3>
+            {description && (
+              <p style={{ margin: "3px 0 0", fontSize: 13, color: "var(--text-muted, #64748b)", lineHeight: 1.45 }}>
+                {description}
+              </p>
+            )}
+          </div>
           <button className="btn-icon" onClick={onClose} aria-label="Tutup">
             <X size={18} />
           </button>

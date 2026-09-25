@@ -496,23 +496,21 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
           </>
         }
       >
-        <div className="form-grid" style={{ gap: 10 }}>
-          <div className="form-group" style={{ gap: 3 }}>
-            <label style={{ fontWeight: 500, fontSize: "13px" }}>Tanggal *</label>
+        <div className="form-grid">
+          <div className="form-group">
+            <label>Tanggal *</label>
             <input
               type="date"
               value={form.tanggal}
               onChange={(e) => setField("tanggal", e.target.value)}
-              style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
             />
             {errors.tanggal && <span className="field-error">{errors.tanggal}</span>}
           </div>
-          <div className="form-group" style={{ gap: 3 }}>
-            <label style={{ fontWeight: 500, fontSize: "13px" }}>Jenis Transaksi *</label>
+          <div className="form-group">
+            <label>Jenis Transaksi *</label>
             <select
               value={form.jenis}
               onChange={(e) => setField("jenis", e.target.value)}
-              style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
             >
               {JENIS_TRANSAKSI.map((j) => (
                 <option key={j} value={j}>{j}</option>
@@ -520,18 +518,17 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
             </select>
             {errors.jenis && <span className="field-error">{errors.jenis}</span>}
           </div>
-          <div className="form-group" style={{ gridColumn: "1 / -1", gap: 3 }}>
-            <label style={{ fontWeight: 500, fontSize: "13px" }}>Nominal (Rupiah) *</label>
+          <div className="form-group full">
+            <label>Nominal (Rupiah) *</label>
             <CurrencyInput value={form.nominal} onChange={(v) => setField("nominal", v)} placeholder="0" />
             {errors.nominal && <span className="field-error">{errors.nominal}</span>}
           </div>
-          <div className="form-group" style={{ gridColumn: "1 / -1", gap: 3 }}>
-            <label style={{ fontWeight: 500, fontSize: "13px" }}>Keterangan / Keperluan</label>
+          <div className="form-group full">
+            <label>Keterangan / Keperluan</label>
             <input
               value={form.keterangan}
               onChange={(e) => setField("keterangan", e.target.value)}
               placeholder="Keterangan transaksi (opsional)"
-              style={{ height: 38, padding: "6px 10px", fontSize: "14px" }}
             />
           </div>
         </div>

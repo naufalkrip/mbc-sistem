@@ -295,21 +295,56 @@ export function KelolaPesanan() {
       header: "Jenis Pesanan",
       render: (row) => {
         const jenisAnswer = row.answers.find(
-          (a) => a.label.toLowerCase().includes("jenis") || a.label.toLowerCase().includes("produk")
+          (a) => a.label.toLowerCase().includes("jenis") || a.label.toLowerCase().includes("produk") || a.label.toLowerCase().includes("model")
+        );
+        const variantAnswer = row.answers.find(
+          (a) => a.value.includes("•") || a.label.toLowerCase().includes("varian") || a.label.toLowerCase().includes("ukuran")
         );
         const qtyAnswer = row.answers.find(
           (a) => a.label.toLowerCase().includes("jumlah") || a.label.toLowerCase().includes("qty")
         );
+
+        let totalPcs = qtyAnswer ? `${qtyAnswer.value} pcs` : "";
+        let totalPriceStr = "";
+        if (variantAnswer) {
+          const match = variantAnswer.value.match(/Total:\s*(\d+)\s*pcs/i);
+          if (match) {
+            totalPcs = `${match[1]} pcs (Varian)`;
+          } else if (!totalPcs) {
+            totalPcs = "Multi-Varian";
+          }
+          const matchPrice = variantAnswer.value.match(/\|\s*(Rp\s*[\d.]+)/i);
+          if (matchPrice) {
+            totalPriceStr = matchPrice[1];
+          }
+        }
+
         return (
           <div>
             <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>
-              {jenisAnswer ? jenisAnswer.value : "Pesanan Custom"}
+              {jenisAnswer ? jenisAnswer.value : "Pesanan Kaos"}
             </span>
-            {qtyAnswer && (
-              <span style={{ display: "block", fontSize: 11, color: "var(--text-muted)" }}>
-                Jumlah: {qtyAnswer.value} pcs
-              </span>
-            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
+              {totalPcs && (
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                  Jumlah: {totalPcs}
+                </span>
+              )}
+              {totalPriceStr && (
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: "var(--primary-700, #b91c1c)",
+                    background: "rgba(185, 28, 28, 0.08)",
+                    padding: "1px 6px",
+                    borderRadius: 4,
+                  }}
+                >
+                  {totalPriceStr}
+                </span>
+              )}
+            </div>
           </div>
         );
       },
@@ -350,7 +385,7 @@ export function KelolaPesanan() {
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <button
             type="button"
-            className="btn-secondary"
+            className="btn btn-outline btn-sm"
             onClick={() => setSelectedOrder(row)}
             style={{ padding: "4px 10px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}
           >
@@ -487,32 +522,17 @@ export function KelolaPesanan() {
       </div>
 
       {/* 2. TAB CONTROLS (DAFTAR PESANAN vs FORMULIR AKTIF) & ACTION */}
-      <div
-        style={{
-          display: "flex",
-          borderBottom: "1px solid var(--border)",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
-        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+      <div className="page-tab-header" style={{ borderBottom: "1px solid var(--border)", paddingBottom: 6 }}>
+        <div className="page-segmented-tabs">
           <button
             type="button"
+            className="page-tab-btn"
             onClick={() => setActiveTab("pesanan")}
             style={{
-              background: "none",
-              border: "none",
-              borderBottom: activeTab === "pesanan" ? "2px solid var(--primary-700)" : "2px solid transparent",
-              padding: "10px 4px",
               fontWeight: activeTab === "pesanan" ? 700 : 500,
-              color: activeTab === "pesanan" ? "var(--primary-700)" : "var(--text-muted)",
-              fontSize: 14,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
+              background: activeTab === "pesanan" ? "#ffffff" : "transparent",
+              color: activeTab === "pesanan" ? "var(--primary-700)" : "var(--text-secondary)",
+              boxShadow: activeTab === "pesanan" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
             }}
           >
             <Package size={16} />
@@ -521,19 +541,13 @@ export function KelolaPesanan() {
 
           <button
             type="button"
+            className="page-tab-btn"
             onClick={() => setActiveTab("formulir")}
             style={{
-              background: "none",
-              border: "none",
-              borderBottom: activeTab === "formulir" ? "2px solid var(--primary-700)" : "2px solid transparent",
-              padding: "10px 4px",
               fontWeight: activeTab === "formulir" ? 700 : 500,
-              color: activeTab === "formulir" ? "var(--primary-700)" : "var(--text-muted)",
-              fontSize: 14,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
+              background: activeTab === "formulir" ? "#ffffff" : "transparent",
+              color: activeTab === "formulir" ? "var(--primary-700)" : "var(--text-secondary)",
+              boxShadow: activeTab === "formulir" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
             }}
           >
             <FileText size={16} />
@@ -541,7 +555,7 @@ export function KelolaPesanan() {
           </button>
         </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+        <div className="page-tab-actions">
           {forms && forms.length > 0 && (
             <button
               type="button"
@@ -643,20 +657,18 @@ export function KelolaPesanan() {
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn btn-outline btn-sm"
                   onClick={handleExportCSV}
                   title="Ekspor data pesanan ke CSV"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 12px" }}
                 >
                   <FileSpreadsheet size={14} />
                   <span>CSV</span>
                 </button>
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn btn-outline btn-sm"
                   onClick={handleExportPDF}
                   title="Ekspor laporan pesanan ke PDF"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 12px" }}
                 >
                   <FileText size={14} />
                   <span>PDF</span>
@@ -735,17 +747,71 @@ export function KelolaPesanan() {
 
       {/* TAB CONTENT 2: FORMULIR AKTIF */}
       {activeTab === "formulir" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Empty State */}
+          {(!forms || forms.length === 0) && (
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px dashed var(--border-soft, #cbd5e1)",
+                borderRadius: "20px",
+                padding: "48px 24px",
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 14,
+              }}
+            >
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 16,
+                  background: "rgba(185, 28, 28, 0.08)",
+                  color: "var(--primary-700)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <FileText size={28} />
+              </div>
+              <div>
+                <h4 style={{ margin: "0 0 6px", fontSize: 17, fontWeight: 700, color: "var(--text)" }}>
+                  Belum Ada Formulir Pesanan
+                </h4>
+                <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)", maxWidth: 440 }}>
+                  Buat formulir pesanan kustom baru, lengkapi dengan pertanyaan dan foto panduan, lalu bagikan tautan kepada pemesan.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setEditingForm(null);
+                  setIsBuilderOpen(true);
+                }}
+                style={{ borderRadius: 10, marginTop: 6 }}
+              >
+                <Plus size={16} /> Buat Formulir Pertama
+              </button>
+            </div>
+          )}
+
+          {/* Cards List - Memanjang Mengikuti Lebar Full Layar */}
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              display: "flex",
+              flexDirection: "column",
               gap: 16,
+              width: "100%",
             }}
           >
             {(forms || []).map((form) => {
               const count = orderList.filter((o) => o.formId === form.id).length;
               const isCopied = copiedLinkMap[form.id];
+              const publicUrl = `${window.location.origin}/order/form/${form.id}`;
 
               return (
                 <div
@@ -753,13 +819,15 @@ export function KelolaPesanan() {
                   style={{
                     background: "#ffffff",
                     border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-md)",
-                    padding: 18,
+                    borderRadius: "var(--radius-md, 12px)",
+                    padding: 20,
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "space-between",
                     gap: 16,
-                    boxShadow: "var(--shadow-card)",
+                    boxShadow: "var(--shadow-card, 0 1px 3px rgba(0,0,0,0.06))",
+                    width: "100%",
+                    boxSizing: "border-box",
                   }}
                 >
                   <div>
@@ -768,32 +836,49 @@ export function KelolaPesanan() {
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "flex-start",
-                        gap: 10,
+                        gap: 12,
                         marginBottom: 8,
+                        flexWrap: "wrap",
                       }}
                     >
-                      <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
-                        {form.title}
-                      </h4>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
+                          {form.title}
+                        </h4>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "var(--text-muted)",
+                            background: "var(--bg-soft)",
+                            padding: "2px 8px",
+                            borderRadius: 6,
+                            border: "1px solid var(--border-soft)",
+                            fontFamily: "monospace",
+                          }}
+                        >
+                          ID: {form.id}
+                        </span>
+                      </div>
+
                       <span
                         className={`status-pill ${form.status === "aktif" ? "status-lolos" : "status-menunggu"}`}
                         style={{
                           fontSize: 11,
                           fontWeight: 700,
                           textTransform: "uppercase",
-                          padding: "2px 8px",
+                          padding: "2px 10px",
                           borderRadius: 20,
                         }}
                       >
-                        {form.status}
+                        {form.status === "aktif" ? "Aktif" : "Ditutup"}
                       </span>
                     </div>
 
-                    <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                    <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
                       {form.description || "Tidak ada deskripsi."}
                     </p>
 
-                    <div style={{ display: "flex", gap: 12, fontSize: 12, color: "var(--text-muted)" }}>
+                    <div style={{ display: "flex", gap: 12, fontSize: 12, color: "var(--text-muted)", flexWrap: "wrap", alignItems: "center" }}>
                       <span>
                         Pertanyaan: <strong>{form.fields?.length || 0} butir</strong>
                       </span>
@@ -801,40 +886,29 @@ export function KelolaPesanan() {
                       <span>
                         Tanggapan: <strong>{count} pesanan</strong>
                       </span>
+                      {form.bannerImageUrl && (
+                        <>
+                          <span>•</span>
+                          <span style={{ color: "var(--primary-700)", fontWeight: 500 }}>
+                            ✓ Ada Foto Panduan Ukuran
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
 
                   {/* Public Link Preview Box */}
-                  <div
-                    style={{
-                      background: "var(--bg-soft)",
-                      padding: "8px 12px",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--border-soft)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 8,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text-secondary)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {`${window.location.origin}/order/form/${form.id}`}
+                  <div className="form-link-box">
+                    <span className="form-link-url">
+                      {publicUrl}
                     </span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                    <div className="form-link-actions">
                       <button
                         type="button"
                         onClick={() =>
                           setQrModalData({
                             title: form.title,
-                            url: `${window.location.origin}/order/form/${form.id}`,
+                            url: publicUrl,
                             filename: `qr-pesanan-${form.id}.png`,
                           })
                         }
@@ -849,7 +923,7 @@ export function KelolaPesanan() {
                           alignItems: "center",
                           gap: 4,
                         }}
-                        title="Lihat & unduh QR Code"
+                        title="Lihat & unduh QR Code formulir"
                       >
                         <QrCode size={13} />
                         <span>QR</span>
@@ -876,51 +950,43 @@ export function KelolaPesanan() {
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      paddingTop: 10,
-                      borderTop: "1px solid var(--border-soft)",
-                    }}
-                  >
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {/* Actions Row */}
+                  <div className="form-card-actions" onClick={(e) => e.stopPropagation()}>
+                    <div className="form-card-actions-left">
                       <button
                         type="button"
-                        className="btn-secondary"
+                        className="btn btn-outline btn-sm"
                         onClick={() => {
                           setEditingForm(form);
                           setIsBuilderOpen(true);
                         }}
-                        style={{ padding: "5px 10px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
+                        style={{ borderRadius: 8, padding: "5px 12px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}
                       >
                         <Edit size={13} />
-                        <span>Edit</span>
+                        <span>Edit Formulir</span>
                       </button>
 
                       <Link
                         to={`/order/form/${form.id}`}
                         target="_blank"
-                        className="btn-secondary"
-                        style={{ padding: "5px 10px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none" }}
+                        className="btn btn-outline btn-sm"
+                        style={{ borderRadius: 8, padding: "5px 12px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}
                       >
                         <ExternalLink size={13} />
-                        <span>Preview</span>
+                        <span>Preview Formulir</span>
                       </Link>
 
                       <button
                         type="button"
-                        className="btn-secondary"
+                        className="btn btn-outline btn-sm"
                         onClick={() =>
                           setQrModalData({
                             title: form.title,
-                            url: `${window.location.origin}/order/form/${form.id}`,
+                            url: publicUrl,
                             filename: `qr-pesanan-${form.id}.png`,
                           })
                         }
-                        style={{ padding: "5px 10px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
+                        style={{ borderRadius: 8, padding: "5px 10px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
                         title="Lihat & unduh QR Code formulir pesanan"
                       >
                         <QrCode size={13} />
@@ -928,18 +994,20 @@ export function KelolaPesanan() {
                       </button>
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div className="form-card-actions-right">
                       <button
                         type="button"
-                        className="btn-secondary"
+                        className="btn btn-ghost btn-sm"
                         onClick={() => handleToggleFormStatus(form)}
                         style={{
+                          borderRadius: 8,
                           padding: "5px 10px",
-                          fontSize: 11,
+                          fontSize: 12,
                           color: form.status === "aktif" ? "var(--text-muted)" : "var(--green-700)",
+                          fontWeight: 600,
                         }}
                       >
-                        {form.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
+                        {form.status === "aktif" ? "Tutup Form" : "Buka Form"}
                       </button>
 
                       <button
@@ -947,9 +1015,18 @@ export function KelolaPesanan() {
                         className="btn-icon"
                         onClick={() => handleDeleteForm(form.id, form.title)}
                         title="Hapus Formulir"
-                        style={{ color: "var(--danger)", padding: 4 }}
+                        style={{
+                          color: "var(--danger)",
+                          width: 30,
+                          height: 30,
+                          padding: 0,
+                          borderRadius: 6,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   </div>

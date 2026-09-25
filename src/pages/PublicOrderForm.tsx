@@ -16,6 +16,8 @@ import {
   X,
   ZoomIn,
   ZoomOut,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import type { OrderFormWithFields, OrderField } from "../types";
 import { useApi } from "../hooks/useApi";
@@ -27,7 +29,7 @@ import {
   fileToBase64,
 } from "../services/api";
 import logo from "../aset/logo.png";
-import { formatNomorWhatsAppUrl } from "../utils/format";
+import { formatNomorWhatsAppUrl, formatRupiah, parseVariantConfig } from "../utils/format";
 
 interface CustomerAnswerState {
   fieldId: string;
@@ -37,6 +39,92 @@ interface CustomerAnswerState {
   fileName?: string | null;
   fileSize?: number | null;
   fileType?: string | null;
+}
+
+export interface OrderVariantItem {
+  id: string;
+  size: string;
+  sleeve: string;
+  qty: number;
+}
+
+export function formatVariantSummary(
+  items: OrderVariantItem[],
+  config?: { price?: number; longSleeveExtra?: number; prices?: Record<string, number> }
+): string {
+  const valid = items.filter((it) => it.qty > 0 && it.size);
+  if (valid.length === 0) return "";
+  const basePrice = config?.price || 0;
+  const longSleeveExtra = config?.longSleeveExtra || 0;
+  const prices = config?.prices || {};
+  const hasPrices = Object.keys(prices).length > 0 || basePrice > 0;
+
+  const getPrice = (it: OrderVariantItem) => {
+    const key = `${it.size}|${it.sleeve}`;
+    if (prices[key] !== undefined && prices[key] > 0) return prices[key];
+    const isLongSleeve = /panjang/i.test(it.sleeve || "");
+    return basePrice + (isLongSleeve ? longSleeveExtra : 0);
+  };
+
+  const lines = valid.map((it) => {
+    const unitPrice = getPrice(it);
+    const subtotal = unitPrice * (Number(it.qty) || 0);
+    const priceText = hasPrices && unitPrice > 0 ? ` @ ${formatRupiah(unitPrice)} = ${formatRupiah(subtotal)}` : "";
+    return `• ${it.qty}x [Ukuran ${it.size} - ${it.sleeve || "Lengan Pendek"}]${priceText}`;
+  });
+
+  const totalQty = valid.reduce((acc, it) => acc + (Number(it.qty) || 0), 0);
+  const totalPrice = valid.reduce((acc, it) => {
+    const unitPrice = getPrice(it);
+    return acc + unitPrice * (Number(it.qty) || 0);
+  }, 0);
+
+  if (hasPrices && totalPrice > 0) {
+    return `${lines.join("\n")}\n(Total: ${totalQty} pcs | ${formatRupiah(totalPrice)})`;
+  }
+  return `${lines.join("\n")}\n(Total: ${totalQty} pcs)`;
+}
+
+export function parseVariantItems(
+  rawText: string,
+  defaultSizes: string[],
+  defaultSleeves: string[]
+): OrderVariantItem[] {
+  if (!rawText) {
+    return [
+      {
+        id: "var-1",
+        size: defaultSizes[0] || "L",
+        sleeve: defaultSleeves[0] || "Lengan Pendek",
+        qty: 1,
+      },
+    ];
+  }
+  const lines = rawText.split("\n").filter((l) => l.trim().startsWith("•"));
+  if (lines.length > 0) {
+    const parsed: OrderVariantItem[] = [];
+    lines.forEach((line, idx) => {
+      const match = line.match(/•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\]/i);
+      if (match) {
+        parsed.push({
+          id: `var-${idx + 1}-${Math.random().toString(36).slice(2, 5)}`,
+          qty: parseInt(match[1], 10) || 1,
+          size: match[2].trim(),
+          sleeve: match[3].trim(),
+        });
+      }
+    });
+    if (parsed.length > 0) return parsed;
+  }
+
+  return [
+    {
+      id: "var-1",
+      size: defaultSizes[0] || "L",
+      sleeve: defaultSleeves[0] || "Lengan Pendek",
+      qty: 1,
+    },
+  ];
 }
 
 export function PublicOrderForm() {
@@ -67,6 +155,7 @@ export function PublicOrderForm() {
       }
     >
   >({});
+  const [variantRows, setVariantRows] = useState<Record<string, OrderVariantItem[]>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -105,6 +194,32 @@ export function PublicOrderForm() {
     return [...form.fields].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   }, [form]);
 
+  const { totalFormQty, totalFormPrice } = useMemo(() => {
+    let qty = 0;
+    let price = 0;
+    if (!form?.fields) return { totalFormQty: 0, totalFormPrice: 0 };
+    form.fields.forEach((fld) => {
+      if (fld.fieldType === "variant_matrix" || fld.fieldType === "product_configuration") {
+        const cfg = parseVariantConfig(fld);
+        const rows = variantRows[fld.id] || [];
+        rows.forEach((r) => {
+          const itemQty = Number(r.qty) || 0;
+          const key = `${r.size}|${r.sleeve}`;
+          let unit = 0;
+          if (cfg.prices && cfg.prices[key] !== undefined && cfg.prices[key] > 0) {
+            unit = cfg.prices[key];
+          } else {
+            const isLong = /panjang/i.test(r.sleeve || "");
+            unit = (cfg.price || 0) + (isLong ? (cfg.longSleeveExtra || 0) : 0);
+          }
+          qty += itemQty;
+          price += unit * itemQty;
+        });
+      }
+    });
+    return { totalFormQty: qty, totalFormPrice: price };
+  }, [form?.fields, variantRows]);
+
   // Load draft from localStorage on form loaded
   useEffect(() => {
     if (form?.id) {
@@ -114,20 +229,111 @@ export function PublicOrderForm() {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed.answers) setAnswers(parsed.answers);
+          if (parsed.variantRows) setVariantRows(parsed.variantRows);
         }
       } catch {}
     }
   }, [form?.id]);
+
+  const getFieldConfig = (fieldId: string) => {
+    const f = form?.fields?.find((fld) => fld.id === fieldId);
+    return f ? parseVariantConfig(f) : { price: 85000, longSleeveExtra: 0, sleeves: [] };
+  };
+
+  // Inisialisasi variantRows untuk field bertipe variant_matrix
+  useEffect(() => {
+    if (!form?.fields) return;
+    form.fields.forEach((fld) => {
+      if (fld.fieldType === "variant_matrix" || fld.fieldType === "product_configuration") {
+        const config = parseVariantConfig(fld);
+        setVariantRows((prev) => {
+          if (prev[fld.id] && prev[fld.id].length > 0) return prev;
+          const defaultSizes = (fld.options && fld.options.length > 0)
+            ? fld.options.map((o) => o.label)
+            : ["S", "M", "L", "XL", "XXL", "3XL"];
+          const defaultSleeves = config.sleeves.length > 0
+            ? config.sleeves
+            : ["Lengan Pendek", "Lengan Panjang"];
+
+          const initialItems = parseVariantItems(answers[fld.id] || "", defaultSizes, defaultSleeves);
+          const initialSummary = formatVariantSummary(initialItems, config);
+          if (!answers[fld.id] && initialSummary) {
+            setAnswers((a) => ({ ...a, [fld.id]: initialSummary }));
+          }
+          return {
+            ...prev,
+            [fld.id]: initialItems,
+          };
+        });
+      }
+    });
+  }, [form?.fields]);
 
   // Autosave draft answers
   useEffect(() => {
     if (form?.id && Object.keys(answers).length > 0) {
       try {
         const key = `order_draft_${form.id}`;
-        localStorage.setItem(key, JSON.stringify({ answers }));
+        localStorage.setItem(key, JSON.stringify({ answers, variantRows }));
       } catch {}
     }
-  }, [answers, form?.id]);
+  }, [answers, variantRows, form?.id]);
+
+  // Helper Pengubahan Baris Varian (Ukuran, Lengan, Qty)
+  const updateVariantRow = (fieldId: string, itemIdx: number, updates: Partial<OrderVariantItem>) => {
+    const config = getFieldConfig(fieldId);
+    setVariantRows((prev) => {
+      const current = prev[fieldId] ? [...prev[fieldId]] : [];
+      if (!current[itemIdx]) return prev;
+      current[itemIdx] = { ...current[itemIdx], ...updates };
+      const summary = formatVariantSummary(current, config);
+      setAnswers((a) => ({ ...a, [fieldId]: summary }));
+      if (formErrors[fieldId]) {
+        setFormErrors((err) => {
+          const next = { ...err };
+          delete next[fieldId];
+          return next;
+        });
+      }
+      return { ...prev, [fieldId]: current };
+    });
+  };
+
+  const addVariantRow = (field: OrderField) => {
+    const config = parseVariantConfig(field);
+    const defaultSizes = (field.options && field.options.length > 0)
+      ? field.options.map((o) => o.label)
+      : ["S", "M", "L", "XL", "XXL", "3XL"];
+    const defaultSleeves = config.sleeves.length > 0
+      ? config.sleeves
+      : ["Lengan Pendek", "Lengan Panjang"];
+
+    setVariantRows((prev) => {
+      const current = prev[field.id] ? [...prev[field.id]] : [];
+      const newRow: OrderVariantItem = {
+        id: `var-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        size: defaultSizes[0] || "L",
+        sleeve: defaultSleeves[0] || "Lengan Pendek",
+        qty: 1,
+      };
+      const updated = [...current, newRow];
+      const summary = formatVariantSummary(updated, config);
+      setAnswers((a) => ({ ...a, [field.id]: summary }));
+      return { ...prev, [field.id]: updated };
+    });
+  };
+
+  const removeVariantRow = (fieldId: string, itemIdx: number) => {
+    const config = getFieldConfig(fieldId);
+    setVariantRows((prev) => {
+      const current = prev[fieldId] ? [...prev[fieldId]] : [];
+      if (current.length <= 1) return prev;
+      const updated = current.filter((_, idx) => idx !== itemIdx);
+      const summary = formatVariantSummary(updated, config);
+      setAnswers((a) => ({ ...a, [fieldId]: summary }));
+      return { ...prev, [fieldId]: updated };
+    });
+  };
 
   // Handle Input Changes
   const handleInputChange = (fieldId: string, val: string) => {
@@ -212,6 +418,14 @@ export function PublicOrderForm() {
       const val = answers[fld.id] || "";
       if (fld.required && !val.trim()) {
         errors[fld.id] = `${fld.label} wajib diisi.`;
+      }
+      // Validasi khusus varian ukuran & jumlah
+      if (fld.fieldType === "variant_matrix" || fld.fieldType === "product_configuration") {
+        const rows = variantRows[fld.id] || [];
+        const totalQty = rows.reduce((acc, it) => acc + (Number(it.qty) || 0), 0);
+        if (fld.required && (rows.length === 0 || totalQty <= 0)) {
+          errors[fld.id] = `${fld.label}: Minimal harus memesan 1 pcs kaos.`;
+        }
       }
       // Khusus WhatsApp field
       if (fld.fieldType === "whatsapp" && val.trim()) {
@@ -462,6 +676,7 @@ export function PublicOrderForm() {
         }}
       >
         <div
+          className="public-form-success-card"
           style={{
             maxWidth: 520,
             width: "100%",
@@ -571,27 +786,10 @@ export function PublicOrderForm() {
 
   // MAIN FORM CONTAINER (Identik dengan PublicForm pendaftaran anggota)
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
-        padding: "32px 16px 48px",
-        fontFamily: "'Poppins', sans-serif",
-      }}
-    >
-      <div style={{ maxWidth: 840, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
+    <div className="public-form-outer">
+      <div className="public-form-container">
         {/* Top Header Card dengan Gradient Merah MBC */}
-        <div
-          style={{
-            background: "linear-gradient(135deg, #c8101e 0%, #a41111 50%, #8a1414 100%)",
-            color: "#ffffff",
-            borderRadius: "16px 16px 0 0",
-            padding: "28px 24px",
-            boxShadow: "0 6px 20px rgba(185, 28, 28, 0.22)",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
+        <div className="public-form-header">
           {/* Subtle background glow */}
           <div
             style={{
@@ -628,7 +826,7 @@ export function PublicOrderForm() {
               >
                 Pemesanan Kaos MB Chondro
               </span>
-              <h1 style={{ margin: 0, fontSize: "1.3rem", fontWeight: 700, color: "#ffffff", lineHeight: 1.3 }}>
+              <h1 className="public-form-header-title">
                 {form.title}
               </h1>
             </div>
@@ -640,17 +838,7 @@ export function PublicOrderForm() {
           )}
 
           {/* Step Indicator */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginTop: 18,
-              paddingTop: 14,
-              borderTop: "1px solid rgba(255, 255, 255, 0.18)",
-              fontSize: "12.5px",
-            }}
-          >
+          <div className="public-form-steps">
             <span
               style={{
                 display: "inline-flex",
@@ -710,16 +898,7 @@ export function PublicOrderForm() {
         </div>
 
         {/* Content Body */}
-        <div
-          style={{
-            background: "#ffffff",
-            borderRadius: "0 0 16px 16px",
-            padding: "28px 24px 36px",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
-            border: "1px solid #e2e8f0",
-            borderTop: "none",
-          }}
-        >
+        <div className="public-form-body">
           {/* STEP 1: FORM INPUTS */}
           {!isPreviewing ? (
             <form onSubmit={handleGoToPreview} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -946,7 +1125,7 @@ export function PublicOrderForm() {
                           height: 44,
                           padding: "10px 14px",
                           fontSize: "14px",
-                          borderRadius: 8,
+                          borderRadius: 10,
                           border: "1px solid #cbd5e1",
                           width: "100%",
                           boxSizing: "border-box",
@@ -977,7 +1156,7 @@ export function PublicOrderForm() {
                             height: 44,
                             padding: "10px 14px 10px 40px",
                             fontSize: "14px",
-                            borderRadius: 8,
+                            borderRadius: 10,
                             border: "1px solid #cbd5e1",
                             width: "100%",
                             boxSizing: "border-box",
@@ -998,7 +1177,7 @@ export function PublicOrderForm() {
                           padding: "10px 14px",
                           fontSize: "14px",
                           resize: "vertical",
-                          borderRadius: 8,
+                          borderRadius: 10,
                           border: "1px solid #cbd5e1",
                           width: "100%",
                           boxSizing: "border-box",
@@ -1018,7 +1197,7 @@ export function PublicOrderForm() {
                           height: 44,
                           padding: "10px 14px",
                           fontSize: "14px",
-                          borderRadius: 8,
+                          borderRadius: 10,
                           border: "1px solid #cbd5e1",
                           width: "100%",
                           boxSizing: "border-box",
@@ -1037,7 +1216,7 @@ export function PublicOrderForm() {
                           height: 44,
                           padding: "10px 14px",
                           fontSize: "14px",
-                          borderRadius: 8,
+                          borderRadius: 10,
                           border: "1px solid #cbd5e1",
                           width: "100%",
                           boxSizing: "border-box",
@@ -1055,7 +1234,7 @@ export function PublicOrderForm() {
                           height: 44,
                           padding: "10px 14px",
                           fontSize: "14px",
-                          borderRadius: 8,
+                          borderRadius: 10,
                           border: "1px solid #cbd5e1",
                           width: "100%",
                           boxSizing: "border-box",
@@ -1070,6 +1249,327 @@ export function PublicOrderForm() {
                         ))}
                       </select>
                     )}
+
+                    {/* INPUT: VARIANT MATRIX (UKURAN, LENGAN, DAN JUMLAH DALAM 1 KOTAK + BISA TAMBAH) */}
+                    {(field.fieldType === "variant_matrix" || field.fieldType === "product_configuration") && (() => {
+                      const rows = variantRows[field.id] || [
+                        { id: "1", size: (field.options && field.options[0]?.label) || "L", sleeve: "Lengan Pendek", qty: 1 }
+                      ];
+                      const config = parseVariantConfig(field);
+                      const sizes = (field.options && field.options.length > 0)
+                        ? field.options.map((o) => o.label)
+                        : ["S", "M", "L", "XL", "XXL", "3XL"];
+                      const sleeves = config.sleeves && config.sleeves.length > 0
+                        ? config.sleeves
+                        : ["Lengan Pendek", "Lengan Panjang"];
+                      const getUnitPrice = (size: string, sleeve: string) => {
+                        const key = `${size}|${sleeve}`;
+                        if (config.prices && config.prices[key] !== undefined && config.prices[key] > 0) {
+                          return config.prices[key];
+                        }
+                        const isLong = /panjang/i.test(sleeve || "");
+                        return (config.price || 0) + (isLong ? (config.longSleeveExtra || 0) : 0);
+                      };
+                      const totalQty = rows.reduce((acc, it) => acc + (Number(it.qty) || 0), 0);
+                      const totalPrice = rows.reduce((acc, it) => {
+                        return acc + getUnitPrice(it.size, it.sleeve) * (Number(it.qty) || 0);
+                      }, 0);
+
+                      return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 4 }}>
+                          {/* List of Variant Boxes */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {rows.map((row, rIdx) => {
+                              const itemUnitPrice = getUnitPrice(row.size, row.sleeve);
+                              const itemSubtotal = itemUnitPrice * (Number(row.qty) || 0);
+
+                              return (
+                                <div
+                                  key={row.id || rIdx}
+                                  className="variant-box"
+                                >
+                                  {/* Box Top Header */}
+                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                    <span style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--navy-900)", display: "flex", alignItems: "center", gap: 6 }}>
+                                      <span
+                                        style={{
+                                          width: 20,
+                                          height: 20,
+                                          borderRadius: "50%",
+                                          background: "var(--primary-700, #b91c1c)",
+                                          color: "#ffffff",
+                                          fontSize: "11px",
+                                          fontWeight: 800,
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                        }}
+                                      >
+                                        {rIdx + 1}
+                                      </span>
+                                      Varian Pesanan #{rIdx + 1}
+                                    </span>
+
+                                    {rows.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => removeVariantRow(field.id, rIdx)}
+                                        style={{
+                                          background: "none",
+                                          border: "none",
+                                          color: "#dc2626",
+                                          fontSize: "12px",
+                                          fontWeight: 600,
+                                          cursor: "pointer",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 4,
+                                          padding: "2px 6px",
+                                          borderRadius: 6,
+                                        }}
+                                        title="Hapus varian ini"
+                                      >
+                                        <Trash2 size={13} />
+                                        <span>Hapus</span>
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {/* 3 Inputs in 1 Box: Ukuran, Lengan, Jumlah */}
+                                  <div className="builder-variant-grid">
+                                    {/* 1. Ukuran (Dropdown) */}
+                                    <div>
+                                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>
+                                        Pilihan Ukuran
+                                      </label>
+                                      <select
+                                        value={row.size}
+                                        onChange={(e) => updateVariantRow(field.id, rIdx, { size: e.target.value })}
+                                        style={{
+                                          height: 44,
+                                          padding: "10px 12px",
+                                          fontSize: "14px",
+                                          borderRadius: 10,
+                                          border: "1px solid #cbd5e1",
+                                          width: "100%",
+                                          boxSizing: "border-box",
+                                          background: "#ffffff",
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        <option value="">-- Pilih Ukuran --</option>
+                                        {sizes.map((sz) => (
+                                          <option key={sz} value={sz}>
+                                            {sz}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+
+                                    {/* 2. Pilihan Lengan (Dropdown) */}
+                                    <div>
+                                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>
+                                        Pilihan Lengan
+                                      </label>
+                                      <select
+                                        value={row.sleeve}
+                                        onChange={(e) => updateVariantRow(field.id, rIdx, { sleeve: e.target.value })}
+                                        style={{
+                                          height: 44,
+                                          padding: "10px 12px",
+                                          fontSize: "14px",
+                                          borderRadius: 10,
+                                          border: "1px solid #cbd5e1",
+                                          width: "100%",
+                                          boxSizing: "border-box",
+                                          background: "#ffffff",
+                                        }}
+                                      >
+                                        {sleeves.map((sl) => (
+                                          <option key={sl} value={sl}>
+                                            {sl}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+
+                                    {/* 3. Jumlah (Stepper) */}
+                                    <div>
+                                      <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>
+                                        Jumlah (Pcs)
+                                      </label>
+                                      <div className="variant-stepper">
+                                        <button
+                                          type="button"
+                                          className="variant-stepper-btn"
+                                          onClick={() => updateVariantRow(field.id, rIdx, { qty: Math.max(1, row.qty - 1) })}
+                                          disabled={row.qty <= 1}
+                                          aria-label="Kurangi jumlah"
+                                        >
+                                          -
+                                        </button>
+                                        <input
+                                          type="number"
+                                          min={1}
+                                          value={row.qty}
+                                          onChange={(e) => {
+                                            const val = parseInt(e.target.value, 10);
+                                            updateVariantRow(field.id, rIdx, { qty: isNaN(val) || val < 1 ? 1 : val });
+                                          }}
+                                          className="variant-stepper-input"
+                                        />
+                                        <button
+                                          type="button"
+                                          className="variant-stepper-btn"
+                                          onClick={() => updateVariantRow(field.id, rIdx, { qty: row.qty + 1 })}
+                                          aria-label="Tambah jumlah"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Subtotal Item Card */}
+                                  {(Object.keys(config.prices || {}).length > 0 || (config.price && config.price > 0)) && (
+                                    <div
+                                      style={{
+                                        marginTop: 10,
+                                        padding: "8px 12px",
+                                        background: "#f8fafc",
+                                        borderRadius: 8,
+                                        border: "1px dashed #cbd5e1",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        flexWrap: "wrap",
+                                        gap: 6,
+                                        fontSize: "12.5px",
+                                      }}
+                                    >
+                                      <div style={{ color: "#475569", display: "inline-flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                                        <span>Harga:</span>
+                                        <strong style={{ color: "var(--navy-900)" }}>{formatRupiah(itemUnitPrice)}</strong>
+                                        <span style={{ color: "var(--text-muted)", fontSize: "11px" }}>/ pcs</span>
+                                        {Object.keys(config.prices || {}).length === 0 && /panjang/i.test(row.sleeve || "") && config.longSleeveExtra && config.longSleeveExtra > 0 ? (
+                                          <span
+                                            style={{
+                                              fontSize: "11px",
+                                              color: "var(--primary-700, #b91c1c)",
+                                              background: "rgba(185, 28, 28, 0.08)",
+                                              padding: "1px 6px",
+                                              borderRadius: 4,
+                                              fontWeight: 600,
+                                            }}
+                                          >
+                                            +{formatRupiah(config.longSleeveExtra)} Lengan Panjang
+                                          </span>
+                                        ) : null}
+                                      </div>
+
+                                      <div style={{ fontWeight: 700, color: "var(--navy-900)", display: "flex", alignItems: "center", gap: 6 }}>
+                                        <span style={{ color: "var(--text-muted)", fontSize: "12px", fontWeight: 500 }}>
+                                          {row.qty} pcs × {formatRupiah(itemUnitPrice)} =
+                                        </span>
+                                        <span style={{ color: "var(--primary-700, #b91c1c)", fontSize: "13.5px" }}>
+                                          {formatRupiah(itemSubtotal)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Bottom Action: + Tambah Varian Lain & Total Summary */}
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              gap: 12,
+                              flexWrap: "wrap",
+                              paddingTop: 4,
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => addVariantRow(field)}
+                              className="btn btn-outline btn-sm"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                padding: "8px 14px",
+                                borderRadius: 8,
+                                fontWeight: 600,
+                              }}
+                            >
+                              <Plus size={14} />
+                              <span>+ Tambah Varian / Ukuran Lain</span>
+                            </button>
+
+                            <div
+                              style={{
+                                padding: "8px 14px",
+                                background: "linear-gradient(135deg, rgba(185, 28, 28, 0.08) 0%, rgba(185, 28, 28, 0.02) 100%)",
+                                border: "1.5px solid rgba(185, 28, 28, 0.2)",
+                                borderRadius: 10,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 14,
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  fontSize: "13px",
+                                  color: "var(--navy-900)",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                <span>📦 Total Pesanan:</span>
+                                <strong style={{ color: "var(--primary-700, #b91c1c)" }}>{totalQty} pcs</strong>
+                              </div>
+
+                              {(Object.keys(config.prices || {}).length > 0 || (config.price && config.price > 0)) && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    fontSize: "13px",
+                                    color: "var(--navy-900)",
+                                    fontWeight: 700,
+                                    borderLeft: "1px solid rgba(185, 28, 28, 0.2)",
+                                    paddingLeft: 12,
+                                  }}
+                                >
+                                  <span>💰 Total Harga:</span>
+                                  <span
+                                    style={{
+                                      background: "var(--primary-700, #b91c1c)",
+                                      color: "#ffffff",
+                                      padding: "3px 10px",
+                                      borderRadius: 6,
+                                      fontSize: "13.5px",
+                                      fontWeight: 800,
+                                      letterSpacing: 0.3,
+                                    }}
+                                  >
+                                    {formatRupiah(totalPrice)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* INPUT: RADIO */}
                     {field.fieldType === "radio" && (
@@ -1266,7 +1766,65 @@ export function PublicOrderForm() {
                 );
               })}
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+              {/* Ringkasan Biaya Pesanan Keseluruhan di Step 1 */}
+              {totalFormPrice > 0 && (
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, #ffffff 0%, #fef2f2 100%)",
+                    border: "1.5px solid rgba(185, 28, 28, 0.25)",
+                    borderRadius: 14,
+                    padding: "16px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 12,
+                    boxShadow: "0 4px 14px rgba(185, 28, 28, 0.06)",
+                    marginTop: 8,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div
+                      style={{
+                        width: 42,
+                        height: 42,
+                        borderRadius: "50%",
+                        background: "rgba(185, 28, 28, 0.1)",
+                        color: "var(--primary-700, #b91c1c)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 20,
+                      }}
+                    >
+                      💰
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                        Total Estimasi Pesanan
+                      </div>
+                      <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy-900)" }}>
+                        {totalFormQty} pcs Kaos MB Chondro
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: "right" }}>
+                    <span
+                      style={{
+                        fontSize: "20px",
+                        fontWeight: 800,
+                        color: "var(--primary-700, #b91c1c)",
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      {formatRupiah(totalFormPrice)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="public-form-actions">
                 <button
                   type="submit"
                   className="btn btn-primary"
@@ -1341,6 +1899,95 @@ export function PublicOrderForm() {
                           <FileText size={26} style={{ color: "#2563eb" }} />
                           <strong style={{ fontSize: "13px", color: "var(--navy-900)" }}>{fileData.name}</strong>
                         </div>
+                      ) : (field.fieldType === "variant_matrix" || field.fieldType === "product_configuration" || val.includes("•")) ? (
+                        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                          {(() => {
+                            const cfg = parseVariantConfig(field);
+                            const items = (variantRows[field.id] && variantRows[field.id].length > 0
+                              ? variantRows[field.id]
+                              : parseVariantItems(val, ["S", "M", "L", "XL"], ["Lengan Pendek", "Lengan Panjang"])
+                            );
+
+                            return (
+                              <>
+                                {items.map((it, i) => {
+                                  const key = `${it.size}|${it.sleeve}`;
+                                  let unitPrice = 0;
+                                  if (cfg.prices && cfg.prices[key] !== undefined && cfg.prices[key] > 0) {
+                                    unitPrice = cfg.prices[key];
+                                  } else {
+                                    const isLong = /panjang/i.test(it.sleeve || "");
+                                    unitPrice = (cfg.price || 0) + (isLong ? (cfg.longSleeveExtra || 0) : 0);
+                                  }
+                                  const subtotal = unitPrice * (Number(it.qty) || 0);
+
+                                  return (
+                                    <div
+                                      key={it.id || i}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        background: "#ffffff",
+                                        padding: "8px 12px",
+                                        borderRadius: 8,
+                                        border: "1px solid #e2e8f0",
+                                      }}
+                                    >
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <span
+                                          style={{
+                                            background: "rgba(185, 28, 28, 0.1)",
+                                            color: "var(--primary-700, #b91c1c)",
+                                            fontWeight: 700,
+                                            fontSize: "12px",
+                                            padding: "2px 8px",
+                                            borderRadius: 6,
+                                          }}
+                                        >
+                                          {it.qty} pcs
+                                        </span>
+                                        <strong style={{ fontSize: "13.5px", color: "var(--navy-900)" }}>
+                                          Ukuran {it.size}
+                                        </strong>
+                                        <span style={{ fontSize: "12.5px", color: "var(--text-muted)" }}>
+                                          · {it.sleeve || "Lengan Pendek"}
+                                        </span>
+                                      </div>
+                                      {(Object.keys(cfg.prices || {}).length > 0 || (cfg.price && cfg.price > 0)) && (
+                                        <div style={{ textAlign: "right" }}>
+                                          <strong style={{ fontSize: "13px", color: "var(--navy-900)" }}>
+                                            {formatRupiah(subtotal)}
+                                          </strong>
+                                          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                                            @{formatRupiah(unitPrice)}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                                <div
+                                  style={{
+                                    marginTop: 4,
+                                    padding: "8px 12px",
+                                    background: "rgba(185, 28, 28, 0.06)",
+                                    borderRadius: 8,
+                                    border: "1px solid rgba(185, 28, 28, 0.15)",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    fontSize: "13px",
+                                    fontWeight: 700,
+                                    color: "var(--primary-700)",
+                                  }}
+                                >
+                                  <span>{val.split("\n").find((l) => l.includes("Total:")) || "Ringkasan Pesanan"}</span>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
                       ) : (
                         <strong style={{ fontSize: "13.5px", color: "var(--navy-900)", marginTop: 4, display: "block" }}>
                           {val || <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>-</span>}
@@ -1351,25 +1998,71 @@ export function PublicOrderForm() {
                 })}
               </div>
 
+              {/* Ringkasan Total Pembayaran di Step 2 */}
+              {totalFormPrice > 0 && (
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, #ffffff 0%, #fef2f2 100%)",
+                    border: "1.5px solid rgba(185, 28, 28, 0.25)",
+                    borderRadius: 14,
+                    padding: "16px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 12,
+                    boxShadow: "0 4px 14px rgba(185, 28, 28, 0.06)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: "50%",
+                        background: "rgba(185, 28, 28, 0.1)",
+                        color: "var(--primary-700, #b91c1c)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 22,
+                      }}
+                    >
+                      💳
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                        Total Pembayaran Pesanan
+                      </div>
+                      <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy-900)" }}>
+                        {totalFormQty} pcs Kaos MB Chondro
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: "right" }}>
+                    <span
+                      style={{
+                        fontSize: "22px",
+                        fontWeight: 800,
+                        color: "var(--primary-700, #b91c1c)",
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      {formatRupiah(totalFormPrice)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  marginTop: 12,
-                  paddingTop: 16,
-                  borderTop: "1px solid #e2e8f0",
-                  flexWrap: "wrap",
-                }}
-              >
+              <div className="public-preview-actions">
                 <button
                   type="button"
                   className="btn btn-outline"
                   onClick={() => setIsPreviewing(false)}
                   disabled={submitting}
-                  style={{ fontSize: "13.5px", flex: "1 1 auto" }}
+                  style={{ fontSize: "13.5px" }}
                 >
                   <ArrowLeft size={16} /> Kembali Edit
                 </button>
@@ -1383,7 +2076,6 @@ export function PublicOrderForm() {
                     fontSize: "14px",
                     fontWeight: 700,
                     borderRadius: "8px",
-                    flex: "1 1 auto",
                   }}
                 >
                   {submitting ? (

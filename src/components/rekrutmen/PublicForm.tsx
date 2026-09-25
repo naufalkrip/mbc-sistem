@@ -551,6 +551,7 @@ export function PublicForm() {
         }}
       >
         <div
+          className="public-form-success-card"
           style={{
             maxWidth: 520,
             width: "100%",
@@ -627,27 +628,10 @@ export function PublicForm() {
 
   // MAIN FORM (INPUT STEP & PREVIEW STEP)
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
-        padding: "32px 16px 48px",
-        fontFamily: "'Poppins', sans-serif",
-      }}
-    >
-      <div style={{ maxWidth: 840, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
+    <div className="public-form-outer">
+      <div className="public-form-container">
         {/* Top Header Card */}
-        <div
-          style={{
-            background: "linear-gradient(135deg, #c8101e 0%, #a41111 50%, #8a1414 100%)",
-            color: "#ffffff",
-            borderRadius: "16px 16px 0 0",
-            padding: "28px 24px",
-            boxShadow: "0 6px 20px rgba(185, 28, 28, 0.22)",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
+        <div className="public-form-header">
           {/* Subtle background glow */}
           <div
             style={{
@@ -684,7 +668,7 @@ export function PublicForm() {
               >
                 Penerimaan Anggota Baru
               </span>
-              <h1 style={{ margin: 0, fontSize: "1.3rem", fontWeight: 700, color: "#ffffff", lineHeight: 1.3 }}>
+              <h1 className="public-form-header-title">
                 {form.title}
               </h1>
             </div>
@@ -696,17 +680,7 @@ export function PublicForm() {
           )}
 
           {/* Step Indicator */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginTop: 18,
-              paddingTop: 14,
-              borderTop: "1px solid rgba(255, 255, 255, 0.18)",
-              fontSize: "12.5px",
-            }}
-          >
+          <div className="public-form-steps">
             <span
               style={{
                 display: "inline-flex",
@@ -766,16 +740,7 @@ export function PublicForm() {
         </div>
 
         {/* Content Body */}
-        <div
-          style={{
-            background: "#ffffff",
-            borderRadius: "0 0 16px 16px",
-            padding: "28px 24px 36px",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
-            border: "1px solid #e2e8f0",
-            borderTop: "none",
-          }}
-        >
+        <div className="public-form-body">
           {/* STEP 1: FORM INPUTS */}
           {!isPreviewing ? (
             <form onSubmit={handleGoToPreview} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -866,7 +831,7 @@ export function PublicForm() {
                         value={answer?.value || ""}
                         onChange={(e) => handleChange(field.id, e.target.value)}
                         placeholder={field.placeholder || "Ketik jawaban Anda di sini"}
-                        style={{ height: 44, padding: "10px 14px", fontSize: "14px", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff", WebkitAppearance: "none" }}
+                        style={{ height: 44, padding: "10px 14px", fontSize: "14px", borderRadius: 10, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff", WebkitAppearance: "none" }}
                       />
                     )}
 
@@ -877,7 +842,7 @@ export function PublicForm() {
                         value={answer?.value || ""}
                         onChange={(e) => handleChange(field.id, e.target.value)}
                         placeholder={field.placeholder || "Tuliskan jawaban lengkap Anda"}
-                        style={{ padding: "10px 14px", fontSize: "14px", resize: "vertical", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff", WebkitAppearance: "none" }}
+                        style={{ padding: "10px 14px", fontSize: "14px", resize: "vertical", borderRadius: 10, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff", WebkitAppearance: "none" }}
                       />
                     )}
 
@@ -888,7 +853,7 @@ export function PublicForm() {
                         value={answer?.value || ""}
                         onChange={(e) => handleChange(field.id, e.target.value)}
                         placeholder={field.placeholder || "Masukkan angka"}
-                        style={{ height: 44, padding: "10px 14px", fontSize: "14px", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff", WebkitAppearance: "none" }}
+                        style={{ height: 44, padding: "10px 14px", fontSize: "14px", borderRadius: 10, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff", WebkitAppearance: "none" }}
                       />
                     )}
 
@@ -898,7 +863,7 @@ export function PublicForm() {
                         type="date"
                         value={answer?.value || ""}
                         onChange={(e) => handleChange(field.id, e.target.value)}
-                        style={{ height: 44, padding: "10px 14px", fontSize: "14px", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff", WebkitAppearance: "none" }}
+                        style={{ height: 44, padding: "10px 14px", fontSize: "14px", borderRadius: 10, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff", WebkitAppearance: "none" }}
                       />
                     )}
 
@@ -907,7 +872,7 @@ export function PublicForm() {
                       <select
                         value={answer?.value || ""}
                         onChange={(e) => handleChange(field.id, e.target.value)}
-                        style={{ height: 44, padding: "10px 14px", fontSize: "14px", borderRadius: 8, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff" }}
+                        style={{ height: 44, padding: "10px 14px", fontSize: "14px", borderRadius: 10, border: "1px solid #cbd5e1", width: "100%", boxSizing: "border-box", background: "#ffffff" }}
                       >
                         <option value="">-- Pilih salah satu --</option>
                         {(field.options || []).map((opt) => (
@@ -1138,7 +1103,7 @@ export function PublicForm() {
                 );
               })}
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+              <div className="public-form-actions">
                 <button
                   type="submit"
                   className="btn btn-primary"
@@ -1260,24 +1225,13 @@ export function PublicForm() {
               </div>
 
               {/* Action Buttons */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  marginTop: 12,
-                  paddingTop: 16,
-                  borderTop: "1px solid #e2e8f0",
-                  flexWrap: "wrap",
-                }}
-              >
+              <div className="public-preview-actions">
                 <button
                   type="button"
                   className="btn btn-outline"
                   onClick={() => setIsPreviewing(false)}
                   disabled={submitting}
-                  style={{ fontSize: "13.5px", flex: "1 1 auto" }}
+                  style={{ fontSize: "13.5px" }}
                 >
                   <ArrowLeft size={16} /> Kembali Edit
                 </button>
@@ -1291,7 +1245,6 @@ export function PublicForm() {
                     fontSize: "14px",
                     fontWeight: 700,
                     borderRadius: "8px",
-                    flex: "1 1 auto",
                   }}
                 >
                   {submitting ? (

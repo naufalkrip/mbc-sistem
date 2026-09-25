@@ -253,7 +253,9 @@ export type OrderFieldType =
   | "radio"
   | "checkbox"
   | "whatsapp"
-  | "file";
+  | "file"
+  | "variant_matrix"
+  | "product_configuration";
 
 export interface OrderFieldOption {
   id: string;
@@ -269,6 +271,8 @@ export interface OrderField {
   placeholder?: string;
   required: boolean;
   options?: OrderFieldOption[];
+  price?: number;
+  longSleeveExtra?: number;
   sortOrder: number;
   imageUrl?: string;
   imageTitle?: string;

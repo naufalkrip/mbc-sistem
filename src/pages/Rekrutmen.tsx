@@ -369,32 +369,17 @@ export function Rekrutmen() {
       </div>
 
       {/* 2. TAB CONTROLS (DAFTAR CALON ANGGOTA vs FORMULIR PENDAFTARAN) & ACTION */}
-      <div
-        style={{
-          display: "flex",
-          borderBottom: "1px solid var(--border)",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
-        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+      <div className="page-tab-header" style={{ borderBottom: "1px solid var(--border)", paddingBottom: 6 }}>
+        <div className="page-segmented-tabs">
           <button
             type="button"
+            className="page-tab-btn"
             onClick={() => setActiveTab("submissions")}
             style={{
-              background: "none",
-              border: "none",
-              borderBottom: activeTab === "submissions" ? "2px solid var(--primary-700)" : "2px solid transparent",
-              padding: "10px 4px",
               fontWeight: activeTab === "submissions" ? 700 : 500,
-              color: activeTab === "submissions" ? "var(--primary-700)" : "var(--text-muted)",
-              fontSize: 14,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
+              background: activeTab === "submissions" ? "#ffffff" : "transparent",
+              color: activeTab === "submissions" ? "var(--primary-700)" : "var(--text-secondary)",
+              boxShadow: activeTab === "submissions" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
             }}
           >
             <Users size={16} />
@@ -403,19 +388,13 @@ export function Rekrutmen() {
 
           <button
             type="button"
+            className="page-tab-btn"
             onClick={() => setActiveTab("form")}
             style={{
-              background: "none",
-              border: "none",
-              borderBottom: activeTab === "form" ? "2px solid var(--primary-700)" : "2px solid transparent",
-              padding: "10px 4px",
               fontWeight: activeTab === "form" ? 700 : 500,
-              color: activeTab === "form" ? "var(--primary-700)" : "var(--text-muted)",
-              fontSize: 14,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
+              background: activeTab === "form" ? "#ffffff" : "transparent",
+              color: activeTab === "form" ? "var(--primary-700)" : "var(--text-secondary)",
+              boxShadow: activeTab === "form" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
             }}
           >
             <FileText size={16} />
@@ -423,7 +402,7 @@ export function Rekrutmen() {
           </button>
         </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+        <div className="page-tab-actions">
           {form && (
             <button
               type="button"
@@ -563,30 +542,11 @@ export function Rekrutmen() {
                     </div>
 
                     {/* Public Link Preview Box */}
-                    <div
-                      style={{
-                        background: "var(--bg-soft)",
-                        padding: "8px 12px",
-                        borderRadius: "var(--radius-sm)",
-                        border: "1px solid var(--border-soft)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 8,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: "var(--text-secondary)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
+                    <div className="form-link-box">
+                      <span className="form-link-url">
                         {`${window.location.origin}/rekrutmen/form/${form.id}`}
                       </span>
-                      <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                      <div className="form-link-actions">
                         <button
                           type="button"
                           onClick={() =>
@@ -635,25 +595,16 @@ export function Rekrutmen() {
                     </div>
 
                     {/* Actions */}
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        paddingTop: 10,
-                        borderTop: "1px solid var(--border-soft)",
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <div className="form-card-actions" onClick={(e) => e.stopPropagation()}>
+                      <div className="form-card-actions-left">
                         <button
                           type="button"
-                          className="btn-secondary"
+                          className="btn btn-outline btn-sm"
                           onClick={() => {
                             setEditingForm(form);
                             setIsBuilderOpen(true);
                           }}
-                          style={{ padding: "5px 12px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 600 }}
+                          style={{ borderRadius: 8, padding: "5px 12px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}
                         >
                           <Edit size={13} />
                           <span>Edit Formulir</span>
@@ -661,7 +612,7 @@ export function Rekrutmen() {
 
                         <button
                           type="button"
-                          className="btn-secondary"
+                          className="btn btn-outline btn-sm"
                           onClick={() =>
                             setQrModalData({
                               title: form.title,
@@ -669,7 +620,7 @@ export function Rekrutmen() {
                               filename: `qr-rekrutmen-${form.id}.png`,
                             })
                           }
-                          style={{ padding: "5px 10px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
+                          style={{ borderRadius: 8, padding: "5px 10px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
                           title="Lihat & unduh QR Code formulir pendaftaran"
                         >
                           <QrCode size={13} />
