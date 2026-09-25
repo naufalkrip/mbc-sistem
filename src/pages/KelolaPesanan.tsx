@@ -42,6 +42,8 @@ import { SearchBar } from "../components/ui/SearchBar";
 import { Filter as FilterComp } from "../components/ui/Filter";
 import { OrderDetailModal } from "../components/pesanan/OrderDetailModal";
 import { OrderFormBuilderModal } from "../components/pesanan/OrderFormBuilderModal";
+import { OrderRecap } from "../components/pesanan/OrderRecap";
+import { WhatsAppBroadcastModal } from "../components/pesanan/WhatsAppBroadcastModal";
 import { exportOrdersToCSV, exportOrdersToPDF } from "../services/pesananExport";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { Modal } from "../components/ui/Modal";
@@ -82,6 +84,9 @@ export function KelolaPesanan() {
 
   // Filters & Search
   const [statusFilter, setStatusFilter] = useState<"semua" | OrderStatus>("semua");
+  // State untuk Modal Broadcast WA
+  const [broadcastOrder, setBroadcastOrder] = useState<OrderWithAnswers | null>(null);
+
   const [dateFilter, setDateFilter] = useState<"semua" | "hari_ini" | "7_hari" | "30_hari">("semua");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedLinkMap, setCopiedLinkMap] = useState<Record<string, boolean>>({});
@@ -163,6 +168,17 @@ export function KelolaPesanan() {
       return true;
     }
     return false;
+  };
+
+  const handleMarkContacted = async (id: string, currentNote: string) => {
+    let note = currentNote || "";
+    if (!note.includes("[WA_CONTACTED]")) {
+      note = note ? note + " [WA_CONTACTED]" : "[WA_CONTACTED]";
+      const res = await updateOrderStatusApi(id, undefined as any, note);
+      if (res.success) {
+        void refreshOrders(true);
+      }
+    }
   };
 
   const handleDeleteOrder = (id: string) => {
@@ -257,7 +273,7 @@ export function KelolaPesanan() {
       header: "WhatsApp",
       render: (row) => {
         const jenisAnswer = row.answers.find(
-          (a) => a.label.toLowerCase().includes("jenis") || a.label.toLowerCase().includes("produk")
+          (a) => String(a?.label || "").toLowerCase().includes("jenis") || String(a?.label || "").toLowerCase().includes("produk")
         );
         const waLink = buatLinkWhatsAppPesanan(
           row.whatsapp,
@@ -295,13 +311,13 @@ export function KelolaPesanan() {
       header: "Jenis Pesanan",
       render: (row) => {
         const jenisAnswer = row.answers.find(
-          (a) => a.label.toLowerCase().includes("jenis") || a.label.toLowerCase().includes("produk") || a.label.toLowerCase().includes("model")
+          (a) => String(a?.label || "").toLowerCase().includes("jenis") || String(a?.label || "").toLowerCase().includes("produk") || String(a?.label || "").toLowerCase().includes("model")
         );
         const variantAnswer = row.answers.find(
-          (a) => a.value.includes("•") || a.label.toLowerCase().includes("varian") || a.label.toLowerCase().includes("ukuran")
+          (a) => String(a?.value || "").includes("•") || String(a?.label || "").toLowerCase().includes("varian") || String(a?.label || "").toLowerCase().includes("ukuran")
         );
         const qtyAnswer = row.answers.find(
-          (a) => a.label.toLowerCase().includes("jumlah") || a.label.toLowerCase().includes("qty")
+          (a) => String(a?.label || "").toLowerCase().includes("jumlah") || String(a?.label || "").toLowerCase().includes("qty")
         );
 
         let totalPcs = qtyAnswer ? `${qtyAnswer.value} pcs` : "";
@@ -386,8 +402,18 @@ export function KelolaPesanan() {
           <button
             type="button"
             className="btn btn-outline btn-sm"
+            onClick={() => setBroadcastOrder(row)}
+            title="Kirim Pesan WhatsApp"
+            style={{ padding: "4px 8px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, color: "#16a34a", borderColor: "#16a34a" }}
+          >
+            <MessageCircle size={13} />
+            <span>Kirim WA</span>
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
             onClick={() => setSelectedOrder(row)}
-            style={{ padding: "4px 10px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}
+            style={{ padding: "4px 8px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}
           >
             <Eye size={13} />
             <span>Detail</span>
@@ -728,6 +754,15 @@ export function KelolaPesanan() {
               )}
             </div>
           </div>
+
+          {/* REKAP PESANAN */}
+          <OrderRecap 
+            orders={filteredOrders} 
+            onItemClick={(_product, size, _sleeve) => {
+              setSearchQuery(size);
+              // Or you could build a more advanced search/filter mapping
+            }}
+          />
 
           {/* TABLE OF ORDERS */}
           <DataTable
@@ -1164,6 +1199,18 @@ export function KelolaPesanan() {
           </div>
         </Modal>
       )}
+
+      <WhatsAppBroadcastModal
+        order={broadcastOrder}
+        onClose={() => setBroadcastOrder(null)}
+        isContacted={Boolean(broadcastOrder?.adminNote?.includes("[WA_CONTACTED]"))}
+        onMarkContacted={async () => {
+          if (broadcastOrder) {
+            await handleMarkContacted(broadcastOrder.id, broadcastOrder.adminNote || "");
+            setBroadcastOrder({ ...broadcastOrder, adminNote: (broadcastOrder.adminNote || "") + " [WA_CONTACTED]" });
+          }
+        }}
+      />
     </div>
   );
 }

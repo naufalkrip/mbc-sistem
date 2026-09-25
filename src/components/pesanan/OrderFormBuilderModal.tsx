@@ -43,6 +43,7 @@ const ORDER_FIELD_TYPE_OPTIONS: { value: OrderFieldType; label: string; desc: st
   { value: "product_configuration", label: "Konfigurasi Produk Pesanan", desc: "Konfigurasi khusus untuk Size, Lengan, Jumlah & Harga terintegrasi" },
   { value: "date", label: "Tanggal", desc: "Pemilih tanggal" },
   { value: "file", label: "Upload File / Referensi", desc: "Upload gambar / dokumen referensi" },
+  { value: "info_text", label: "Blok Informasi Khusus", desc: "Tampilkan teks / informasi penting tanpa perlu input dari customer" },
 ];
 
 function getDefaultFields(): OrderField[] {
@@ -781,41 +782,53 @@ export function OrderFormBuilderModal({
                   {/* Secondary settings: Description & Required */}
                   <div className="builder-secondary-grid">
                     <div>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={fld.description || ""}
-                        onChange={(e) => updateFieldProperty(idx, { description: e.target.value })}
-                        placeholder="Deskripsi / petunjuk singkat (opsional)"
-                        style={{ width: "100%", fontSize: 12, borderRadius: 10 }}
-                      />
+                      {fld.fieldType === "info_text" ? (
+                        <textarea
+                          className="form-input"
+                          value={fld.description || ""}
+                          onChange={(e) => updateFieldProperty(idx, { description: e.target.value })}
+                          placeholder="Isi informasi atau instruksi yang ingin disampaikan kepada customer..."
+                          style={{ width: "100%", fontSize: 13, borderRadius: 10, minHeight: 80, resize: "vertical" }}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={fld.description || ""}
+                          onChange={(e) => updateFieldProperty(idx, { description: e.target.value })}
+                          placeholder="Deskripsi / petunjuk singkat (opsional)"
+                          style={{ width: "100%", fontSize: 12, borderRadius: 10 }}
+                        />
+                      )}
                     </div>
 
                     <div>
-                      <label
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 7,
-                          fontSize: 12.5,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          padding: "7px 14px",
-                          borderRadius: 9,
-                          background: fld.required ? "rgba(185, 28, 28, 0.06)" : "var(--bg-soft, #f8fafc)",
-                          color: fld.required ? "var(--primary-700)" : "var(--text-secondary)",
-                          border: fld.required ? "1px solid rgba(185, 28, 28, 0.2)" : "1px solid var(--border-soft)",
-                          transition: "all 0.15s ease",
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={Boolean(fld.required)}
-                          onChange={(e) => updateFieldProperty(idx, { required: e.target.checked })}
-                          style={{ cursor: "pointer" }}
-                        />
-                        <span>Wajib Diisi</span>
-                      </label>
+                      {fld.fieldType !== "info_text" && (
+                        <label
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 7,
+                            fontSize: 12.5,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            padding: "7px 14px",
+                            borderRadius: 9,
+                            background: fld.required ? "rgba(185, 28, 28, 0.06)" : "var(--bg-soft, #f8fafc)",
+                            color: fld.required ? "var(--primary-700)" : "var(--text-secondary)",
+                            border: fld.required ? "1px solid rgba(185, 28, 28, 0.2)" : "1px solid var(--border-soft)",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={Boolean(fld.required)}
+                            onChange={(e) => updateFieldProperty(idx, { required: e.target.checked })}
+                            style={{ cursor: "pointer" }}
+                          />
+                          <span>Wajib Diisi</span>
+                        </label>
+                      )}
                     </div>
                   </div>
 

@@ -1,20 +1,20 @@
 import { useState } from "react";
 import {
   MessageCircle,
-  Calendar,
+
   CheckCircle,
   Clock,
   Layers,
-  FileText,
-  User,
+
+
   ExternalLink,
-  Edit3,
+
   Copy,
   Check,
 } from "lucide-react";
 import type { OrderWithAnswers, OrderStatus } from "../../types";
 import {
-  formatTanggalPanjang,
+
   formatNomorHp,
   formatNomorWhatsAppUrl,
   buatLinkWhatsAppPesanan,
@@ -45,7 +45,7 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
 
   // Temukan jenis pesanan dari answers jika ada
   const jenisAnswer = order.answers.find(
-    (a) => a.label.toLowerCase().includes("jenis") || a.label.toLowerCase().includes("produk")
+    (a) => String(a?.label || "").toLowerCase().includes("jenis") || String(a?.label || "").toLowerCase().includes("produk")
   );
   const jenisPesanan = jenisAnswer ? jenisAnswer.value : "Pesanan";
 
@@ -93,10 +93,45 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
     }
   };
 
+  // Parsing Data Variants
+  const parsedVariants: any[] = [];
+  let totalQty = 0;
+  let totalPrice = "";
+  const otherAnswers: any[] = [];
+
+  order.answers.forEach((ans) => {
+    if (typeof ans.value === "string" && ans.value.includes("•")) {
+      const lines = ans.value.split("\n");
+      lines.forEach((line) => {
+        if (line.trim().startsWith("•")) {
+          const match = line.match(/•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\](?:\s*@\s*(.*?)=\s*(.*?))?$/i);
+          if (match) {
+            parsedVariants.push({
+              qty: match[1],
+              size: match[2],
+              sleeve: match[3],
+              unitPrice: match[4] ? match[4].trim() : "",
+              subtotal: match[5] ? match[5].trim() : "",
+              productName: jenisPesanan || "Pesanan Produk",
+            });
+          }
+        } else if (line.includes("Total:")) {
+          const matchTotal = line.match(/Total:\s*(\d+)\s*pcs(?:\s*\|\s*(.*?)\))?/i);
+          if (matchTotal) {
+            totalQty = parseInt(matchTotal[1], 10);
+            if (matchTotal[2]) totalPrice = matchTotal[2].trim();
+          }
+        }
+      });
+    } else {
+      otherAnswers.push(ans);
+    }
+  });
+
   return (
     <Modal
       open={Boolean(order)}
-      title={`Detail Pesanan: ${order.id}`}
+      title={`DETAIL PESANAN: ${order.id}`}
       onClose={onClose}
       size="lg"
       footer={
@@ -110,35 +145,10 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
         </div>
       }
     >
-      <div className="order-detail-container" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div className="order-detail-container" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+        
         {/* TOP STATUS BAR & STEPPER */}
-        <div
-          style={{
-            background: "var(--bg-soft)",
-            padding: "16px",
-            borderRadius: "var(--radius-md)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>
-              ALUR STATUS PENGERJAAN
-            </span>
-            <span
-              className={`status-pill status-${currentStatus}`}
-              style={{
-                textTransform: "uppercase",
-                fontWeight: 700,
-                fontSize: 11,
-                padding: "3px 10px",
-                borderRadius: 20,
-              }}
-            >
-              {currentStatus}
-            </span>
-          </div>
-
-          {/* Segmented Control / Status Selector */}
+        <div>
           <div
             style={{
               display: "grid",
@@ -188,172 +198,145 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
           </div>
         </div>
 
-        {/* SECTION 1: CUSTOMER & WHATSAPP ACTION */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: 16,
-          }}
-        >
-          {/* Card Info Customer */}
-          <div
-            style={{
-              padding: 16,
-              background: "#ffffff",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-md)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <User size={18} style={{ color: "var(--primary-700)" }} />
-              <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Informasi Customer</h4>
+        {/* INFORMASI PEMESAN */}
+        <div>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--navy-900)", margin: "0 0 12px 0", letterSpacing: "0.5px" }}>
+            INFORMASI PEMESAN
+          </h3>
+          <div style={{ height: 1, background: "var(--border)", marginBottom: 16 }} />
+          
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
+            <div>
+              <span style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Nama Pemesan</span>
+              <strong style={{ fontSize: 15, color: "var(--navy-900)" }}>{order.customerName || "-"}</strong>
             </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div>
-                <span style={{ fontSize: 12, color: "var(--text-muted)", display: "block" }}>Nama Customer</span>
-                <strong style={{ fontSize: 15, color: "var(--text)" }}>{order.customerName || "-"}</strong>
-              </div>
-
-              <div>
-                <span style={{ fontSize: 12, color: "var(--text-muted)", display: "block" }}>Nomor WhatsApp</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
-                  <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text)" }}>
-                    {formatNomorHp(order.whatsapp)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={copyWhatsApp}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: 4,
-                      cursor: "pointer",
-                      color: copiedWA ? "var(--green-600)" : "var(--text-muted)",
-                    }}
-                    title="Salin nomor"
-                  >
-                    {copiedWA ? <Check size={14} /> : <Copy size={14} />}
-                  </button>
-                </div>
-              </div>
-
-              {directWaUrl && (
-                <div style={{ marginTop: 4 }}>
-                  <a
-                    href={waUrl || directWaUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-primary"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                      width: "100%",
-                      padding: "9px 14px",
-                      background: "#25D366",
-                      borderColor: "#25D366",
-                      color: "#ffffff",
-                      borderRadius: "var(--radius-sm)",
-                      fontWeight: 600,
-                      fontSize: 13,
-                      textDecoration: "none",
-                    }}
-                  >
-                    <MessageCircle size={16} />
-                    <span>Chat Customer di WhatsApp</span>
-                    <ExternalLink size={13} style={{ opacity: 0.8 }} />
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Card Info Waktu & Formulir */}
-          <div
-            style={{
-              padding: 16,
-              background: "#ffffff",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-md)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <Calendar size={18} style={{ color: "var(--primary-700)" }} />
-              <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Waktu & Asal Formulir</h4>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div>
-                <span style={{ fontSize: 12, color: "var(--text-muted)", display: "block" }}>Tanggal Masuk</span>
-                <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text)" }}>
-                  {formatTanggalPanjang(order.createdAt)}
+            
+            <div>
+              <span style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>WhatsApp</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 15, fontWeight: 500, color: "var(--navy-900)" }}>
+                  {formatNomorHp(order.whatsapp)}
                 </span>
-              </div>
-
-              <div>
-                <span style={{ fontSize: 12, color: "var(--text-muted)", display: "block" }}>Terakhir Diperbarui</span>
-                <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                  {order.updatedAt ? formatTanggalPanjang(order.updatedAt) : "-"}
-                </span>
-              </div>
-
-              <div>
-                <span style={{ fontSize: 12, color: "var(--text-muted)", display: "block" }}>Formulir Terkait</span>
-                <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-secondary)" }}>
-                  {order.form?.title || "Form Pemesanan Standar MB Chondro"}
-                </span>
+                <button
+                  type="button"
+                  onClick={copyWhatsApp}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 4,
+                    cursor: "pointer",
+                    color: copiedWA ? "var(--green-600)" : "var(--text-muted)",
+                  }}
+                  title="Salin nomor"
+                >
+                  {copiedWA ? <Check size={14} /> : <Copy size={14} />}
+                </button>
               </div>
             </div>
           </div>
+          
+          {directWaUrl && (
+            <div style={{ marginTop: 16 }}>
+              <a
+                href={waUrl || directWaUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  padding: "8px 16px",
+                  background: "#25D366",
+                  borderColor: "#25D366",
+                  color: "#ffffff",
+                  borderRadius: "var(--radius-sm)",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  textDecoration: "none",
+                }}
+              >
+                <MessageCircle size={16} />
+                <span>Chat Customer di WhatsApp</span>
+              </a>
+            </div>
+          )}
         </div>
 
-        {/* SECTION 2: RINCIAN ISIAN / JAWABAN CUSTOMER */}
-        <div
-          style={{
-            padding: 18,
-            background: "#ffffff",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-md)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-            <FileText size={18} style={{ color: "var(--primary-700)" }} />
-            <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Rincian & Pertanyaan Formulir</h4>
-          </div>
+        {/* RINCIAN PESANAN */}
+        {parsedVariants.length > 0 && (
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--navy-900)", margin: "0 0 12px 0", letterSpacing: "0.5px" }}>
+              RINCIAN PESANAN
+            </h3>
+            <div style={{ height: 1, background: "var(--border)", marginBottom: 16 }} />
 
-          {order.answers.length === 0 ? (
-            <div style={{ padding: "20px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
-              Tidak ada rincian data formulir tambahan.
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {parsedVariants.map((item, idx) => (
+                <div key={idx} style={{ display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", minWidth: 24, paddingTop: 2 }}>
+                      {String(idx + 1).padStart(2, "0")}
+                    </div>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+                      <strong style={{ fontSize: 14, color: "var(--navy-900)" }}>{item.productName}</strong>
+                      <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                        {item.size} <span style={{ margin: "0 4px", color: "var(--text-muted)" }}>•</span> {item.sleeve}
+                      </div>
+                      
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 4 }}>
+                        <div style={{ fontSize: 13, color: "var(--text)" }}>
+                          {item.qty} pcs {item.unitPrice ? <span style={{ color: "var(--text-muted)" }}>× {item.unitPrice}</span> : ""}
+                        </div>
+                        {item.subtotal && (
+                          <strong style={{ fontSize: 14, color: "var(--navy-900)" }}>
+                            {item.subtotal}
+                          </strong>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {idx < parsedVariants.length - 1 && (
+                    <div style={{ height: 1, background: "var(--border-soft)", margin: "16px 0 0 36px" }} />
+                  )}
+                </div>
+              ))}
             </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {order.answers.map((ans, idx) => (
-                <div
-                  key={ans.id || idx}
-                  style={{
-                    padding: "10px 14px",
-                    background: "var(--bg-soft)",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border-soft)",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "var(--text-muted)",
-                      display: "block",
-                      marginBottom: 3,
-                    }}
-                  >
+
+            <div style={{ height: 1, background: "var(--border)", margin: "24px 0 16px 0" }} />
+            
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-secondary)" }}>Total Item</span>
+              <strong style={{ fontSize: 14, color: "var(--navy-900)" }}>{totalQty} pcs</strong>
+            </div>
+            
+            {totalPrice && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--navy-900)", textTransform: "uppercase" }}>Total Pesanan</span>
+                <strong style={{ fontSize: 16, fontWeight: 800, color: "var(--primary-700)" }}>{totalPrice}</strong>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PERTANYAAN LAINNYA */}
+        {otherAnswers.length > 0 && (
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--navy-900)", margin: "0 0 12px 0", letterSpacing: "0.5px" }}>
+              DATA FORMULIR LAINNYA
+            </h3>
+            <div style={{ height: 1, background: "var(--border)", marginBottom: 16 }} />
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {otherAnswers.map((ans, idx) => (
+                <div key={ans.id || idx}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
                     {ans.label}
                   </span>
-                  <div style={{ fontSize: 14, color: "var(--text)", wordBreak: "break-word" }}>
+                  <div style={{ fontSize: 14, color: "var(--navy-900)", wordBreak: "break-word" }}>
                     {ans.fileUrl ? (
-                      <div style={{ marginTop: 6 }}>
+                      <div style={{ marginTop: 4 }}>
                         {ans.fileUrl.startsWith("data:image/") || ans.fileUrl.includes("drive.google") ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                             <img
@@ -367,112 +350,14 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
                                 border: "1px solid var(--border)",
                               }}
                             />
-                            <a
-                              href={ans.fileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{ fontSize: 12, color: "var(--primary-700)", textDecoration: "underline" }}
-                            >
-                              Buka Gambar Resolusi Penuh
+                            <a href={ans.fileUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "var(--primary-700)" }}>
+                              Buka Gambar
                             </a>
                           </div>
                         ) : (
-                          <a
-                            href={ans.fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn btn-outline btn-sm"
-                            style={{ display: "inline-flex", gap: 6, fontSize: 12, padding: "5px 10px" }}
-                          >
-                            <ExternalLink size={13} />
-                            Lihat File Berkas
+                          <a href={ans.fileUrl} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm" style={{ display: "inline-flex", gap: 6, fontSize: 12 }}>
+                            <ExternalLink size={13} /> Lihat File
                           </a>
-                        )}
-                      </div>
-                    ) : ans.value && ans.value.includes("•") ? (
-                      <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
-                        {ans.value
-                          .split("\n")
-                          .filter((l) => l.trim().startsWith("•"))
-                          .map((line, lIdx) => {
-                            const match = line.match(
-                              /•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\](?:\s*@\s*(.*?)=\s*(.*?))?$/i
-                            );
-                            if (match) {
-                              const [, qty, size, sleeve, unitPrice, subtotal] = match;
-                              return (
-                                <div
-                                  key={lIdx}
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    gap: 8,
-                                    background: "#ffffff",
-                                    padding: "7px 12px",
-                                    borderRadius: 6,
-                                    border: "1px solid var(--border-soft)",
-                                  }}
-                                >
-                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <span
-                                      style={{
-                                        background: "rgba(185, 28, 28, 0.1)",
-                                        color: "var(--primary-700)",
-                                        fontWeight: 700,
-                                        fontSize: 11.5,
-                                        padding: "2px 7px",
-                                        borderRadius: 4,
-                                      }}
-                                    >
-                                      {qty} pcs
-                                    </span>
-                                    <strong style={{ fontSize: 13, color: "var(--text)" }}>
-                                      Ukuran {size}
-                                    </strong>
-                                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                                      · {sleeve}
-                                    </span>
-                                  </div>
-                                  {subtotal && (
-                                    <div style={{ textAlign: "right" }}>
-                                      <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--navy-900, #0f172a)" }}>
-                                        {subtotal.trim()}
-                                      </span>
-                                      {unitPrice && (
-                                        <span style={{ display: "block", fontSize: 10.5, color: "var(--text-muted)" }}>
-                                          @{unitPrice.trim()}
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            }
-                            return (
-                              <div key={lIdx} style={{ fontSize: 13, color: "var(--text)" }}>
-                                {line}
-                              </div>
-                            );
-                          })}
-                        {ans.value.split("\n").find((l) => l.includes("Total:")) && (
-                          <div
-                            style={{
-                              fontSize: 12.5,
-                              fontWeight: 700,
-                              color: "var(--primary-700)",
-                              background: "rgba(185, 28, 28, 0.08)",
-                              padding: "6px 12px",
-                              borderRadius: 8,
-                              marginTop: 4,
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 6,
-                            }}
-                          >
-                            <span>📦</span>
-                            <span>{ans.value.split("\n").find((l) => l.includes("Total:"))}</span>
-                          </div>
                         )}
                       </div>
                     ) : (
@@ -482,45 +367,40 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
                 </div>
               ))}
             </div>
-          )}
-        </div>
-
-        {/* SECTION 3: CATATAN INTERNAL ADMIN */}
-        <div
-          style={{
-            padding: 16,
-            background: "#ffffff",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-md)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <Edit3 size={16} style={{ color: "var(--primary-700)" }} />
-            <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Catatan Internal Admin</h4>
           </div>
+        )}
+
+        {/* CATATAN INTERNAL ADMIN */}
+        <div>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--navy-900)", margin: "0 0 12px 0", letterSpacing: "0.5px" }}>
+            CATATAN INTERNAL ADMIN
+          </h3>
+          <div style={{ height: 1, background: "var(--border)", marginBottom: 16 }} />
+          
           <p style={{ margin: "0 0 10px 0", fontSize: 12, color: "var(--text-muted)" }}>
-            Catatan ini hanya dapat dilihat oleh admin MB Chondro (tidak terlihat oleh customer).
+            Catatan ini hanya dapat dilihat oleh admin MB Chondro dan tidak terlihat oleh customer.
           </p>
-          <textarea
-            className="form-input"
-            rows={3}
-            placeholder="Tulis catatan pengerjaan, estimasi biaya, penanggung jawab, dll..."
-            value={adminNote}
-            onChange={(e) => setAdminNote(e.target.value)}
-            style={{ width: "100%", fontSize: 13 }}
-          />
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+          <div style={{ background: "var(--bg-soft)", padding: 16, borderRadius: "var(--radius-md)", border: "1px solid var(--border-soft)" }}>
+            <textarea
+              className="form-input"
+              rows={3}
+              placeholder="Tulis catatan pengerjaan, estimasi biaya, penanggung jawab, dll..."
+              value={adminNote}
+              onChange={(e) => setAdminNote(e.target.value)}
+              style={{ width: "100%", fontSize: 13, background: "#fff", border: "1px solid var(--border)", marginBottom: 12 }}
+            />
             <button
               type="button"
               className="btn btn-primary btn-sm"
               onClick={handleSaveNote}
               disabled={updating}
-              style={{ fontSize: 12, padding: "6px 14px" }}
+              style={{ fontSize: 12, padding: "6px 16px" }}
             >
               Simpan Catatan
             </button>
           </div>
         </div>
+        
       </div>
     </Modal>
   );

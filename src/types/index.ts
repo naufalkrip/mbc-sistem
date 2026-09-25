@@ -255,7 +255,8 @@ export type OrderFieldType =
   | "whatsapp"
   | "file"
   | "variant_matrix"
-  | "product_configuration";
+  | "product_configuration"
+  | "info_text";
 
 export interface OrderFieldOption {
   id: string;

@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import {
   CheckCircle2,
   AlertCircle,
+  Info,
   Send,
   Loader2,
   Lock,
@@ -155,6 +156,7 @@ export function PublicOrderForm() {
       }
     >
   >({});
+  const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
   const [variantRows, setVariantRows] = useState<Record<string, OrderVariantItem[]>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isPreviewing, setIsPreviewing] = useState(false);
@@ -371,10 +373,16 @@ export function PublicOrderForm() {
       return;
     }
 
+    setUploadingFiles((prev) => ({ ...prev, [field.id]: true }));
     try {
       let base64 = "";
       if (file.type.startsWith("image/")) {
-        base64 = await compressImageToFhd(file, 1920, 0.88);
+        try {
+          base64 = await compressImageToFhd(file, 1920, 0.88);
+        } catch (err) {
+          console.warn("Compression failed, fallback to raw base64:", err);
+          base64 = await fileToBase64(file);
+        }
       } else {
         base64 = await fileToBase64(file);
       }
@@ -390,6 +398,8 @@ export function PublicOrderForm() {
       handleInputChange(field.id, file.name);
     } catch {
       toastError("Gagal membaca berkas unggahan.");
+    } finally {
+      setUploadingFiles((prev) => ({ ...prev, [field.id]: false }));
     }
   };
 
@@ -416,7 +426,7 @@ export function PublicOrderForm() {
 
     sortedFields.forEach((fld) => {
       const val = answers[fld.id] || "";
-      if (fld.required && !val.trim()) {
+      if (fld.required && !val.trim() && fld.fieldType !== "info_text") {
         errors[fld.id] = `${fld.label} wajib diisi.`;
       }
       // Validasi khusus varian ukuran & jumlah
@@ -460,19 +470,21 @@ export function PublicOrderForm() {
 
     setSubmitting(true);
 
-    const formattedAnswers: CustomerAnswerState[] = sortedFields.map((fld) => {
-      const val = answers[fld.id] || "";
-      const fileData = fileAnswers[fld.id];
-      return {
-        fieldId: fld.id,
-        label: fld.label,
-        value: val,
-        fileUrl: fileData?.url,
-        fileName: fileData?.name,
-        fileSize: fileData?.size,
-        fileType: fileData?.type,
-      };
-    });
+    const formattedAnswers: CustomerAnswerState[] = sortedFields
+      .filter((fld) => fld.fieldType !== "info_text")
+      .map((fld) => {
+        const val = answers[fld.id] || "";
+        const fileData = fileAnswers[fld.id];
+        return {
+          fieldId: fld.id,
+          label: fld.label,
+          value: val,
+          fileUrl: fileData?.url,
+          fileName: fileData?.name,
+          fileSize: fileData?.size,
+          fileType: fileData?.type,
+        };
+      });
 
     const res = await submitCustomerOrderApi({
       formId: form.id,
@@ -1020,6 +1032,60 @@ export function PublicOrderForm() {
               {sortedFields.map((field, idx) => {
                 const value = answers[field.id] || "";
                 const hasError = Boolean(formErrors[field.id]);
+
+                if (field.fieldType === "info_text") {
+                  return (
+                    <div
+                      key={field.id}
+                      id={`field-${field.id}`}
+                      style={{
+                        background: "rgba(224, 242, 254, 0.4)",
+                        border: "1px solid rgba(186, 230, 253, 0.8)",
+                        padding: "16px 18px",
+                        borderRadius: 12,
+                        marginBottom: 16,
+                      }}
+                    >
+                      <h4 style={{ margin: "0 0 8px", fontSize: "15px", color: "#0284c7" }}>
+                        <Info size={18} style={{ display: "inline", verticalAlign: "middle", marginRight: 6, marginTop: -2 }} />
+                        {field.label}
+                      </h4>
+                      {field.description && (
+                        <div style={{ fontSize: "13.5px", color: "#334155", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                          {field.description}
+                        </div>
+                      )}
+                      {field.imageUrl && (
+                        <div style={{ marginTop: 12 }}>
+                          <img
+                            src={field.imageUrl}
+                            alt={field.imageTitle || "Info Image"}
+                            onClick={() =>
+                              setActiveLightboxImage({
+                                url: field.imageUrl || "",
+                                title: field.imageTitle || field.label,
+                              })
+                            }
+                            style={{
+                              maxWidth: "100%",
+                              maxHeight: 300,
+                              objectFit: "contain",
+                              borderRadius: 8,
+                              border: "1px solid #cbd5e1",
+                              cursor: "zoom-in",
+                              backgroundColor: "#fff",
+                            }}
+                          />
+                          {field.imageTitle && (
+                            <p style={{ margin: "6px 0 0", fontSize: "12px", color: "var(--text-muted)", textAlign: "center" }}>
+                              {field.imageTitle}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
 
                 return (
                   <div
@@ -1677,10 +1743,10 @@ export function PublicOrderForm() {
                                 justifyContent: "center",
                               }}
                             >
-                              <Upload size={22} />
+                              {uploadingFiles[field.id] ? <Loader2 size={22} className="animate-spin" /> : <Upload size={22} />}
                             </div>
                             <span style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--navy-900)" }}>
-                              Pilih Berkas Lampiran / Gambar
+                              {uploadingFiles[field.id] ? "Memproses gambar..." : "Pilih Berkas Lampiran / Gambar"}
                             </span>
                             <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                               Format PDF, JPG, PNG, DOC (Maksimal 5 MB)
@@ -1688,11 +1754,13 @@ export function PublicOrderForm() {
                             <input
                               type="file"
                               accept="image/*,.pdf,.doc,.docx"
+                              onClick={(e) => { (e.target as HTMLInputElement).value = "" }}
                               onChange={(e) => {
                                 const file = e.target.files?.[0] || null;
                                 void handleFileUpload(field, file);
                               }}
                               style={{ display: "none" }}
+                              disabled={uploadingFiles[field.id]}
                             />
                           </label>
                         ) : (
