@@ -45,6 +45,8 @@ import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { Pagination } from "../components/ui/Pagination";
 import { DownloadPdfButton } from "../components/ui/DownloadPdfButton";
 import { EmptyState } from "../components/ui/EmptyState";
+import { ActionDropdown } from "../components/ui/ActionDropdown";
+
 
 const KEGIATAN_SUGGEST = [
   "Rapat Rutin",
@@ -682,11 +684,11 @@ export function Absensi() {
       key: "aksi",
       header: "Aksi",
       render: (r) => (
-        <div className="action-group">
-          <button className="action-btn" data-tooltip="Detail" aria-label="Detail" onClick={(e) => { e.stopPropagation(); setDetailSesi(r); }}><Eye size={16} /></button>
-          <button className="action-btn" data-tooltip="Edit" aria-label="Edit" onClick={(e) => { e.stopPropagation(); openEdit(r); }}><Pencil size={16} /></button>
-          <button className="action-btn danger" data-tooltip="Hapus" aria-label="Hapus" onClick={(e) => { e.stopPropagation(); setToDelete(r); }}><Trash2 size={16} /></button>
-        </div>
+        <ActionDropdown items={[
+          { label: "Detail", icon: <Eye size={14} />, onClick: () => setDetailSesi(r) },
+          { label: "Edit", icon: <Pencil size={14} />, onClick: () => openEdit(r) },
+          { label: "Hapus", icon: <Trash2 size={14} />, onClick: () => setToDelete(r), danger: true },
+        ]} />
       ),
     },
   ];

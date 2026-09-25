@@ -39,6 +39,8 @@ import { Modal } from "../components/ui/Modal";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import type { CouponLocation } from "../types";
 import { formatNoHp, toWaLink, isValidPhotoUrl } from "../utils/format";
+import { ActionDropdown } from "../components/ui/ActionDropdown";
+
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -613,41 +615,11 @@ export function Kupon() {
       header: "Aksi",
       className: "th-action",
       render: (r) => (
-        <div className="action-group">
-          <button
-            className="action-btn"
-            data-tooltip="Detail"
-            aria-label="Detail"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDetailLoc(r);
-            }}
-          >
-            <Eye size={16} />
-          </button>
-          <button
-            className="action-btn"
-            data-tooltip="Edit"
-            aria-label="Edit"
-            onClick={(e) => {
-              e.stopPropagation();
-              openEdit(r);
-            }}
-          >
-            <Pencil size={16} />
-          </button>
-          <button
-            className="action-btn danger"
-            data-tooltip="Hapus"
-            aria-label="Hapus"
-            onClick={(e) => {
-              e.stopPropagation();
-              setToDelete(r);
-            }}
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
+        <ActionDropdown items={[
+          { label: "Detail", icon: <Eye size={14} />, onClick: () => setDetailLoc(r) },
+          { label: "Edit", icon: <Pencil size={14} />, onClick: () => openEdit(r) },
+          { label: "Hapus", icon: <Trash2 size={14} />, onClick: () => setToDelete(r), danger: true },
+        ]} />
       ),
     },
   ];

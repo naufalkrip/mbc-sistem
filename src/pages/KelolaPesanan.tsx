@@ -47,6 +47,8 @@ import { WhatsAppBroadcastModal } from "../components/pesanan/WhatsAppBroadcastM
 import { exportOrdersToCSV, exportOrdersToPDF } from "../services/pesananExport";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { Modal } from "../components/ui/Modal";
+import { ActionDropdown } from "../components/ui/ActionDropdown";
+
 
 export function KelolaPesanan() {
   const { success: toastSuccess, error: toastError } = useToast();
@@ -398,36 +400,24 @@ export function KelolaPesanan() {
       key: "aksi",
       header: "Aksi",
       render: (row) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <button
-            type="button"
-            className="btn btn-outline btn-sm"
-            onClick={() => setBroadcastOrder(row)}
-            title="Kirim Pesan WhatsApp"
-            style={{ padding: "4px 8px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, color: "#16a34a", borderColor: "#16a34a" }}
-          >
-            <MessageCircle size={13} />
-            <span>Kirim WA</span>
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline btn-sm"
-            onClick={() => setSelectedOrder(row)}
-            style={{ padding: "4px 8px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}
-          >
-            <Eye size={13} />
-            <span>Detail</span>
-          </button>
-          <button
-            type="button"
-            className="btn-icon"
-            onClick={() => handleDeleteOrder(row.id)}
-            title="Hapus Pesanan"
-            style={{ color: "var(--danger)", padding: 4 }}
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
+        <ActionDropdown items={[
+          {
+            label: "Kirim WA",
+            icon: <MessageCircle size={14} />,
+            onClick: () => setBroadcastOrder(row),
+          },
+          {
+            label: "Detail",
+            icon: <Eye size={14} />,
+            onClick: () => setSelectedOrder(row),
+          },
+          {
+            label: "Hapus",
+            icon: <Trash2 size={14} />,
+            onClick: () => handleDeleteOrder(row.id),
+            danger: true,
+          },
+        ]} />
       ),
     },
   ];
