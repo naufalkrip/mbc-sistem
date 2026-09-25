@@ -1643,7 +1643,8 @@ export async function submitCustomerOrderApi(payload: {
 }): Promise<ApiResult<{ id: string; customerName: string; whatsapp: string; createdAt: string }>> {
   const orders = getLocalOrders();
   const nextNum = orders.length + 1;
-  const orderId = "ORD-" + ("00" + nextNum).slice(-3);
+  const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const orderId = "ORD-" + ("000" + nextNum).slice(-4) + "-" + randomStr;
   const now = new Date().toISOString();
 
   let customerName = payload.customerName || "";

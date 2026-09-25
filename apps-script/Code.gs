@@ -2721,7 +2721,7 @@ function getOrders(formId) {
       answers: myAnswers,
       form: formMap[order.formId] || null
     };
-  }).reverse(); // Pesanan terbaru di atas
+  }); // Terlama ke terbaru
 }
 
 function addOrder(data) {
@@ -2735,7 +2735,8 @@ function addOrder(data) {
   var ordCfg = getSheetConfig("ORDERS");
   var allOrders = readRows(ordCfg);
   var nextNum = allOrders.length + 1;
-  var ordId = "ORD-" + ("00" + nextNum).slice(-3); // e.g. ORD-001, ORD-002
+  var randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+  var ordId = "ORD-" + ("000" + nextNum).slice(-4) + "-" + randomStr; // e.g. ORD-0001-A1B2
 
   var now = new Date().toISOString();
   var customerName = String(data.customerName || "").trim();

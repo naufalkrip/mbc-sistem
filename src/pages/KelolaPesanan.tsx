@@ -154,7 +154,7 @@ export function KelolaPesanan() {
       }
 
       return true;
-    });
+    }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [orderList, statusFilter, dateFilter, searchQuery]);
 
   // Handlers
