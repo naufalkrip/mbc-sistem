@@ -24,7 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [sessionNotice, setSessionNotice] = useState<string | null>(() => {
     try {
-      return localStorage.getItem(SESSION_EXPIRED_KEY);
+      return sessionStorage.getItem(SESSION_EXPIRED_KEY) || localStorage.getItem(SESSION_EXPIRED_KEY);
     } catch {
       return null;
     }
@@ -32,17 +32,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [user, setUser] = useState<User | null>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const lastActive = localStorage.getItem(LAST_ACTIVITY_KEY);
+      // Hapus sisa autentikasi lama di localStorage agar sesi diperketat per jendela
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(LAST_ACTIVITY_KEY);
+
+      const stored = sessionStorage.getItem(STORAGE_KEY);
+      const lastActive = sessionStorage.getItem(LAST_ACTIVITY_KEY);
 
       if (stored) {
-        // Cek apakah sesi yang tersimpan sudah melebihi batas waktu inaktivitas
+        // Cek apakah sesi yang tersimpan di jendela ini sudah melebihi batas waktu inaktivitas
         if (lastActive) {
           const timeElapsed = Date.now() - parseInt(lastActive, 10);
           if (timeElapsed > INACTIVITY_TIMEOUT_MS) {
-            localStorage.removeItem(STORAGE_KEY);
-            localStorage.removeItem(LAST_ACTIVITY_KEY);
-            localStorage.setItem(
+            sessionStorage.removeItem(STORAGE_KEY);
+            sessionStorage.removeItem(LAST_ACTIVITY_KEY);
+            sessionStorage.setItem(
               SESSION_EXPIRED_KEY,
               "Sesi Anda telah berakhir karena tidak ada aktivitas selama 15 menit. Silakan masuk kembali."
             );
@@ -50,12 +54,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
         // Perbarui timestamp aktivitas saat ini jika masih aktif
-        localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+        sessionStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
         return JSON.parse(stored) as User;
       }
     } catch {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(LAST_ACTIVITY_KEY);
+      sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(LAST_ACTIVITY_KEY);
     }
     return null;
   });
@@ -66,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const clearSessionNotice = useCallback(() => {
     setSessionNotice(null);
     try {
+      sessionStorage.removeItem(SESSION_EXPIRED_KEY);
       localStorage.removeItem(SESSION_EXPIRED_KEY);
     } catch {
       // ignore
@@ -75,13 +80,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback((reason?: string) => {
     setUser(null);
     try {
+      sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(LAST_ACTIVITY_KEY);
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(LAST_ACTIVITY_KEY);
       if (reason) {
-        localStorage.setItem(SESSION_EXPIRED_KEY, reason);
+        sessionStorage.setItem(SESSION_EXPIRED_KEY, reason);
         setSessionNotice(reason);
       } else {
-        localStorage.removeItem(SESSION_EXPIRED_KEY);
+        sessionStorage.removeItem(SESSION_EXPIRED_KEY);
         setSessionNotice(null);
       }
     } catch {
@@ -96,9 +103,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const loggedUser = await loginApi(username, password);
         const now = Date.now().toString();
         setUser(loggedUser);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(loggedUser));
-        localStorage.setItem(LAST_ACTIVITY_KEY, now);
-        localStorage.removeItem(SESSION_EXPIRED_KEY);
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(loggedUser));
+        sessionStorage.setItem(LAST_ACTIVITY_KEY, now);
+        sessionStorage.removeItem(SESSION_EXPIRED_KEY);
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(LAST_ACTIVITY_KEY);
         setSessionNotice(null);
         return loggedUser;
       } finally {
@@ -135,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (now - lastWriteRef.current > 3000) {
         lastWriteRef.current = now;
         try {
-          localStorage.setItem(LAST_ACTIVITY_KEY, now.toString());
+          sessionStorage.setItem(LAST_ACTIVITY_KEY, now.toString());
         } catch {
           // ignore
         }
@@ -145,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Fungsi pengecekan inaktivitas
     const checkInactivity = () => {
       try {
-        const lastActiveStr = localStorage.getItem(LAST_ACTIVITY_KEY);
+        const lastActiveStr = sessionStorage.getItem(LAST_ACTIVITY_KEY);
         if (!lastActiveStr) {
           updateActivity();
           return;
