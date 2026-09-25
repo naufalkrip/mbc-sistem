@@ -10,6 +10,7 @@ import {
   WalletCards,
   FileText,
   UserPlus,
+  ShoppingBag,
   LogOut,
   ChevronRight,
   ShieldCheck,
@@ -33,6 +34,8 @@ export function BottomNav({}: BottomNavProps) {
   };
 
   const isMoreActive =
+    location.pathname === "/pesanan" ||
+    location.pathname.startsWith("/pesanan/") ||
     location.pathname === "/keuangan-media" ||
     location.pathname === "/transaksi" ||
     location.pathname.startsWith("/transaksi/") ||
@@ -172,6 +175,21 @@ export function BottomNav({}: BottomNavProps) {
                   <div className="mobile-sheet-link-info">
                     <strong>Rekruitmen</strong>
                     <span>Penerimaan & seleksi pendaftar baru</span>
+                  </div>
+                  <ChevronRight size={16} className="chevron-right" />
+                </NavLink>
+
+                <NavLink
+                  to="/pesanan"
+                  className={({ isActive }) => `mobile-sheet-link ${isActive ? "active" : ""}`}
+                  onClick={() => setSheetOpen(false)}
+                >
+                  <div className="mobile-sheet-icon" style={{ background: "rgba(220, 38, 38, 0.12)", color: "var(--primary-700)" }}>
+                    <ShoppingBag size={18} />
+                  </div>
+                  <div className="mobile-sheet-link-info">
+                    <strong>Kelola Pesanan</strong>
+                    <span>Formulir & pemesanan kaos MBC</span>
                   </div>
                   <ChevronRight size={16} className="chevron-right" />
                 </NavLink>

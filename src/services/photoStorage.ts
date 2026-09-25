@@ -4,6 +4,8 @@
  * meskipun Apps Script backend belum di-deploy ulang atau respons server tertunda.
  */
 
+import { isValidPhotoUrl } from "../utils/format";
+
 const STORAGE_PREFIX = "mbc_member_photo_id_";
 const NAME_PREFIX = "mbc_member_photo_name_";
 
@@ -11,7 +13,7 @@ export function saveMemberPhoto(id: string, name: string, photoBase64: string): 
   if (typeof window === "undefined" || !window.localStorage) return;
   try {
     const cleanPhoto = (photoBase64 || "").trim();
-    if (cleanPhoto) {
+    if (cleanPhoto && isValidPhotoUrl(cleanPhoto)) {
       if (id) localStorage.setItem(`${STORAGE_PREFIX}${id}`, cleanPhoto);
       if (name) localStorage.setItem(`${NAME_PREFIX}${name.toLowerCase().trim()}`, cleanPhoto);
     } else {
@@ -28,18 +30,27 @@ export function getMemberPhoto(id?: string, name?: string): string | undefined {
   try {
     if (id) {
       const byId = localStorage.getItem(`${STORAGE_PREFIX}${id}`);
-      if (byId) return byId;
+      if (byId) {
+        if (isValidPhotoUrl(byId)) {
+          return byId;
+        }
+        // Bersihkan foto rusak/terpotong dari localStorage
+        localStorage.removeItem(`${STORAGE_PREFIX}${id}`);
+      }
     }
     if (name) {
       const byName = localStorage.getItem(`${NAME_PREFIX}${name.toLowerCase().trim()}`);
       if (byName) {
-        // Otomatis tautkan ke ID jika ID sudah tersedia
-        if (id) {
-          try {
-            localStorage.setItem(`${STORAGE_PREFIX}${id}`, byName);
-          } catch {}
+        if (isValidPhotoUrl(byName)) {
+          if (id) {
+            try {
+              localStorage.setItem(`${STORAGE_PREFIX}${id}`, byName);
+            } catch {}
+          }
+          return byName;
         }
-        return byName;
+        // Bersihkan foto rusak/terpotong dari localStorage
+        localStorage.removeItem(`${NAME_PREFIX}${name.toLowerCase().trim()}`);
       }
     }
   } catch {

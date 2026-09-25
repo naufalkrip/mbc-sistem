@@ -375,18 +375,42 @@ export function toWaLink(phone: string): string {
   return `https://wa.me/${digits}`;
 }
 
+/** Memvalidasi URL foto atau data URL Base64 agar tidak menyebabkan 'Data URL decoding failed' */
+export function isValidPhotoUrl(url?: string | null): boolean {
+  if (!url || typeof url !== "string") return false;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === "undefined" || trimmed === "null" || trimmed === "-" || trimmed.length < 10) return false;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("blob:")) return true;
+  if (!trimmed.startsWith("data:image/")) return false;
+  const comma = trimmed.indexOf(",");
+  if (comma === -1) return false;
+  const b64 = trimmed.slice(comma + 1).trim();
+  if (!b64 || b64.length < 32 || b64.length % 4 !== 0) return false;
+  if (!/^[A-Za-z0-9+/=]+$/.test(b64)) return false;
+  try {
+    if (typeof window !== "undefined" && typeof window.atob === "function") {
+      const tail = b64.slice(-120);
+      window.atob(tail.length % 4 === 0 ? tail : tail.slice(0, -(tail.length % 4)));
+    }
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 /** Normalisasi data anggota dari API (Apps Script dapat mengirim data dengan kunci berbeda) */
 export function normAnggota(raw: Record<string, unknown>): Anggota {
   const id = String(raw.IDAnggota ?? raw.id ?? "");
   const nama = String(raw.NamaLengkap ?? raw.nama ?? "");
   const rawPhoto = raw.Foto ? String(raw.Foto) : raw.foto ? String(raw.foto) : undefined;
-  const cleanServerPhoto = rawPhoto && rawPhoto.trim() ? rawPhoto.trim() : undefined;
+  const cleanServerPhoto = rawPhoto && isValidPhotoUrl(rawPhoto) ? rawPhoto.trim() : undefined;
 
   if (cleanServerPhoto) {
     saveMemberPhoto(id, nama, cleanServerPhoto);
   }
 
-  const foto = cleanServerPhoto || getMemberPhoto(id, nama);
+  const localPhoto = getMemberPhoto(id, nama);
+  const foto = cleanServerPhoto || (localPhoto && isValidPhotoUrl(localPhoto) ? localPhoto : undefined);
 
   return {
     id,
@@ -549,5 +573,44 @@ export function buatLinkWhatsAppLolos(
   if (!cleanNumber) return null;
 
   const pesan = buatPesanWhatsAppLolos(nama, judulFormulir, catatanKhusus);
+  return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(pesan)}`;
+}
+
+/**
+ * Membuat pesan template otomatis follow-up pesanan customer MB Chondro
+ */
+export function buatPesanWhatsAppPesanan(
+  nama: string,
+  orderId: string,
+  jenisPesanan?: string,
+  statusPesanan?: string
+): string {
+  const cleanName = (nama || "Customer").trim();
+  const orderTag = orderId ? `[${orderId}]` : "";
+  const produk = jenisPesanan ? ` untuk ${jenisPesanan}` : "";
+  const statusInfo = statusPesanan ? ` saat ini berstatus *${statusPesanan.toUpperCase()}*` : "";
+
+  return (
+    `Halo kak ${cleanName},\n\n` +
+    `Kami dari admin *MB Chondro*. Menindaklanjuti formulir pesanan yang telah dikirimkan ${orderTag}${produk},\n` +
+    `pesanan Anda${statusInfo} dan sedang kami tangani.\n\n` +
+    `Apakah ada rincian spesifikasi tambahan atau ada hal yang ingin didiskusikan terlebih dahulu kak? Terima kasih 🙏`
+  );
+}
+
+/**
+ * Membuat link tautan langsung ke WhatsApp customer terkait pesanan
+ */
+export function buatLinkWhatsAppPesanan(
+  nomor: string | number | null | undefined,
+  nama: string,
+  orderId: string,
+  jenisPesanan?: string,
+  statusPesanan?: string
+): string | null {
+  const cleanNumber = formatNomorWhatsAppUrl(nomor);
+  if (!cleanNumber) return null;
+
+  const pesan = buatPesanWhatsAppPesanan(nama, orderId, jenisPesanan, statusPesanan);
   return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(pesan)}`;
 }

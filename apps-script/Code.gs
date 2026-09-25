@@ -117,6 +117,46 @@ var SHEET_CONFIG = [
     headers: ["id", "username", "password", "nama", "role", "status", "createdAt", "updatedAt"],
     keys: ["id", "username", "password", "nama", "role", "status", "createdAt", "updatedAt"],
     idCol: 0
+  },
+  {
+    key: "ORDER_FORM",
+    name: "ORDER_FORM",
+    idPrefix: "OF",
+    headers: ["id", "title", "description", "status", "publicLink", "createdAt", "updatedAt"],
+    keys: ["id", "title", "description", "status", "publicLink", "createdAt", "updatedAt"],
+    idCol: 0
+  },
+  {
+    key: "ORDER_FIELDS",
+    name: "ORDER_FIELDS",
+    idPrefix: "OFLD",
+    headers: ["id", "formId", "label", "description", "fieldType", "required", "options", "sortOrder", "placeholder", "maxFileSize", "createdAt", "updatedAt"],
+    keys: ["id", "formId", "label", "description", "fieldType", "required", "options", "sortOrder", "placeholder", "maxFileSize", "createdAt", "updatedAt"],
+    idCol: 0
+  },
+  {
+    key: "ORDERS",
+    name: "ORDERS",
+    idPrefix: "ORD",
+    headers: ["id", "formId", "customerName", "whatsapp", "status", "adminNote", "createdAt", "updatedAt"],
+    keys: ["id", "formId", "customerName", "whatsapp", "status", "adminNote", "createdAt", "updatedAt"],
+    idCol: 0
+  },
+  {
+    key: "ORDER_ANSWERS",
+    name: "ORDER_ANSWERS",
+    idPrefix: "OANS",
+    headers: ["id", "orderId", "fieldId", "label", "value", "fileUrl", "fileName", "fileType", "fileSize", "createdAt"],
+    keys: ["id", "orderId", "fieldId", "label", "value", "fileUrl", "fileName", "fileType", "fileSize", "createdAt"],
+    idCol: 0
+  },
+  {
+    key: "KUPON_LOCATIONS",
+    name: "KUPON_LOCATIONS",
+    idPrefix: "KPN",
+    headers: ["id", "name", "picName", "whatsapp", "latitude", "longitude", "address", "description", "photoUrl", "status", "createdAt", "updatedAt"],
+    keys: ["id", "name", "picName", "whatsapp", "latitude", "longitude", "address", "description", "photoUrl", "status", "createdAt", "updatedAt"],
+    idCol: 0
   }
 ];
 
@@ -283,6 +323,38 @@ function executeAction(action, data) {
     case "getRekrutmenStats":
       return getRekrutmenStats(data.formId);
 
+    // ==================== KELOLA PESANAN ====================
+    case "getOrderForms":
+      return getOrderForms();
+    case "getOrderForm":
+      return getOrderForm(data.id);
+    case "addOrderForm":
+      return addOrderForm(data);
+    case "updateOrderForm":
+      return updateOrderForm(data);
+    case "deleteOrderForm":
+      return deleteOrderForm(data);
+    case "getOrderFields":
+      return getOrderFields(data.formId);
+    case "addOrderField":
+      return addOrderField(data);
+    case "updateOrderField":
+      return updateOrderField(data);
+    case "deleteOrderField":
+      return deleteOrderField(data);
+    case "reorderOrderFields":
+      return reorderOrderFields(data.formId, data.fieldOrders);
+    case "getOrders":
+      return getOrders(data.formId);
+    case "addOrder":
+      return addOrder(data);
+    case "updateOrderStatus":
+      return updateOrderStatus(data);
+    case "deleteOrder":
+      return deleteOrder(data);
+    case "getOrderStats":
+      return getOrderStats(data.formId);
+
     // Users & Autentikasi
     case "login":
       return loginUser(data.username, data.password);
@@ -294,6 +366,16 @@ function executeAction(action, data) {
       return updateUser(data);
     case "deleteUser":
       return deleteUser(data);
+
+    // Kupon Lokasi
+    case "getCouponLocations":
+      return getCouponLocations(data ? (data.activeOnly === true || data.activeOnly === "true") : false);
+    case "addCouponLocation":
+      return addCouponLocation(data);
+    case "updateCouponLocation":
+      return updateCouponLocation(data);
+    case "deleteCouponLocation":
+      return deleteCouponLocation(data);
 
     default:
       throw new Error("Action tidak dikenal: " + action);
@@ -348,8 +430,16 @@ var HEADER_ALIASES = {
   "nohp": ["nohp", "no. hp", "no hp", "nomor hp", "nomor handphone", "telepon", "phone", "wa"],
   "status": ["status", "status keaktifan", "keaktifan"],
   "tanggalbergabung": ["tanggal bergabung", "tanggal_bergabung", "tanggalbergabung", "tgl bergabung", "join date"],
-  "keterangan": ["keterangan", "catatan", "notes", "ket"],
-  "foto": ["foto", "photo", "image", "avatar", "foto profil", "gambar"]
+  "keterangan": ["keterangan", "catatan", "notes", "ket", "deskripsi", "description"],
+  "foto": ["foto", "photo", "image", "avatar", "foto profil", "gambar", "photourl"],
+  "name": ["name", "nama", "nama lokasi"],
+  "picname": ["picname", "pic_name", "pic", "penanggung jawab"],
+  "whatsapp": ["whatsapp", "wa", "no hp", "nohp", "telepon"],
+  "latitude": ["latitude", "lat"],
+  "longitude": ["longitude", "lng", "lon"],
+  "address": ["address", "alamat"],
+  "description": ["description", "deskripsi", "keterangan"],
+  "photourl": ["photourl", "photo_url", "foto", "gambar"]
 };
 
 function resolveColumnIndex(colMap, key, header) {
@@ -643,6 +733,49 @@ function buildRowArray(sheet, cfg, dataObj) {
     }
   }
   return row;
+}
+
+function createRow(cfg, dataObj) {
+  var sheet = getOrCreateSheet(cfg);
+  if (!dataObj.id) {
+    dataObj.id = generateId(cfg);
+  }
+  var row = buildRowArray(sheet, cfg, dataObj);
+  sheet.appendRow(row);
+  return dataObj;
+}
+
+function updateRow(cfg, id, dataObj) {
+  var rowIndex = findRowIndex(cfg, id);
+  if (rowIndex === -1) throw new Error("Data dengan ID " + id + " tidak ditemukan.");
+  var sheet = getOrCreateSheet(cfg);
+  var lastCol = Math.max(sheet.getLastColumn(), cfg.keys.length);
+  var existingValues = sheet.getRange(rowIndex, 1, 1, lastCol).getValues()[0];
+  var headerMap = getHeaderIndexMap(sheet);
+  var mergedObj = {};
+  for (var k = 0; k < cfg.keys.length; k++) {
+    var key = cfg.keys[k];
+    var header = cfg.headers[k];
+    var colIdx = resolveColumnIndex(headerMap, key, header);
+    mergedObj[key] = (colIdx >= 0 && colIdx < existingValues.length) ? existingValues[colIdx] : "";
+  }
+  for (var prop in dataObj) {
+    if (dataObj[prop] !== undefined) {
+      mergedObj[prop] = dataObj[prop];
+    }
+  }
+  mergedObj.id = id;
+  var newRow = buildRowArray(sheet, cfg, mergedObj);
+  sheet.getRange(rowIndex, 1, 1, newRow.length).setValues([newRow]);
+  return mergedObj;
+}
+
+function deleteRow(cfg, id) {
+  var rowIndex = findRowIndex(cfg, id);
+  if (rowIndex === -1) throw new Error("Data dengan ID " + id + " tidak ditemukan.");
+  var sheet = getOrCreateSheet(cfg);
+  sheet.deleteRow(rowIndex);
+  return { success: true };
 }
 
 function hitungSaldo(list) {
@@ -2314,5 +2447,460 @@ function updateUser(data) {
 function deleteUser(data) {
   if (!data.id) throw new Error("ID Pengguna tidak ditemukan.");
   var cfg = getSheetConfig("USERS");
+  return deleteRow(cfg, data.id);
+}
+
+// ============================================================
+// KELOLA PESANAN (ORDER MANAGEMENT) FUNCTIONS
+// ============================================================
+
+function getOrderForms() {
+  var rows = readRows(getSheetConfig("ORDER_FORM"));
+  var fieldsRows = readRows(getSheetConfig("ORDER_FIELDS"));
+  var ordersRows = readRows(getSheetConfig("ORDERS"));
+
+  return rows.map(function(form) {
+    var flds = fieldsRows.filter(function(f) {
+      return String(f.formId) === String(form.id);
+    }).sort(function(a, b) {
+      return Number(a.sortOrder || 0) - Number(b.sortOrder || 0);
+    }).map(function(f) {
+      var options = [];
+      try {
+        if (typeof f.options === "string" && f.options) options = JSON.parse(f.options);
+        else if (Array.isArray(f.options)) options = f.options;
+      } catch (e) {
+        options = [];
+      }
+      return {
+        id: String(f.id),
+        formId: String(f.formId),
+        label: String(f.label),
+        description: String(f.description || ""),
+        fieldType: String(f.fieldType || "text"),
+        required: Boolean(f.required === true || f.required === "true"),
+        options: options,
+        sortOrder: Number(f.sortOrder || 0),
+        placeholder: f.placeholder ? String(f.placeholder) : "",
+        maxFileSize: f.maxFileSize ? Number(f.maxFileSize) : 5,
+        createdAt: f.createdAt,
+        updatedAt: f.updatedAt
+      };
+    });
+
+    var count = ordersRows.filter(function(o) {
+      return String(o.formId) === String(form.id);
+    }).length;
+
+    return {
+      id: String(form.id),
+      title: String(form.title),
+      description: String(form.description || ""),
+      status: String(form.status || "aktif"),
+      publicLink: String(form.publicLink || ("/order/form/" + form.id)),
+      createdAt: form.createdAt,
+      updatedAt: form.updatedAt,
+      fields: flds,
+      responseCount: count
+    };
+  });
+}
+
+function getOrderForm(id) {
+  var forms = getOrderForms();
+  if (!id) {
+    return forms.length > 0 ? forms[0] : null;
+  }
+  for (var i = 0; i < forms.length; i++) {
+    if (String(forms[i].id) === String(id)) return forms[i];
+  }
+  return forms.length > 0 ? forms[0] : null;
+}
+
+function addOrderForm(data) {
+  if (!data.title || !String(data.title).trim()) throw new Error("Judul formulir pesanan wajib diisi.");
+  var cfg = getSheetConfig("ORDER_FORM");
+  var id = generateId(cfg);
+  var now = new Date().toISOString();
+  var pubLink = "/order/form/" + id;
+
+  var item = {
+    id: id,
+    title: String(data.title).trim(),
+    description: String(data.description || "").trim(),
+    status: String(data.status || "aktif"),
+    publicLink: pubLink,
+    createdAt: now,
+    updatedAt: now
+  };
+  createRow(cfg, item);
+
+  // Jika ada fields disertakan
+  if (Array.isArray(data.fields) && data.fields.length > 0) {
+    var fldCfg = getSheetConfig("ORDER_FIELDS");
+    for (var i = 0; i < data.fields.length; i++) {
+      var f = data.fields[i];
+      var fId = generateId(fldCfg);
+      createRow(fldCfg, {
+        id: fId,
+        formId: id,
+        label: String(f.label || "").trim(),
+        description: String(f.description || "").trim(),
+        fieldType: String(f.fieldType || "text"),
+        required: Boolean(f.required),
+        options: JSON.stringify(f.options || []),
+        sortOrder: i,
+        placeholder: String(f.placeholder || "").trim(),
+        maxFileSize: f.maxFileSize ? Number(f.maxFileSize) : 5,
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+  }
+
+  return getOrderForm(id);
+}
+
+function updateOrderForm(data) {
+  if (!data.id) throw new Error("ID formulir pesanan tidak ditemukan.");
+  var cfg = getSheetConfig("ORDER_FORM");
+  var now = new Date().toISOString();
+  var item = {
+    title: String(data.title || "").trim(),
+    description: String(data.description || "").trim(),
+    status: String(data.status || "aktif"),
+    publicLink: String(data.publicLink || ("/order/form/" + data.id)),
+    updatedAt: now
+  };
+  updateRow(cfg, data.id, item);
+
+  // Jika update fields
+  if (Array.isArray(data.fields)) {
+    var fldCfg = getSheetConfig("ORDER_FIELDS");
+    // Hapus fields lama
+    var existingFlds = readRows(fldCfg).filter(function(f) { return String(f.formId) === String(data.id); });
+    for (var j = 0; j < existingFlds.length; j++) {
+      deleteRow(fldCfg, existingFlds[j].id);
+    }
+    // Tambah fields baru
+    for (var i = 0; i < data.fields.length; i++) {
+      var f = data.fields[i];
+      var fId = f.id || generateId(fldCfg);
+      createRow(fldCfg, {
+        id: fId,
+        formId: data.id,
+        label: String(f.label || "").trim(),
+        description: String(f.description || "").trim(),
+        fieldType: String(f.fieldType || "text"),
+        required: Boolean(f.required),
+        options: typeof f.options === "string" ? f.options : JSON.stringify(f.options || []),
+        sortOrder: i,
+        placeholder: String(f.placeholder || "").trim(),
+        maxFileSize: f.maxFileSize ? Number(f.maxFileSize) : 5,
+        createdAt: f.createdAt || now,
+        updatedAt: now
+      });
+    }
+  }
+
+  return getOrderForm(data.id);
+}
+
+function deleteOrderForm(data) {
+  if (!data.id) throw new Error("ID formulir pesanan tidak ditemukan.");
+  var cfg = getSheetConfig("ORDER_FORM");
+  deleteRow(cfg, data.id);
+
+  // Hapus child fields & orders & answers
+  var fldCfg = getSheetConfig("ORDER_FIELDS");
+  var flds = readRows(fldCfg).filter(function(f) { return String(f.formId) === String(data.id); });
+  for (var i = 0; i < flds.length; i++) deleteRow(fldCfg, flds[i].id);
+
+  var ordCfg = getSheetConfig("ORDERS");
+  var ords = readRows(ordCfg).filter(function(o) { return String(o.formId) === String(data.id); });
+  var ansCfg = getSheetConfig("ORDER_ANSWERS");
+  for (var j = 0; j < ords.length; j++) {
+    var orderId = ords[j].id;
+    deleteRow(ordCfg, orderId);
+    var ans = readRows(ansCfg).filter(function(a) { return String(a.orderId) === String(orderId); });
+    for (var k = 0; k < ans.length; k++) deleteRow(ansCfg, ans[k].id);
+  }
+
+  return { success: true };
+}
+
+function getOrderFields(formId) {
+  var rows = readRows(getSheetConfig("ORDER_FIELDS"));
+  return rows.filter(function(f) {
+    return !formId || String(f.formId) === String(formId);
+  }).sort(function(a, b) {
+    return Number(a.sortOrder || 0) - Number(b.sortOrder || 0);
+  });
+}
+
+function addOrderField(data) {
+  var cfg = getSheetConfig("ORDER_FIELDS");
+  var id = generateId(cfg);
+  var now = new Date().toISOString();
+  var item = {
+    id: id,
+    formId: String(data.formId),
+    label: String(data.label || "").trim(),
+    description: String(data.description || "").trim(),
+    fieldType: String(data.fieldType || "text"),
+    required: Boolean(data.required),
+    options: typeof data.options === "string" ? data.options : JSON.stringify(data.options || []),
+    sortOrder: Number(data.sortOrder || 0),
+    placeholder: String(data.placeholder || "").trim(),
+    maxFileSize: data.maxFileSize ? Number(data.maxFileSize) : 5,
+    createdAt: now,
+    updatedAt: now
+  };
+  return createRow(cfg, item);
+}
+
+function updateOrderField(data) {
+  if (!data.id) throw new Error("ID Pertanyaan tidak ditemukan.");
+  var cfg = getSheetConfig("ORDER_FIELDS");
+  data.updatedAt = new Date().toISOString();
+  if (data.options && typeof data.options !== "string") {
+    data.options = JSON.stringify(data.options);
+  }
+  return updateRow(cfg, data.id, data);
+}
+
+function deleteOrderField(data) {
+  if (!data.id) throw new Error("ID Pertanyaan tidak ditemukan.");
+  var cfg = getSheetConfig("ORDER_FIELDS");
+  return deleteRow(cfg, data.id);
+}
+
+function reorderOrderFields(formId, fieldOrders) {
+  if (!Array.isArray(fieldOrders)) return { success: true };
+  var cfg = getSheetConfig("ORDER_FIELDS");
+  var now = new Date().toISOString();
+  for (var i = 0; i < fieldOrders.length; i++) {
+    updateRow(cfg, fieldOrders[i].id, {
+      sortOrder: Number(fieldOrders[i].sortOrder),
+      updatedAt: now
+    });
+  }
+  return { success: true };
+}
+
+// ---------------- ORDERS ----------------
+
+function getOrders(formId) {
+  var ordRows = readRows(getSheetConfig("ORDERS"));
+  var ansRows = readRows(getSheetConfig("ORDER_ANSWERS"));
+  var formRows = readRows(getSheetConfig("ORDER_FORM"));
+
+  var formMap = {};
+  for (var f = 0; f < formRows.length; f++) {
+    formMap[formRows[f].id] = formRows[f];
+  }
+
+  var filtered = ordRows.filter(function(o) {
+    return !formId || String(o.formId) === String(formId);
+  });
+
+  return filtered.map(function(order) {
+    var myAnswers = ansRows.filter(function(a) {
+      return String(a.orderId) === String(order.id);
+    });
+
+    return {
+      id: String(order.id),
+      formId: String(order.formId),
+      customerName: String(order.customerName || ""),
+      whatsapp: String(order.whatsapp || ""),
+      status: String(order.status || "masuk"),
+      adminNote: String(order.adminNote || ""),
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      answers: myAnswers,
+      form: formMap[order.formId] || null
+    };
+  }).reverse(); // Pesanan terbaru di atas
+}
+
+function addOrder(data) {
+  if (!data.formId) throw new Error("Formulir pesanan wajib dipilih.");
+
+  var form = getOrderForm(data.formId);
+  if (form && String(form.status).toLowerCase() === "nonaktif") {
+    throw new Error("Formulir pemesanan ini saat ini dinonaktifkan dan tidak menerima pesanan baru.");
+  }
+
+  var ordCfg = getSheetConfig("ORDERS");
+  var allOrders = readRows(ordCfg);
+  var nextNum = allOrders.length + 1;
+  var ordId = "ORD-" + ("00" + nextNum).slice(-3); // e.g. ORD-001, ORD-002
+
+  var now = new Date().toISOString();
+  var customerName = String(data.customerName || "").trim();
+  var whatsapp = String(data.whatsapp || "").trim();
+
+  // Jika customerName/whatsapp belum diekstrak langsung, coba ambil dari answers
+  if (Array.isArray(data.answers)) {
+    for (var a = 0; a < data.answers.length; a++) {
+      var ansItem = data.answers[a];
+      var lbl = String(ansItem.label || "").toLowerCase();
+      if (!customerName && (lbl.includes("nama") || lbl.includes("customer") || lbl.includes("lengkap"))) {
+        customerName = String(ansItem.value || "").trim();
+      }
+      if (!whatsapp && (lbl.includes("wa") || lbl.includes("whatsapp") || lbl.includes("hp") || lbl.includes("telepon") || lbl.includes("phone"))) {
+        whatsapp = String(ansItem.value || "").trim();
+      }
+    }
+  }
+
+  var item = {
+    id: ordId,
+    formId: String(data.formId),
+    customerName: customerName || "Customer",
+    whatsapp: whatsapp,
+    status: "masuk",
+    adminNote: String(data.adminNote || ""),
+    createdAt: now,
+    updatedAt: now
+  };
+  createRow(ordCfg, item);
+
+  // Simpan answers
+  if (Array.isArray(data.answers) && data.answers.length > 0) {
+    var ansCfg = getSheetConfig("ORDER_ANSWERS");
+    for (var i = 0; i < data.answers.length; i++) {
+      var itemAns = data.answers[i];
+      var ansId = generateId(ansCfg);
+      createRow(ansCfg, {
+        id: ansId,
+        orderId: ordId,
+        fieldId: String(itemAns.fieldId || ""),
+        label: String(itemAns.label || ""),
+        value: String(itemAns.value || ""),
+        fileUrl: String(itemAns.fileUrl || ""),
+        fileName: String(itemAns.fileName || ""),
+        fileType: String(itemAns.fileType || ""),
+        fileSize: itemAns.fileSize ? Number(itemAns.fileSize) : 0,
+        createdAt: now
+      });
+    }
+  }
+
+  return {
+    id: ordId,
+    orderId: ordId,
+    status: "masuk",
+    customerName: customerName,
+    whatsapp: whatsapp,
+    createdAt: now,
+    message: "Pesanan berhasil dikirim."
+  };
+}
+
+function updateOrderStatus(data) {
+  if (!data.id) throw new Error("ID Pesanan tidak ditemukan.");
+  var cfg = getSheetConfig("ORDERS");
+  var now = new Date().toISOString();
+  var updatePayload = {
+    status: String(data.status || "masuk"),
+    updatedAt: now
+  };
+  if (data.adminNote !== undefined) {
+    updatePayload.adminNote = String(data.adminNote || "");
+  }
+  updateRow(cfg, data.id, updatePayload);
+  return { success: true, id: data.id, status: data.status };
+}
+
+function deleteOrder(data) {
+  if (!data.id) throw new Error("ID Pesanan tidak ditemukan.");
+  var cfg = getSheetConfig("ORDERS");
+  deleteRow(cfg, data.id);
+
+  var ansCfg = getSheetConfig("ORDER_ANSWERS");
+  var answers = readRows(ansCfg).filter(function(a) { return String(a.orderId) === String(data.id); });
+  for (var i = 0; i < answers.length; i++) {
+    deleteRow(ansCfg, answers[i].id);
+  }
+  return { success: true };
+}
+
+function getOrderStats(formId) {
+  var orders = readRows(getSheetConfig("ORDERS"));
+  var filtered = orders.filter(function(o) {
+    return !formId || String(o.formId) === String(formId);
+  });
+
+  var total = filtered.length;
+  var masuk = 0;
+  var diproses = 0;
+  var selesai = 0;
+
+  for (var i = 0; i < filtered.length; i++) {
+    var st = String(filtered[i].status || "").toLowerCase();
+    if (st === "masuk") masuk++;
+    else if (st === "diproses") diproses++;
+    else if (st === "selesai") selesai++;
+  }
+
+  return {
+    total: total,
+    masuk: masuk,
+    diproses: diproses,
+    selesai: selesai
+  };
+}
+
+// ============================================================
+// KUPON LOCATIONS
+// ============================================================
+
+function getCouponLocations(activeOnly) {
+  var cfg = getSheetConfig("KUPON_LOCATIONS");
+  var rows = readRows(cfg);
+  if (activeOnly) {
+    return rows.filter(function(r) {
+      return String(r.status || "").toLowerCase() === "aktif";
+    });
+  }
+  return rows;
+}
+
+function addCouponLocation(data) {
+  if (!data.name || !String(data.name).trim()) throw new Error("Nama lokasi / kupon wajib diisi.");
+  var cfg = getSheetConfig("KUPON_LOCATIONS");
+  var now = new Date().toISOString();
+  var item = {
+    id: generateId(cfg),
+    name: String(data.name || "").trim(),
+    picName: String(data.picName || "").trim(),
+    whatsapp: String(data.whatsapp || "").trim(),
+    latitude: Number(data.latitude || 0),
+    longitude: Number(data.longitude || 0),
+    address: String(data.address || "").trim(),
+    description: String(data.description || "").trim(),
+    photoUrl: String(data.photoUrl || "").trim(),
+    status: String(data.status || "aktif").toLowerCase() === "nonaktif" ? "nonaktif" : "aktif",
+    createdAt: now,
+    updatedAt: now
+  };
+  return createRow(cfg, item);
+}
+
+function updateCouponLocation(data) {
+  if (!data.id) throw new Error("ID lokasi kupon tidak ditemukan.");
+  var cfg = getSheetConfig("KUPON_LOCATIONS");
+  data.updatedAt = new Date().toISOString();
+  if (data.status) {
+    data.status = String(data.status).toLowerCase() === "nonaktif" ? "nonaktif" : "aktif";
+  }
+  return updateRow(cfg, data.id, data);
+}
+
+function deleteCouponLocation(data) {
+  if (!data.id) throw new Error("ID lokasi kupon tidak ditemukan.");
+  var cfg = getSheetConfig("KUPON_LOCATIONS");
   return deleteRow(cfg, data.id);
 }

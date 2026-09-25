@@ -9,6 +9,7 @@ import { Outlet } from "react-router-dom";
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/": { title: "Dashboard", subtitle: "Ringkasan data organisasi" },
+  "/pesanan": { title: "Kelola Pesanan", subtitle: "Kelola formulir, pesanan customer, dan status pengerjaan dalam satu tempat." },
   "/anggota": { title: "Data Anggota", subtitle: "Kelola anggota mbc sistem" },
   "/absensi": { title: "Absensi", subtitle: "Kelola kehadiran anggota mbc sistem" },
   "/keuangan": { title: "Keuangan mbc sistem", subtitle: "Kelola kas mbc sistem" },
@@ -16,6 +17,7 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/rekrutmen": { title: "Rekruitmen", subtitle: "Kelola pendaftaran calon anggota" },
   "/rekrutmen/daftar": { title: "Pendaftaran Anggota", subtitle: "Formulir pendaftaran calon anggota" },
   "/keuangan-media": { title: "Keuangan Media mbc sistem", subtitle: "Kelola kas Media mbc sistem" },
+  "/kupon/kelola": { title: "Kelola Kupon", subtitle: "Kelola titik penjualan kupon Jalan Sehat MB Chondro" },
 };
 
 export function Layout({ children }: { children?: ReactNode }) {

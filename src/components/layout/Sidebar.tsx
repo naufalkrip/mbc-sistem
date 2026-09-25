@@ -8,6 +8,8 @@ import {
   Users,
   Wallet,
   WalletCards,
+  ShoppingBag,
+  Ticket,
   X,
 } from "lucide-react";
 import logo from "../../aset/logo.png";
@@ -21,6 +23,8 @@ const NAV_ITEMS = [
   { to: "/keuangan-media", label: "Keuangan Media", icon: WalletCards },
   { to: "/transaksi", label: "Transaksi", icon: FileText },
   { to: "/rekrutmen", label: "Rekruitmen", icon: UserPlus },
+  { to: "/pesanan", label: "Kelola Pesanan", icon: ShoppingBag },
+  { to: "/kupon/kelola", label: "Kupon", icon: Ticket },
 ];
 
 interface SidebarProps {

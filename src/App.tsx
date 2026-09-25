@@ -14,6 +14,10 @@ import { TransaksiDetailPage } from "./pages/TransaksiDetail";
 import { Rekrutmen } from "./pages/Rekrutmen";
 import { RekrutmenDaftar } from "./pages/RekrutmenDaftar";
 import { PublicForm } from "./components/rekrutmen/PublicForm";
+import { KelolaPesanan } from "./pages/KelolaPesanan";
+import { PublicOrderForm } from "./pages/PublicOrderForm";
+import { Kupon } from "./pages/Kupon";
+import { PublicKupon } from "./pages/PublicKupon";
 import { NotFound } from "./pages/NotFound";
 import { usePreloadCriticalData } from "./hooks/usePreload";
 
@@ -29,6 +33,13 @@ function AppRoutes() {
       <Route path="/rekrutmen/form" element={<PublicForm />} />
       <Route path="/rekrutmen/form/:id" element={<PublicForm />} />
 
+      {/* Standalone Public Customer Order Form (No Admin Sidebar/Header, No Auth Required) */}
+      <Route path="/order/form" element={<PublicOrderForm />} />
+      <Route path="/order/form/:id" element={<PublicOrderForm />} />
+
+      {/* Standalone Public Kupon Map (No Admin Sidebar/Header, No Auth Required) */}
+      <Route path="/kupon" element={<PublicKupon />} />
+
       {/* Internal Protected Admin Management Routes */}
       <Route
         element={
@@ -38,6 +49,7 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<Dashboard />} />
+        <Route path="/pesanan" element={<KelolaPesanan />} />
         <Route path="/anggota" element={<Anggota />} />
         <Route path="/absensi" element={<Absensi />} />
         <Route path="/keuangan" element={<KeuanganChondro />} />
@@ -46,6 +58,7 @@ function AppRoutes() {
         <Route path="/transaksi/:id" element={<TransaksiDetailPage />} />
         <Route path="/rekrutmen" element={<Rekrutmen />} />
         <Route path="/rekrutmen/daftar" element={<RekrutmenDaftar />} />
+        <Route path="/kupon/kelola" element={<Kupon />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

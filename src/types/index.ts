@@ -239,3 +239,121 @@ export interface AuthSession {
   user: User;
   token: string;
 }
+
+// ============================================================
+// KELOLA PESANAN (ORDERS & ORDER FORMS)
+// ============================================================
+
+export type OrderFieldType =
+  | "text"
+  | "textarea"
+  | "number"
+  | "date"
+  | "select"
+  | "radio"
+  | "checkbox"
+  | "whatsapp"
+  | "file";
+
+export interface OrderFieldOption {
+  id: string;
+  label: string;
+}
+
+export interface OrderField {
+  id: string;
+  formId: string;
+  label: string;
+  description?: string;
+  fieldType: OrderFieldType;
+  placeholder?: string;
+  required: boolean;
+  options?: OrderFieldOption[];
+  sortOrder: number;
+  imageUrl?: string;
+  imageTitle?: string;
+  maxFileSize?: number; // MB
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface OrderForm {
+  id: string;
+  title: string;
+  description: string;
+  status: "aktif" | "nonaktif";
+  publicLink?: string;
+  bannerImageUrl?: string;
+  bannerImageTitle?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrderFormWithFields extends OrderForm {
+  fields: OrderField[];
+}
+
+export type OrderStatus = "masuk" | "diproses" | "selesai";
+
+export interface OrderAnswer {
+  id: string;
+  orderId: string;
+  fieldId: string;
+  label: string;
+  value: string;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileType?: string | null;
+  fileSize?: number | null;
+  createdAt?: string;
+}
+
+export interface Order {
+  id: string; // e.g. ORD-001
+  formId: string;
+  customerName: string;
+  whatsapp: string;
+  status: OrderStatus;
+  adminNote?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrderWithAnswers extends Order {
+  answers: OrderAnswer[];
+  form?: OrderForm;
+}
+
+export interface OrderStats {
+  total: number;
+  masuk: number;
+  diproses: number;
+  selesai: number;
+}
+
+// ============================================================
+// KUPON TYPES
+// ============================================================
+
+export type CouponLocationStatus = "aktif" | "nonaktif";
+
+export interface CouponLocation {
+  id: string;
+  name: string;
+  picName: string;
+  whatsapp: string;
+  latitude: number;
+  longitude: number;
+  address: string;
+  description?: string;
+  photoUrl?: string;
+  status: CouponLocationStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CouponStats {
+  total: number;
+  aktif: number;
+  nonaktif: number;
+}

@@ -15,7 +15,7 @@ import { saveMemberPhoto, getMemberPhoto, deleteMemberPhoto } from "../services/
 import { laporanAnggota } from "../services/pdf";
 import type { Anggota } from "../types";
 import { STATUS_ANGGOTA } from "../config";
-import { formatNoHp, formatTanggal, normalizeStatusAnggota, toWaLink } from "../utils/format";
+import { formatNoHp, formatTanggal, normalizeStatusAnggota, toWaLink, isValidPhotoUrl } from "../utils/format";
 import { useApi } from "../hooks/useApi";
 import { useToast } from "../contexts/ToastContext";
 import { DataTable } from "../components/ui/DataTable";
@@ -456,7 +456,8 @@ export function Anggota() {
       header: "Nama Lengkap",
       sortable: true,
       render: (r) => {
-        const photoUrl = r.foto || getMemberPhoto(r.id, r.nama);
+        const rawPhoto = r.foto || getMemberPhoto(r.id, r.nama);
+        const photoUrl = isValidPhotoUrl(rawPhoto) ? rawPhoto : undefined;
         return (
           <div className="member-name-cell">
             {photoUrl ? (
@@ -866,15 +867,22 @@ export function Anggota() {
       >
         {detail && (
           <div className="detail-list">
-            {Boolean(detail.foto || getMemberPhoto(detail.id, detail.nama)) && (
-              <div className="detail-member-photo-wrap">
-                <img
-                  src={detail.foto || getMemberPhoto(detail.id, detail.nama)}
-                  alt={detail.nama}
-                  className="detail-member-photo"
-                />
-              </div>
-            )}
+            {(() => {
+              const p = detail.foto || getMemberPhoto(detail.id, detail.nama);
+              if (!isValidPhotoUrl(p)) return null;
+              return (
+                <div className="detail-member-photo-wrap">
+                  <img
+                    src={p}
+                    alt={detail.nama}
+                    className="detail-member-photo"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = "none";
+                    }}
+                  />
+                </div>
+              );
+            })()}
             <div className="detail-row"><span className="detail-label">Nama Lengkap</span><span>{detail.nama}</span></div>
             {detail.namaPanggilan && (
               <div className="detail-row"><span className="detail-label">Nama Panggilan</span><span>{detail.namaPanggilan}</span></div>

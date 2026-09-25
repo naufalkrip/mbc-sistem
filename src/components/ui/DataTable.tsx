@@ -22,6 +22,7 @@ interface DataTableProps<T> {
   sortKey?: string;
   sortDirection?: "asc" | "desc" | null;
   onSort?: (key: string) => void;
+  fullHeight?: boolean;
 }
 
 export function DataTable<T>({
@@ -35,6 +36,7 @@ export function DataTable<T>({
   sortKey,
   sortDirection,
   onSort,
+  fullHeight = false,
 }: DataTableProps<T>) {
   return (
     <div className="table-wrapper">
@@ -45,7 +47,10 @@ export function DataTable<T>({
       ) : (
         <>
           {/* Desktop & Tablet Table Scroll */}
-          <div className="table-scroll table-desktop-view">
+          <div
+            className="table-scroll table-desktop-view"
+            style={fullHeight ? { maxHeight: "none", overflowY: "visible" } : undefined}
+          >
             <table className="data-table">
               <thead>
                 <tr>

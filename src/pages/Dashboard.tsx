@@ -12,6 +12,7 @@ import {
   PlusCircle,
   ArrowRight,
   Calendar,
+  ShoppingBag,
 } from "lucide-react";
 import {
   getDashboard,
@@ -191,6 +192,10 @@ export function Dashboard() {
             <p>Selamat Datang di Portal Sistem MB Chondro</p>
           </div>
           <div className="dash-quick-shortcuts">
+            <Link to="/pesanan" className="dash-quick-btn" style={{ borderColor: "var(--primary-700)", color: "var(--primary-700)", fontWeight: 600 }}>
+              <ShoppingBag size={14} />
+              Pesanan
+            </Link>
             <Link to="/absensi" className="dash-quick-btn">
               <PlusCircle size={14} />
               Absensi

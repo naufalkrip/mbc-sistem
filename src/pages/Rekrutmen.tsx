@@ -1,19 +1,28 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   Users,
   CheckCircle2,
   Clock,
   XCircle,
   Bookmark,
-  Sparkles,
   Plus,
+  Copy,
+  ExternalLink,
+  Edit,
+  Trash2,
+  Check,
+  FileText,
+  ChevronDown,
+  Sparkles,
+  QrCode,
+  Download,
 } from "lucide-react";
 import type {
   RekrutmenFormWithFields,
   RekrutmenSubmissionWithAnswers,
   RekrutmenField,
   RekrutmenSubmissionStatus,
-  RekrutmenForm,
 } from "../types";
 import { useApi } from "../hooks/useApi";
 import { useToast } from "../contexts/ToastContext";
@@ -23,29 +32,16 @@ import {
   getRekrutmenStatsData,
   addRekrutmenFormItem,
   updateRekrutmenFormItem,
+  deleteRekrutmenFormItem,
   addRekrutmenFieldItem,
-  updateRekrutmenFieldItem,
   deleteRekrutmenFieldItem,
-  reorderRekrutmenFieldsItem,
   updateRekrutmenSubmissionItem,
   deleteRekrutmenSubmissionItem,
 } from "../services/api";
 import { CACHE_KEYS } from "../services/cache";
-import { FormBuilder } from "../components/rekrutmen/FormBuilder";
 import { SubmissionList } from "../components/rekrutmen/SubmissionList";
+import { RekrutmenFormBuilderModal } from "../components/rekrutmen/RekrutmenFormBuilderModal";
 import { Modal } from "../components/ui/Modal";
-
-interface FormRekrutmen {
-  title: string;
-  description: string;
-  status: "dibuka" | "ditutup";
-}
-
-const FORM_EMPTY: FormRekrutmen = {
-  title: "",
-  description: "",
-  status: "dibuka",
-};
 
 export function Rekrutmen() {
   const { success: toastSuccess, error: toastError } = useToast();
@@ -78,137 +74,154 @@ export function Rekrutmen() {
   );
 
   const [activeTab, setActiveTab] = useState<"submissions" | "form">("submissions");
-  const [modalMode, setModalMode] = useState<"add" | "edit" | null>(null);
-  const [formData, setFormData] = useState<FormRekrutmen>(FORM_EMPTY);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [savingForm, setSavingForm] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+  const [editingForm, setEditingForm] = useState<RekrutmenFormWithFields | null>(null);
+  const [copiedLinkMap, setCopiedLinkMap] = useState<Record<string, boolean>>({});
+  const [openActionFormId, setOpenActionFormId] = useState<string | null>(null);
+  const [qrModalData, setQrModalData] = useState<{ title: string; url: string; filename: string } | null>(null);
 
   useEffect(() => {
-    if (form) {
-      setFormData({
-        title: form.title,
-        description: form.description,
-        status: form.status,
+    const handleOutsideClick = () => setOpenActionFormId(null);
+    window.addEventListener("click", handleOutsideClick);
+    return () => window.removeEventListener("click", handleOutsideClick);
+  }, []);
+
+  // Safe calculated statistics
+  const subsList = useMemo(() => submissions || [], [submissions]);
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<RekrutmenSubmissionStatus | "">("");
+
+  const statsCalculated = useMemo(() => {
+    return {
+      total: stats?.total ?? subsList.length,
+      menunggu: stats?.menunggu ?? subsList.filter((s) => s.status === "menunggu").length,
+      lolos: stats?.lolos ?? subsList.filter((s) => s.status === "lolos").length,
+      cadangan: stats?.cadangan ?? subsList.filter((s) => s.status === "cadangan").length,
+      tidakLolos: stats?.tidakLolos ?? subsList.filter((s) => s.status === "tidak_lolos").length,
+    };
+  }, [stats, subsList]);
+
+  const handleCardStatusClick = (st: RekrutmenSubmissionStatus | "") => {
+    setSelectedStatusFilter(st);
+    setActiveTab("submissions");
+  };
+
+  const handleCopyLink = (targetFormId: string) => {
+    const fullUrl = `${window.location.origin}/rekrutmen/form/${targetFormId}`;
+    navigator.clipboard.writeText(fullUrl);
+    setCopiedLinkMap((prev) => ({ ...prev, [targetFormId]: true }));
+    toastSuccess("Tautan formulir pendaftaran berhasil disalin!");
+    setTimeout(() => {
+      setCopiedLinkMap((prev) => ({ ...prev, [targetFormId]: false }));
+    }, 2500);
+  };
+
+  const handleToggleFormStatus = async (targetForm: RekrutmenFormWithFields) => {
+    const newStatus = targetForm.status === "dibuka" ? "ditutup" : "dibuka";
+    const res = await updateRekrutmenFormItem(targetForm.id, {
+      title: targetForm.title,
+      description: targetForm.description,
+      status: newStatus,
+    });
+    if (res.success) {
+      toastSuccess(
+        newStatus === "dibuka"
+          ? "Formulir pendaftaran AKTIF (Link publik dibuka & bisa diakses calon anggota)."
+          : "Formulir pendaftaran NONAKTIF (Link publik ditutup & tidak bisa diakses)."
+      );
+      void refreshForm(true);
+    } else {
+      toastError(res.message || "Gagal mengubah status formulir.");
+    }
+  };
+
+  const handleDeleteForm = async (targetId: string, title: string) => {
+    if (!window.confirm(`Yakin ingin menghapus formulir "${title}" beserta data pertanyaannya?`)) return;
+    const res = await deleteRekrutmenFormItem(targetId);
+    if (res.success) {
+      toastSuccess("Formulir pendaftaran berhasil dihapus.");
+      void refreshForm(true);
+    } else {
+      toastError(res.message || "Gagal menghapus formulir.");
+    }
+  };
+
+  const handleSaveFormModal = async (formData: {
+    id?: string;
+    title: string;
+    description: string;
+    status: "dibuka" | "ditutup";
+    fields: RekrutmenField[];
+  }): Promise<boolean> => {
+    const targetId = formData.id || form?.id || "";
+
+    if (!targetId) {
+      // Create new form
+      const res = await addRekrutmenFormItem({
+        title: formData.title,
+        description: formData.description,
+        status: formData.status,
+      });
+      if (!res.success || !res.data) {
+        toastError(res.message || "Gagal membuat formulir.");
+        return false;
+      }
+      const newFormId = res.data.id;
+      // Add initial fields
+      for (let i = 0; i < formData.fields.length; i++) {
+        const f = formData.fields[i];
+        await addRekrutmenFieldItem({
+          formId: newFormId,
+          label: f.label,
+          description: f.description || "",
+          fieldType: f.fieldType,
+          placeholder: f.placeholder || "",
+          required: Boolean(f.required),
+          options: f.options || [],
+          sortOrder: i,
+          exampleImageUrl: f.exampleImageUrl || "",
+          exampleImageTitle: f.exampleImageTitle || "",
+        });
+      }
+      toastSuccess("Formulir pendaftaran baru berhasil dibuat!");
+      void refreshForm(true);
+      return true;
+    }
+
+    // Update existing form info
+    const updateRes = await updateRekrutmenFormItem(targetId, {
+      title: formData.title,
+      description: formData.description,
+      status: formData.status,
+    });
+    if (!updateRes.success) {
+      toastError(updateRes.message || "Gagal menyimpan data formulir.");
+      return false;
+    }
+
+    // Synchronize fields: delete old fields and recreate with new configuration
+    const currentFields = form?.fields || [];
+    for (const cur of currentFields) {
+      await deleteRekrutmenFieldItem(cur.id);
+    }
+    for (let i = 0; i < formData.fields.length; i++) {
+      const f = formData.fields[i];
+      await addRekrutmenFieldItem({
+        formId: targetId,
+        label: f.label,
+        description: f.description || "",
+        fieldType: f.fieldType,
+        placeholder: f.placeholder || "",
+        required: Boolean(f.required),
+        options: f.options || [],
+        sortOrder: i,
+        exampleImageUrl: f.exampleImageUrl || "",
+        exampleImageTitle: f.exampleImageTitle || "",
       });
     }
-  }, [form]);
 
-  const openAddForm = () => {
-    setFormData({
-      title: "Pendaftaran Anggota Baru mbc sistem " + new Date().getFullYear(),
-      description:
-        "Silakan isi seluruh data dengan benar dan lengkap. Data yang dikirim akan digunakan untuk proses seleksi calon anggota mbc sistem.",
-      status: "dibuka",
-    });
-    setFormErrors({});
-    setModalMode("add");
-  };
-
-  const validateForm = (f: FormRekrutmen): Record<string, string> => {
-    const err: Record<string, string> = {};
-    if (!f.title.trim()) err.title = "Nama / Judul formulir wajib diisi.";
-    return err;
-  };
-
-  const handleFormSave = async (override?: Partial<RekrutmenForm>): Promise<boolean> => {
-    const dataToSave = {
-      title: override?.title ?? formData.title,
-      description: override?.description ?? formData.description,
-      status: override?.status ?? formData.status,
-    };
-
-    const err = validateForm(dataToSave);
-    setFormErrors(err);
-    if (Object.keys(err).length > 0) return false;
-
-    const formId = form?.id ?? "";
-    setSavingForm(true);
-    let ok: boolean;
-
-    if (formId && !modalMode) {
-      const result = await updateRekrutmenFormItem(formId, dataToSave);
-      ok = result.success;
-      if (!ok) toastError(result.message || "Gagal menyimpan formulir.");
-    } else if (modalMode === "add" || !formId) {
-      const result = await addRekrutmenFormItem(dataToSave);
-      ok = result.success;
-      if (!ok) toastError(result.message || "Gagal membuat formulir.");
-    } else {
-      const result = await updateRekrutmenFormItem(formId, dataToSave);
-      ok = result.success;
-      if (!ok) toastError(result.message || "Gagal menyimpan formulir.");
-    }
-
-    setSavingForm(false);
-    if (ok) {
-      if (override?.status) {
-        toastSuccess(
-          override.status === "dibuka"
-            ? "Formulir pendaftaran AKTIF (Link publik dibuka & bisa diakses calon anggota)."
-            : "Formulir pendaftaran NONAKTIF (Link publik ditutup & tidak bisa diakses)."
-        );
-      } else {
-        toastSuccess("Formulir pendaftaran berhasil disimpan.");
-      }
-      setModalMode(null);
-      void refreshForm(true);
-      void refreshSubs(true);
-      void refreshStats(true);
-    }
-    return ok;
-  };
-
-  const handleFieldAdd = async (
-    field: Omit<RekrutmenField, "id" | "createdAt" | "updatedAt">
-  ): Promise<boolean> => {
-    if (!form) return false;
-    const res = await addRekrutmenFieldItem({ ...field, formId: form.id });
-    if (res.success) {
-      toastSuccess("Pertanyaan berhasil ditambahkan.");
-      void refreshForm(true);
-      return true;
-    }
-    toastError(res.message || "Gagal menambahkan pertanyaan.");
-    return false;
-  };
-
-  const handleFieldUpdate = async (
-    id: string,
-    field: Omit<RekrutmenField, "id" | "createdAt" | "updatedAt">
-  ): Promise<boolean> => {
-    const res = await updateRekrutmenFieldItem(id, field);
-    if (res.success) {
-      toastSuccess("Pertanyaan berhasil diperbarui.");
-      void refreshForm(true);
-      return true;
-    }
-    toastError(res.message || "Gagal memperbarui pertanyaan.");
-    return false;
-  };
-
-  const handleFieldDelete = async (id: string): Promise<boolean> => {
-    const res = await deleteRekrutmenFieldItem(id);
-    if (res.success) {
-      toastSuccess("Pertanyaan berhasil dihapus.");
-      void refreshForm(true);
-      return true;
-    }
-    toastError(res.message || "Gagal menghapus pertanyaan.");
-    return false;
-  };
-
-  const handleReorder = async (
-    fieldOrders: { id: string; sortOrder: number }[]
-  ): Promise<boolean> => {
-    if (!form) return false;
-    const result = await reorderRekrutmenFieldsItem(form.id, fieldOrders);
-    if (result.success) {
-      void refreshForm(true);
-      return true;
-    }
-    toastError(result.message || "Gagal mengubah urutan pertanyaan.");
-    return false;
+    toastSuccess("Formulir pendaftaran dan pertanyaan berhasil diperbarui!");
+    void refreshForm(true);
+    return true;
   };
 
   const handleSubmissionUpdate = async (
@@ -237,27 +250,6 @@ export function Rekrutmen() {
     return false;
   };
 
-  // Safe calculated statistics
-  const subsList = useMemo(() => submissions || [], [submissions]);
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState<RekrutmenSubmissionStatus | "">("");
-
-  const statsCalculated = useMemo(() => {
-    return {
-      total: stats?.total ?? subsList.length,
-      menunggu: stats?.menunggu ?? subsList.filter((s) => s.status === "menunggu").length,
-      lolos: stats?.lolos ?? subsList.filter((s) => s.status === "lolos").length,
-      cadangan: stats?.cadangan ?? subsList.filter((s) => s.status === "cadangan").length,
-      tidakLolos: stats?.tidakLolos ?? subsList.filter((s) => s.status === "tidak_lolos").length,
-    };
-  }, [stats, subsList]);
-
-  const handleCardStatusClick = (st: RekrutmenSubmissionStatus | "") => {
-    setSelectedStatusFilter(st);
-    setActiveTab("submissions");
-  };
-
-  const publicFormUrl = form?.id ? `${window.location.origin}/rekrutmen/form/${form.id}` : "";
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* 1. Header Ringkasan Merah Standout mbc sistem */}
@@ -265,36 +257,46 @@ export function Rekrutmen() {
         <div className="summary-panel-header">
           <div>
             <h3>Ringkasan Rekruitmen</h3>
-            <p>Pilih filter status untuk melihat ringkasan data pendaftar</p>
+            <p>Pilih status pada kartu di bawah untuk menyaring data pendaftar secara cepat</p>
           </div>
-          {form && (
+          {statsCalculated.menunggu > 0 && (
             <div
               style={{
                 padding: "6px 14px",
-                background: "rgba(255, 255, 255, 0.15)",
+                background: "rgba(255, 255, 255, 0.18)",
                 backdropFilter: "blur(8px)",
                 borderRadius: "20px",
                 fontSize: "12px",
-                fontWeight: 500,
+                fontWeight: 600,
                 color: "#ffffff",
-                border: "1px solid rgba(255, 255, 255, 0.2)",
+                border: "1px solid rgba(255, 255, 255, 0.25)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
               }}
             >
-              Formulir: {form.status === "dibuka" ? "🟢 Aktif (Menerima Pendaftar)" : "🔴 Ditutup"}
+              <span>🟡</span>
+              <span>{statsCalculated.menunggu} Pendaftar Belum Direview</span>
             </div>
           )}
         </div>
 
-        {/* 4/5 Stat Cards Grid - Clickable for Fast Filtering */}
-        <div className="rekrutmen-stats-grid">
+        {/* 5 Stat Cards Grid - Clickable for Fast Filtering */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+            gap: 12,
+          }}
+        >
           {/* Card 1: Total */}
           <div
             onClick={() => handleCardStatusClick("")}
             className={`rekrutmen-stat-card ${activeTab === "submissions" && selectedStatusFilter === "" ? "active" : ""}`}
-            title="Klik untuk melihat semua pendaftar"
+            title="Klik untuk melihat semua calon pendaftar"
           >
             <div className="rekrutmen-stat-head">
-              <Users size={14} /> Total Pendaftar
+              <Users size={15} /> Total Pendaftar
             </div>
             <div className="rekrutmen-stat-value">
               {statsCalculated.total}
@@ -309,12 +311,14 @@ export function Rekrutmen() {
             title="Klik untuk menyaring pendaftar yang menunggu review"
           >
             <div className="rekrutmen-stat-head">
-              <Clock size={14} /> Menunggu Seleksi
+              <Clock size={15} /> Menunggu Seleksi
             </div>
             <div className="rekrutmen-stat-value">
               {statsCalculated.menunggu}
             </div>
-            <span className="rekrutmen-stat-sub">🟡 Belum direview ↗</span>
+            <span className="rekrutmen-stat-sub">
+              {statsCalculated.menunggu > 0 ? "🟡 Belum direview ↗" : "Semua telah direview ↗"}
+            </span>
           </div>
 
           {/* Card 3: Lolos */}
@@ -324,7 +328,7 @@ export function Rekrutmen() {
             title="Klik untuk menyaring calon yang lolos seleksi"
           >
             <div className="rekrutmen-stat-head">
-              <CheckCircle2 size={14} /> Lolos Seleksi
+              <CheckCircle2 size={15} /> Lolos Seleksi
             </div>
             <div className="rekrutmen-stat-value">
               {statsCalculated.lolos}
@@ -332,14 +336,14 @@ export function Rekrutmen() {
             <span className="rekrutmen-stat-sub">🟢 Diterima ↗</span>
           </div>
 
-          {/* Card 4: Cadangan (if any) */}
+          {/* Card 4: Cadangan */}
           <div
             onClick={() => handleCardStatusClick("cadangan")}
             className={`rekrutmen-stat-card ${activeTab === "submissions" && selectedStatusFilter === "cadangan" ? "active" : ""}`}
             title="Klik untuk menyaring calon cadangan"
           >
             <div className="rekrutmen-stat-head">
-              <Bookmark size={14} /> Cadangan
+              <Bookmark size={15} /> Cadangan
             </div>
             <div className="rekrutmen-stat-value">
               {statsCalculated.cadangan}
@@ -351,10 +355,10 @@ export function Rekrutmen() {
           <div
             onClick={() => handleCardStatusClick("tidak_lolos")}
             className={`rekrutmen-stat-card ${activeTab === "submissions" && selectedStatusFilter === "tidak_lolos" ? "active" : ""}`}
-            title="Klik untuk menyaring calon yang gagal / tidak lolos"
+            title="Klik untuk menyaring calon yang belum lolos"
           >
             <div className="rekrutmen-stat-head">
-              <XCircle size={14} /> Gagal
+              <XCircle size={15} /> Gagal
             </div>
             <div className="rekrutmen-stat-value">
               {statsCalculated.tidakLolos}
@@ -364,135 +368,94 @@ export function Rekrutmen() {
         </div>
       </div>
 
-      {/* 2. Quick Public Form Link Bar & Tab Switcher */}
+      {/* 2. TAB CONTROLS (DAFTAR CALON ANGGOTA vs FORMULIR PENDAFTARAN) & ACTION */}
       <div
         style={{
           display: "flex",
+          borderBottom: "1px solid var(--border)",
           justifyContent: "space-between",
           alignItems: "center",
           flexWrap: "wrap",
           gap: 12,
         }}
       >
-        {/* Segmented Tab Switcher */}
-        <div
-          className="segment-group"
-          style={{
-            display: "flex",
-            gap: 6,
-            background: "#f1f5f9",
-            padding: 4,
-            borderRadius: "var(--radius-sm, 10px)",
-            border: "1px solid var(--border, #e2e8f0)",
-            width: "100%",
-            maxWidth: "460px",
-            boxSizing: "border-box",
-          }}
-        >
+        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <button
             type="button"
-            className={`segment-btn ${activeTab === "submissions" ? "active" : ""}`}
             onClick={() => setActiveTab("submissions")}
             style={{
-              flex: 1,
-              padding: "9px 14px",
-              borderRadius: "var(--radius-xs, 7px)",
+              background: "none",
               border: "none",
-              fontSize: "13px",
-              fontWeight: 500,
+              borderBottom: activeTab === "submissions" ? "2px solid var(--primary-700)" : "2px solid transparent",
+              padding: "10px 4px",
+              fontWeight: activeTab === "submissions" ? 700 : 500,
+              color: activeTab === "submissions" ? "var(--primary-700)" : "var(--text-muted)",
+              fontSize: 14,
               cursor: "pointer",
-              background: activeTab === "submissions" ? "#ffffff" : "transparent",
-              color: activeTab === "submissions" ? "var(--primary-700, #b91c1c)" : "#64748b",
-              boxShadow: activeTab === "submissions" ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
-              transition: "all 0.15s ease",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
             }}
           >
-            👥 Daftar Pendaftar ({subsList.length})
+            <Users size={16} />
+            <span>Daftar Calon Anggota ({subsList.length})</span>
           </button>
+
           <button
             type="button"
-            className={`segment-btn ${activeTab === "form" ? "active" : ""}`}
             onClick={() => setActiveTab("form")}
             style={{
-              flex: 1,
-              padding: "9px 14px",
-              borderRadius: "var(--radius-xs, 7px)",
+              background: "none",
               border: "none",
-              fontSize: "13px",
-              fontWeight: 500,
+              borderBottom: activeTab === "form" ? "2px solid var(--primary-700)" : "2px solid transparent",
+              padding: "10px 4px",
+              fontWeight: activeTab === "form" ? 700 : 500,
+              color: activeTab === "form" ? "var(--primary-700)" : "var(--text-muted)",
+              fontSize: 14,
               cursor: "pointer",
-              background: activeTab === "form" ? "#ffffff" : "transparent",
-              color: activeTab === "form" ? "var(--primary-700, #b91c1c)" : "#64748b",
-              boxShadow: activeTab === "form" ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
-              transition: "all 0.15s ease",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
             }}
           >
-            📝 Pengaturan Formulir
+            <FileText size={16} />
+            <span>Formulir Pendaftaran ({form ? 1 : 0})</span>
           </button>
         </div>
 
-        {/* Quick Link Share Box */}
-        {form && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              background: "#ffffff",
-              padding: "6px 10px 6px 14px",
-              borderRadius: "var(--radius-sm, 10px)",
-              border: "1px solid var(--border, #e2e8f0)",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
-              flexWrap: "wrap",
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+          {form && (
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() =>
+                setQrModalData({
+                  title: form.title,
+                  url: `${window.location.origin}/rekrutmen/form/${form.id}`,
+                  filename: `qr-rekrutmen-${form.id}.png`,
+                })
+              }
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+              title="Tampilkan QR Code formulir pendaftaran"
+            >
+              <QrCode size={16} /> QR Code Pendaftaran
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setEditingForm(null);
+              setIsBuilderOpen(true);
             }}
           >
-            <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 500 }}>
-              Link Publik Calon:
-            </span>
-            <code
-              style={{
-                fontSize: "12px",
-                color: "var(--navy-900)",
-                background: "#f8fafc",
-                padding: "3px 8px",
-                borderRadius: 6,
-                border: "1px solid #e2e8f0",
-                maxWidth: "220px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-              title={publicFormUrl}
-            >
-              /rekrutmen/form/{form.id}
-            </code>
-            <button
-              type="button"
-              className="btn btn-outline btn-sm"
-              onClick={() => {
-                navigator.clipboard.writeText(publicFormUrl);
-                setCopiedLink(true);
-                toastSuccess("Link formulir berhasil disalin!");
-                setTimeout(() => setCopiedLink(false), 2000);
-              }}
-              style={{ fontSize: "12px", padding: "4px 9px", display: "inline-flex", alignItems: "center", gap: 4 }}
-            >
-              {copiedLink ? "✓ Tersalin" : "Salin Link"}
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => window.open(publicFormUrl, "_blank")}
-              title="Buka Formulir Publik di Tab Baru"
-              style={{ fontSize: "12px", padding: "4px 8px", color: "var(--primary-700, #b91c1c)" }}
-            >
-              Buka Form ↗
-            </button>
-          </div>
-        )}
+            <Plus size={17} /> Tambah Formulir Pendaftaran
+          </button>
+        </div>
       </div>
 
-      {/* TAB 1: DAFTAR PENDAFTAR & SELEKSI */}
+      {/* TAB CONTENT 1: DAFTAR CALON ANGGOTA */}
       {activeTab === "submissions" && (
         <>
           {form ? (
@@ -527,26 +490,342 @@ export function Rekrutmen() {
         </>
       )}
 
-      {/* TAB 2: FORMULIR PENDAFTARAN BUILDER */}
+      {/* TAB CONTENT 2: PENGATURAN FORMULIR */}
       {activeTab === "form" && (
-        <>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {form ? (
-            <FormBuilder
-              form={form}
-              fields={form.fields}
-              onSaveForm={handleFormSave}
-              onAddField={handleFieldAdd}
-              onUpdateField={handleFieldUpdate}
-              onDeleteField={handleFieldDelete}
-              onReorderFields={handleReorder}
-              onPreview={() => {
-                window.open(`${window.location.origin}/rekrutmen/form/${form.id}`, "_blank");
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                gap: 16,
               }}
-              onCopyLink={() => {
-                navigator.clipboard.writeText(publicFormUrl);
-                toastSuccess("Link formulir berhasil disalin ke clipboard!");
-              }}
-            />
+            >
+              {(() => {
+                const count = subsList.length;
+                const isCopied = copiedLinkMap[form.id];
+
+                return (
+                  <div
+                    key={form.id}
+                    style={{
+                      background: "#ffffff",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius-md)",
+                      padding: 18,
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      gap: 16,
+                      boxShadow: "var(--shadow-card)",
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          gap: 10,
+                          marginBottom: 8,
+                        }}
+                      >
+                        <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
+                          {form.title}
+                        </h4>
+                        <span
+                          className={`status-pill ${form.status === "dibuka" ? "status-lolos" : "status-menunggu"}`}
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            padding: "2px 8px",
+                            borderRadius: 20,
+                          }}
+                        >
+                          {form.status === "dibuka" ? "Aktif" : "Ditutup"}
+                        </span>
+                      </div>
+
+                      <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                        {form.description || "Tidak ada deskripsi."}
+                      </p>
+
+                      <div style={{ display: "flex", gap: 12, fontSize: 12, color: "var(--text-muted)" }}>
+                        <span>
+                          Pertanyaan: <strong>{form.fields?.length || 0} butir</strong>
+                        </span>
+                        <span>•</span>
+                        <span>
+                          Tanggapan: <strong>{count} calon anggota</strong>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Public Link Preview Box */}
+                    <div
+                      style={{
+                        background: "var(--bg-soft)",
+                        padding: "8px 12px",
+                        borderRadius: "var(--radius-sm)",
+                        border: "1px solid var(--border-soft)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: "var(--text-secondary)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {`${window.location.origin}/rekrutmen/form/${form.id}`}
+                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setQrModalData({
+                              title: form.title,
+                              url: `${window.location.origin}/rekrutmen/form/${form.id}`,
+                              filename: `qr-rekrutmen-${form.id}.png`,
+                            })
+                          }
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--primary-700)",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                          title="Lihat & unduh QR Code formulir"
+                        >
+                          <QrCode size={13} />
+                          <span>QR</span>
+                        </button>
+                        <span style={{ color: "var(--border)" }}>•</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyLink(form.id)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: isCopied ? "var(--green-600)" : "var(--primary-700)",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          {isCopied ? <Check size={13} /> : <Copy size={13} />}
+                          <span>{isCopied ? "Disalin!" : "Salin"}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        paddingTop: 10,
+                        borderTop: "1px solid var(--border-soft)",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => {
+                            setEditingForm(form);
+                            setIsBuilderOpen(true);
+                          }}
+                          style={{ padding: "5px 12px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 600 }}
+                        >
+                          <Edit size={13} />
+                          <span>Edit Formulir</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() =>
+                            setQrModalData({
+                              title: form.title,
+                              url: `${window.location.origin}/rekrutmen/form/${form.id}`,
+                              filename: `qr-rekrutmen-${form.id}.png`,
+                            })
+                          }
+                          style={{ padding: "5px 10px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
+                          title="Lihat & unduh QR Code formulir pendaftaran"
+                        >
+                          <QrCode size={13} />
+                          <span>QR Code</span>
+                        </button>
+                      </div>
+
+                      <div style={{ position: "relative", display: "inline-block" }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenActionFormId(openActionFormId === form.id ? null : form.id);
+                          }}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                            padding: "5px 12px",
+                            fontSize: 12,
+                            borderRadius: "var(--radius-sm, 8px)",
+                            background: openActionFormId === form.id ? "var(--primary-700, #b91c1c)" : "var(--primary-600, #dc2626)",
+                            border: "none",
+                            color: "#ffffff",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            boxShadow: "0 1px 3px rgba(220, 38, 38, 0.3)",
+                            transition: "all 0.15s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (openActionFormId !== form.id) e.currentTarget.style.background = "var(--primary-700, #b91c1c)";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (openActionFormId !== form.id) e.currentTarget.style.background = "var(--primary-600, #dc2626)";
+                          }}
+                        >
+                          <span>Aksi</span>
+                          <ChevronDown
+                            size={13}
+                            style={{
+                              transform: openActionFormId === form.id ? "rotate(180deg)" : "rotate(0deg)",
+                              transition: "transform 0.15s ease",
+                            }}
+                          />
+                        </button>
+
+                        {openActionFormId === form.id && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              right: 0,
+                              bottom: "calc(100% + 4px)",
+                              zIndex: 100,
+                              minWidth: "165px",
+                              background: "#ffffff",
+                              borderRadius: "10px",
+                              border: "1px solid var(--border, #e2e8f0)",
+                              boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.08)",
+                              padding: "4px",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "2px",
+                            }}
+                          >
+                            <Link
+                              to={`/rekrutmen/form/${form.id}`}
+                              target="_blank"
+                              onClick={() => setOpenActionFormId(null)}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                width: "100%",
+                                padding: "7px 10px",
+                                fontSize: "12px",
+                                fontWeight: 500,
+                                color: "var(--text, #1e293b)",
+                                background: "transparent",
+                                border: "none",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                                textAlign: "left",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                            >
+                              <ExternalLink size={14} style={{ color: "var(--text-muted)" }} />
+                              <span>Preview Formulir</span>
+                            </Link>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionFormId(null);
+                                void handleToggleFormStatus(form);
+                              }}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                width: "100%",
+                                padding: "7px 10px",
+                                fontSize: "12px",
+                                fontWeight: 500,
+                                color: form.status === "dibuka" ? "var(--text-secondary)" : "#16a34a",
+                                background: "transparent",
+                                border: "none",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                                textAlign: "left",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                            >
+                              <Check size={14} style={{ color: form.status === "dibuka" ? "var(--text-muted)" : "#16a34a" }} />
+                              <span>{form.status === "dibuka" ? "Nonaktifkan Formulir" : "Aktifkan Formulir"}</span>
+                            </button>
+
+                            <div style={{ height: "1px", background: "var(--border-soft, #f1f5f9)", margin: "2px 0" }} />
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionFormId(null);
+                                void handleDeleteForm(form.id, form.title);
+                              }}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                width: "100%",
+                                padding: "7px 10px",
+                                fontSize: "12px",
+                                fontWeight: 500,
+                                color: "var(--danger, #dc2626)",
+                                background: "transparent",
+                                border: "none",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                                textAlign: "left",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--primary-50, #fef2f2)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                            >
+                              <Trash2 size={14} style={{ color: "var(--danger, #dc2626)" }} />
+                              <span>Hapus Formulir</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
           ) : (
             <div
               className="card"
@@ -589,69 +868,115 @@ export function Rekrutmen() {
               >
                 Buat formulir pendaftaran pertama untuk mulai menerima calon anggota baru mbc sistem.
               </p>
-              <button className="btn btn-primary" onClick={openAddForm}>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setEditingForm(null);
+                  setIsBuilderOpen(true);
+                }}
+              >
                 <Plus size={16} /> Buat Formulir Baru
               </button>
             </div>
           )}
-        </>
+        </div>
       )}
 
-      {/* MODAL BUAT / EDIT FORMULIR UTAMA */}
-      <Modal
-        open={modalMode !== null}
-        title={modalMode === "edit" ? "Edit Informasi Formulir" : "Buat Formulir Rekruitmen Baru"}
-        onClose={() => setModalMode(null)}
-        size="md"
-        footer={
-          <>
-            <button className="btn btn-ghost" onClick={() => setModalMode(null)} disabled={savingForm}>
-              Batal
-            </button>
-            <button className="btn btn-primary" onClick={() => handleFormSave()} disabled={savingForm}>
-              {savingForm ? "Menyimpan..." : modalMode === "edit" ? "Simpan Perubahan" : "Buat Formulir"}
-            </button>
-          </>
-        }
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div className="form-group" style={{ gap: 4 }}>
-            <label style={{ fontSize: "13px", fontWeight: 500 }}>Nama / Judul Formulir *</label>
-            <input
-              value={formData.title}
-              onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
-              placeholder="Contoh: Formulir Pendaftaran Anggota Baru mbc sistem 2026"
-              style={{ height: 40, padding: "8px 12px", fontSize: "14px" }}
-            />
-            {formErrors.title && (
-              <span style={{ fontSize: "12px", fontWeight: 500, color: "#dc2626" }}>{formErrors.title}</span>
-            )}
-          </div>
+      {/* FORM BUILDER MODAL */}
+      <RekrutmenFormBuilderModal
+        key={isBuilderOpen ? (editingForm ? `edit-${editingForm.id}-${editingForm.updatedAt || ""}` : "create-new-form") : "closed"}
+        open={isBuilderOpen}
+        onClose={() => {
+          setIsBuilderOpen(false);
+          setEditingForm(null);
+        }}
+        formToEdit={editingForm}
+        onSave={handleSaveFormModal}
+      />
 
-          <div className="form-group" style={{ gap: 4 }}>
-            <label style={{ fontSize: "13px", fontWeight: 500 }}>Deskripsi / Petunjuk Pengisian</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
-              placeholder="Silakan isi seluruh data dengan benar dan lengkap untuk proses seleksi calon anggota mbc sistem."
-              rows={3}
-              style={{ padding: "8px 12px", fontSize: "14px", resize: "vertical" }}
+      {/* MODAL QR CODE FORMULIR PENDAFTARAN */}
+      {qrModalData && (
+        <Modal
+          open={Boolean(qrModalData)}
+          title={`QR Code ${qrModalData.title}`}
+          onClose={() => setQrModalData(null)}
+          size="sm"
+          footer={
+            <div style={{ display: "flex", justifyContent: "space-between", width: "100%", gap: 8, flexWrap: "wrap" }}>
+              <a
+                href={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrModalData.url)}`}
+                download={qrModalData.filename}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-outline btn-sm"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                <Download size={14} /> Unduh Gambar
+              </a>
+              <button className="btn btn-primary btn-sm" onClick={() => setQrModalData(null)}>
+                Selesai
+              </button>
+            </div>
+          }
+        >
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, padding: "12px 0" }}>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrModalData.url)}`}
+              alt={`QR Code ${qrModalData.title}`}
+              style={{
+                width: 200,
+                height: 200,
+                borderRadius: "var(--radius-md, 8px)",
+                border: "1px solid var(--border)",
+                padding: 8,
+                background: "#ffffff",
+                boxShadow: "var(--shadow-sm)",
+              }}
             />
-          </div>
 
-          <div className="form-group" style={{ gap: 4 }}>
-            <label style={{ fontSize: "13px", fontWeight: 500 }}>Status Formulir Awal</label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData((p) => ({ ...p, status: e.target.value as "dibuka" | "ditutup" }))}
-              style={{ height: 40, padding: "8px 12px", fontSize: "14px" }}
+            <div
+              style={{
+                width: "100%",
+                background: "var(--bg-soft)",
+                padding: "8px 12px",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--border-soft)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+              }}
             >
-              <option value="dibuka">🟢 Langsung Aktif (Dibuka untuk umum)</option>
-              <option value="ditutup">🔴 Simpan sebagai Draft (Ditutup sementara)</option>
-            </select>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--text-secondary)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {qrModalData.url}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(qrModalData.url);
+                  toastSuccess("Tautan pendaftaran berhasil disalin!");
+                }}
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: 12, padding: "2px 8px", flexShrink: 0 }}
+              >
+                <Copy size={13} /> Salin
+              </button>
+            </div>
+
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--text-muted)", textAlign: "center" }}>
+              Calon anggota dapat memindai QR code ini melalui kamera smartphone untuk langsung membuka formulir pendaftaran.
+            </p>
           </div>
-        </div>
-      </Modal>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -23,6 +23,8 @@ import {
   Layers,
   X,
   Users,
+  FileSpreadsheet,
+  ChevronDown,
 } from "lucide-react";
 import type {
   RekrutmenSubmissionWithAnswers,
@@ -32,7 +34,6 @@ import type {
   RekrutmenField,
 } from "../../types";
 import {
-  formatTanggal,
   formatTanggalPanjang,
   formatRentangTanggal,
   formatNomorHp,
@@ -515,6 +516,13 @@ export function SubmissionList({
   const [detailOpen, setDetailOpen] = useState<RekrutmenSubmissionWithAnswers | null>(null);
   const [deleteOpen, setDeleteOpen] = useState<RekrutmenSubmissionWithAnswers | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [openActionId, setOpenActionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = () => setOpenActionId(null);
+    window.addEventListener("click", handleOutsideClick);
+    return () => window.removeEventListener("click", handleOutsideClick);
+  }, []);
 
   useEffect(() => {
     if (initialStatusFilter !== undefined) {
@@ -601,19 +609,31 @@ export function SubmissionList({
     const rawHp = hpField?.value?.trim() || "";
     const hp = formatNomorHp(rawHp);
 
-    const pilihanField = s.answers.find((a) => {
-      const lbl = (a.field?.label || "").toLowerCase();
-      return (
-        lbl.includes("alat") ||
-        lbl.includes("posisi") ||
-        lbl.includes("seksi") ||
-        lbl.includes("divisi") ||
-        lbl.includes("instrumen") ||
-        lbl.includes("pilihan 1") ||
-        lbl.includes("pilihan") ||
-        lbl.includes("minat")
-      );
-    });
+    const pilihanField =
+      // Prioritas 1: label "bakat" — paling spesifik, tidak ambigu
+      s.answers.find((a) => {
+        const lbl = (a.field?.label || "").toLowerCase();
+        return lbl.includes("bakat");
+      }) ||
+      // Prioritas 2: label instrumen/posisi/seksi/divisi/alat
+      s.answers.find((a) => {
+        const lbl = (a.field?.label || "").toLowerCase();
+        return (
+          lbl.includes("instrumen") ||
+          lbl.includes("alat") ||
+          lbl.includes("seksi") ||
+          lbl.includes("divisi") ||
+          lbl.includes("posisi") ||
+          lbl.includes("pilihan 1") ||
+          lbl.includes("minat")
+        );
+      }) ||
+      // Prioritas 3: "marching" tapi BUKAN field pengalaman
+      s.answers.find((a) => {
+        const lbl = (a.field?.label || "").toLowerCase();
+        return lbl.includes("marching") && !lbl.includes("pengalaman");
+      });
+
     const pilihan = pilihanField?.value?.trim() || "-";
 
     const noteForMsg = s.adminNote || (statusModalSub?.id === s.id ? adminNote : undefined);
@@ -631,17 +651,14 @@ export function SubmissionList({
 
   // Posisi Options untuk Dropdown Filter
   const posisiOptions = useMemo(() => {
-    const set = new Set<string>();
-    safeSubmissions.forEach((s) => {
-      const { pilihan } = getCandidateInfo(s);
-      if (pilihan && pilihan !== "-") {
-        set.add(pilihan);
-      }
-    });
-    return Array.from(set)
-      .sort()
-      .map((p) => ({ value: p, label: p }));
-  }, [safeSubmissions]);
+    return [
+      { value: "Brass / Terompet", label: "Brass / Terompet" },
+      { value: "Battery / Percussion", label: "Battery / Percussion (Snare, Bass, Quard)" },
+      { value: "Pit Instrument", label: "Pit Instrument (Marimba, Vibraphone, Xylophone)" },
+      { value: "Color Guard (CG)", label: "Color Guard (Bendera & Rifle)" },
+      { value: "Field Commander / Drum Major", label: "Field Commander / Drum Major" },
+    ];
+  }, []);
 
   // Base list that matches search query, posisi, and date range filter (before status filter)
   const baseFilteredList = useMemo(() => {
@@ -833,6 +850,43 @@ export function SubmissionList({
     }
   };
 
+  const handleExportCSV = () => {
+    try {
+      if (sorted.length === 0) {
+        toastError("Tidak ada data pendaftar untuk diekspor.");
+        return;
+      }
+      const headers = ["No", "Nama Lengkap", "Pilihan / Posisi", "Nomor WhatsApp", "Status Seleksi", "Tanggal Daftar", "Catatan Admin"];
+      const rows = sorted.map((s, idx) => {
+        const { nama, hp, pilihan } = getCandidateInfo(s);
+        const statusLabel = STATUS_CONFIG[s.status]?.label || s.status;
+        const dateStr = s.submittedAt ? s.submittedAt.slice(0, 10) : "";
+        const note = (s.adminNote || "").replace(/"/g, '""');
+        return [
+          idx + 1,
+          `"${nama.replace(/"/g, '""')}"`,
+          `"${pilihan.replace(/"/g, '""')}"`,
+          `"${hp.replace(/"/g, '""')}"`,
+          `"${statusLabel}"`,
+          `"${dateStr}"`,
+          `"${note}"`,
+        ].join(",");
+      });
+
+      const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(","), ...rows].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `data-calon-anggota-${filterStatus || "semua"}-${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toastSuccess("Data calon anggota berhasil diekspor ke CSV!");
+    } catch {
+      toastError("Gagal mengekspor data ke CSV.");
+    }
+  };
+
   const handleDownloadDetailPdf = async (s: RekrutmenSubmissionWithAnswers) => {
     try {
       await laporanRekrutmenDetail(form, s);
@@ -991,86 +1045,246 @@ export function SubmissionList({
       key: "status",
       header: "Status",
       render: (s) => {
-        const variant = STATUS_BADGE_MAP[s.status] || { label: s.status, className: "badge-neutral" };
-        return <span className={`badge ${variant.className}`}>{variant.label}</span>;
+        const variant = STATUS_BADGE_MAP[s.status] || { label: s.status, className: "status-menunggu" };
+        return (
+          <span
+            className={`status-pill status-${s.status}`}
+            style={{
+              textTransform: "uppercase",
+              fontSize: 11,
+              fontWeight: 700,
+              padding: "3px 10px",
+              borderRadius: 20,
+            }}
+          >
+            {variant.label}
+          </span>
+        );
       },
     },
     {
       key: "submittedAt",
       header: "Tanggal Mendaftar",
       sortable: true,
-      render: (s) => formatTanggal(s.submittedAt),
+      render: (s) => (
+        <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+          {formatTanggalPanjang(s.submittedAt).split(", ")[1] || formatTanggalPanjang(s.submittedAt)}
+        </span>
+      ),
     },
     {
       key: "aksi",
       header: "Aksi",
       render: (s) => {
         const { waLolosUrl } = getCandidateInfo(s);
+        const isOpen = openActionId === s.id;
+
         return (
-          <div className="action-group" onClick={(e) => e.stopPropagation()}>
+          <div
+            style={{ position: "relative", display: "inline-block" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
-              className="action-btn"
-              data-tooltip="Detail"
-              aria-label="Detail"
               onClick={(e) => {
                 e.stopPropagation();
-                setDetailOpen(s);
+                setOpenActionId(isOpen ? null : s.id);
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "5px 12px",
+                fontSize: 12,
+                borderRadius: "var(--radius-sm, 8px)",
+                background: isOpen ? "var(--primary-700, #b91c1c)" : "var(--primary-600, #dc2626)",
+                border: "none",
+                color: "#ffffff",
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0 1px 3px rgba(220, 38, 38, 0.3)",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (!isOpen) e.currentTarget.style.background = "var(--primary-700, #b91c1c)";
+              }}
+              onMouseLeave={(e) => {
+                if (!isOpen) e.currentTarget.style.background = "var(--primary-600, #dc2626)";
               }}
             >
-              <Eye size={16} />
+              <span>Aksi</span>
+              <ChevronDown
+                size={13}
+                style={{
+                  transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.15s ease",
+                }}
+              />
             </button>
-            <button
-              type="button"
-              className="action-btn"
-              data-tooltip="Ubah Status"
-              aria-label="Ubah Status"
-              onClick={(e) => {
-                e.stopPropagation();
-                openStatusChange(s);
-              }}
-            >
-              <Check size={16} />
-            </button>
-            {s.status === "lolos" && waLolosUrl && (
-              <a
-                className="action-btn"
-                data-tooltip="Kirim WA Lolos"
-                aria-label="Kirim WA Lolos"
-                href={waLolosUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                style={{ color: "#16a34a" }}
+
+            {isOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "calc(100% + 4px)",
+                  zIndex: 100,
+                  minWidth: "165px",
+                  background: "#ffffff",
+                  borderRadius: "10px",
+                  border: "1px solid var(--border, #e2e8f0)",
+                  boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.08)",
+                  padding: "4px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "2px",
+                }}
               >
-                <MessageCircle size={16} />
-              </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionId(null);
+                    setDetailOpen(s);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    width: "100%",
+                    padding: "7px 10px",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    color: "var(--text, #1e293b)",
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <Eye size={14} style={{ color: "var(--text-muted)" }} />
+                  <span>Lihat Detail</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionId(null);
+                    openStatusChange(s);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    width: "100%",
+                    padding: "7px 10px",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    color: "var(--text, #1e293b)",
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <Check size={14} style={{ color: "#16a34a" }} />
+                  <span>Ubah Status</span>
+                </button>
+
+                {s.status === "lolos" && waLolosUrl && (
+                  <a
+                    href={waLolosUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setOpenActionId(null)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      width: "100%",
+                      padding: "7px 10px",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      color: "#16a34a",
+                      background: "transparent",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      textDecoration: "none",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <MessageCircle size={14} style={{ color: "#16a34a" }} />
+                    <span>Kirim WA Lolos</span>
+                  </a>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionId(null);
+                    handleDownloadDetailPdf(s);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    width: "100%",
+                    padding: "7px 10px",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    color: "var(--text, #1e293b)",
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <Download size={14} style={{ color: "#0284c7" }} />
+                  <span>Unduh PDF</span>
+                </button>
+
+                <div style={{ height: "1px", background: "var(--border-soft, #f1f5f9)", margin: "2px 0" }} />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionId(null);
+                    setDeleteOpen(s);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    width: "100%",
+                    padding: "7px 10px",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    color: "var(--danger, #dc2626)",
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--primary-50, #fef2f2)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <Trash2 size={14} style={{ color: "var(--danger, #dc2626)" }} />
+                  <span>Hapus</span>
+                </button>
+              </div>
             )}
-            <button
-              type="button"
-              className="action-btn"
-              data-tooltip="Unduh PDF"
-              aria-label="Unduh PDF"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDownloadDetailPdf(s);
-              }}
-              style={{ color: "#0284c7" }}
-            >
-              <Download size={16} />
-            </button>
-            <button
-              type="button"
-              className="action-btn danger"
-              data-tooltip="Hapus"
-              aria-label="Hapus"
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeleteOpen(s);
-              }}
-            >
-              <Trash2 size={16} />
-            </button>
           </div>
         );
       },
@@ -1098,8 +1312,6 @@ export function SubmissionList({
           display: "grid",
           gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 1fr))",
           gap: 16,
-          maxHeight: "620px",
-          overflowY: "auto",
           padding: "4px 2px",
         }}
       >
@@ -1156,17 +1368,13 @@ export function SubmissionList({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
                     <span
+                      className={`status-pill status-${s.status}`}
                       style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        padding: "2px 8px",
-                        borderRadius: "12px",
-                        fontSize: "11px",
+                        fontSize: 11,
                         fontWeight: 700,
-                        background: conf.bg,
-                        color: conf.color,
-                        border: `1px solid ${conf.border}`,
+                        textTransform: "uppercase",
+                        padding: "2px 8px",
+                        borderRadius: 20,
                       }}
                     >
                       <Icon size={11} /> {conf.label}
@@ -1206,7 +1414,7 @@ export function SubmissionList({
                     {nama}
                   </strong>
                   <span style={{ fontSize: "11.5px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
-                    <Calendar size={11} /> {formatTanggal(s.submittedAt)}
+                    <Calendar size={11} /> {formatTanggalPanjang(s.submittedAt).split(", ")[1] || formatTanggalPanjang(s.submittedAt)}
                   </span>
                 </div>
               </div>
@@ -1289,46 +1497,180 @@ export function SubmissionList({
                   <Eye size={13} /> Detail
                 </button>
 
-                <div style={{ display: "flex", gap: 4 }}>
-                  {s.status === "lolos" && waLolosUrl && (
-                    <a
-                      href={waLolosUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-ghost btn-sm"
-                      title="Kirim Pengumuman Lolos via WA"
-                      style={{ color: "#059669", padding: "5px 8px" }}
+                <div style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenActionId(openActionId === `card-${s.id}` ? null : `card-${s.id}`);
+                    }}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "4px 10px",
+                      fontSize: "12px",
+                      borderRadius: "6px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      background: openActionId === `card-${s.id}` ? "var(--primary-700, #b91c1c)" : "var(--primary-600, #dc2626)",
+                      border: "none",
+                      color: "#ffffff",
+                      boxShadow: "0 1px 3px rgba(220, 38, 38, 0.3)",
+                      transition: "all 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (openActionId !== `card-${s.id}`) e.currentTarget.style.background = "var(--primary-700, #b91c1c)";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (openActionId !== `card-${s.id}`) e.currentTarget.style.background = "var(--primary-600, #dc2626)";
+                    }}
+                  >
+                    <span>Aksi</span>
+                    <ChevronDown
+                      size={12}
+                      style={{
+                        transform: openActionId === `card-${s.id}` ? "rotate(180deg)" : "rotate(0deg)",
+                        transition: "transform 0.15s ease",
+                      }}
+                    />
+                  </button>
+
+                  {openActionId === `card-${s.id}` && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        right: 0,
+                        bottom: "calc(100% + 4px)",
+                        zIndex: 100,
+                        minWidth: "165px",
+                        background: "#ffffff",
+                        borderRadius: "10px",
+                        border: "1px solid var(--border, #e2e8f0)",
+                        boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.08)",
+                        padding: "4px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "2px",
+                      }}
                     >
-                      <MessageCircle size={14} />
-                    </a>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenActionId(null);
+                          openStatusChange(s);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          width: "100%",
+                          padding: "7px 10px",
+                          fontSize: "12px",
+                          fontWeight: 500,
+                          color: "var(--text, #1e293b)",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <Check size={14} style={{ color: "#16a34a" }} />
+                        <span>Ubah Status</span>
+                      </button>
+
+                      {s.status === "lolos" && waLolosUrl && (
+                        <a
+                          href={waLolosUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setOpenActionId(null)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            width: "100%",
+                            padding: "7px 10px",
+                            fontSize: "12px",
+                            fontWeight: 500,
+                            color: "#16a34a",
+                            background: "transparent",
+                            border: "none",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            textDecoration: "none",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <MessageCircle size={14} style={{ color: "#16a34a" }} />
+                          <span>Kirim WA Lolos</span>
+                        </a>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenActionId(null);
+                          handleDownloadDetailPdf(s);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          width: "100%",
+                          padding: "7px 10px",
+                          fontSize: "12px",
+                          fontWeight: 500,
+                          color: "var(--text, #1e293b)",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <Download size={14} style={{ color: "#0284c7" }} />
+                        <span>Unduh PDF</span>
+                      </button>
+
+                      <div style={{ height: "1px", background: "var(--border-soft, #f1f5f9)", margin: "2px 0" }} />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenActionId(null);
+                          setDeleteOpen(s);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          width: "100%",
+                          padding: "7px 10px",
+                          fontSize: "12px",
+                          fontWeight: 500,
+                          color: "var(--danger, #dc2626)",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--primary-50, #fef2f2)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <Trash2 size={14} style={{ color: "var(--danger, #dc2626)" }} />
+                        <span>Hapus</span>
+                      </button>
+                    </div>
                   )}
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => openStatusChange(s)}
-                    title="Ubah Status Seleksi"
-                    style={{ color: "var(--primary-700, #b91c1c)", padding: "5px 8px" }}
-                  >
-                    <Check size={14} /> Status
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => handleDownloadDetailPdf(s)}
-                    title="Unduh PDF"
-                    style={{ color: "#0284c7", padding: "5px 8px" }}
-                  >
-                    <Download size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => setDeleteOpen(s)}
-                    title="Hapus"
-                    style={{ color: "#dc2626", padding: "5px 8px" }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
                 </div>
               </div>
             </div>
@@ -1340,44 +1682,80 @@ export function SubmissionList({
 
   return (
     <>
-      <div className="card">
-        <div className="card-header">
-          <div>
-            <h2>Daftar Calon Anggota</h2>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-              <p style={{ margin: 0 }}>
-                {loading ? "Memuat data..." : `${sorted.length} data calon anggota ditampilkan`}
-              </p>
-              {sortField && (
-                <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                  <button
-                    type="button"
-                    className="sort-active-badge"
-                    onClick={() => {
-                      setSortField(null);
-                      setSortDirection("asc");
-                    }}
-                    title="Klik untuk reset urutan default"
-                  >
-                    <span>
-                      Urut: {sortField === "nama" ? "Nama Lengkap" : sortField === "pilihan" ? "Pilihan / Posisi" : "Tanggal Mendaftar"} ({sortDirection === "asc" ? "A-Z" : "Z-A"})
-                    </span>
-                    <span className="sort-badge-close">×</span>
-                  </button>
-                </div>
-              )}
-            </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* 1. KOTAK FILTER & SEARCH BAR (TERPISAH SEPERTI KELOLA PESANAN) */}
+      <div
+        style={{
+          background: "#ffffff",
+          padding: "14px 16px",
+          borderRadius: "var(--radius-md)",
+          border: "1px solid var(--border)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        {/* Top row: Status Tabs, View Mode, & Export */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 10,
+          }}
+        >
+          {/* Segmented Status Filter */}
+          <div
+            style={{
+              display: "inline-flex",
+              background: "var(--bg-soft)",
+              padding: 4,
+              borderRadius: "var(--radius-sm)",
+              gap: 4,
+            }}
+          >
+            {[
+              { key: "", label: "Semua", count: safeSubmissions.length },
+              { key: "menunggu", label: "Menunggu", count: safeSubmissions.filter((s) => s.status === "menunggu").length },
+              { key: "lolos", label: "Lolos", count: safeSubmissions.filter((s) => s.status === "lolos").length },
+              { key: "cadangan", label: "Cadangan", count: safeSubmissions.filter((s) => s.status === "cadangan").length },
+              { key: "tidak_lolos", label: "Tidak Lolos", count: safeSubmissions.filter((s) => s.status === "tidak_lolos").length },
+            ].map((tab) => {
+              const active = filterStatus === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => handleStatusFilterChange(tab.key as any)}
+                  style={{
+                    background: active ? "#ffffff" : "transparent",
+                    color: active ? "var(--primary-700)" : "var(--text-secondary)",
+                    fontWeight: active ? 700 : 500,
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "5px 12px",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    boxShadow: active ? "var(--shadow-sm)" : "none",
+                  }}
+                >
+                  {tab.label} ({tab.count})
+                </button>
+              );
+            })}
           </div>
-          <div className="header-actions">
+
+          {/* Action Export Buttons & View Mode */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {/* View Mode Toggle */}
             <div
               style={{
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
-                background: "#f1f5f9",
-                padding: 2,
+                background: "var(--bg-soft)",
+                padding: 3,
                 borderRadius: 8,
-                border: "1px solid #e2e8f0",
               }}
             >
               <button
@@ -1423,18 +1801,32 @@ export function SubmissionList({
                 <LayoutGrid size={14} /> Kartu
               </button>
             </div>
+
             <button
               type="button"
-              className="btn btn-outline"
+              className="btn-secondary"
+              onClick={handleExportCSV}
+              title="Ekspor data calon anggota ke CSV"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 12px" }}
+            >
+              <FileSpreadsheet size={14} />
+              <span>CSV</span>
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
               onClick={() => setPdfOpen(true)}
               title="Cetak Laporan Rekapitulasi PDF Calon Anggota"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 12px" }}
             >
-              <Download size={16} /> Cetak PDF
+              <FileText size={14} />
+              <span>PDF</span>
             </button>
           </div>
         </div>
 
-        <div className="toolbar">
+        {/* Toolbar row: SearchBar, Filter Posisi, Filter Status, Filter Periode, & Reset Filter */}
+        <div className="toolbar" style={{ marginTop: 4 }}>
           <SearchBar
             value={search}
             onChange={setSearch}
@@ -1489,24 +1881,27 @@ export function SubmissionList({
             </button>
           )}
         </div>
-
-        {viewMode === "table" ? (
-          <DataTable
-            columns={columns}
-            data={sorted}
-            loading={loading}
-            rowKey={(r) => r.id}
-            onRowClick={(r) => setDetailOpen(r)}
-            emptyTitle="Belum Ada Calon Anggota"
-            emptyMessage="Belum ada pendaftar yang memenuhi kriteria filter saat ini."
-            sortKey={sortField ?? undefined}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-          />
-        ) : (
-          renderCards(sorted)
-        )}
       </div>
+
+      {/* 2. KOTAK DAFTAR CALON ANGGOTA (TERPISAH SEPERTI KELOLA PESANAN) */}
+      {viewMode === "table" ? (
+        <DataTable
+          columns={columns}
+          data={sorted}
+          loading={loading}
+          rowKey={(r) => r.id}
+          onRowClick={(r) => setDetailOpen(r)}
+          emptyTitle="Belum Ada Calon Anggota"
+          emptyMessage="Belum ada pendaftar yang memenuhi kriteria filter saat ini."
+          sortKey={sortField ?? undefined}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          fullHeight
+        />
+      ) : (
+        renderCards(sorted)
+      )}
+    </div>
 
       {/* DETAIL MODAL CALON ANGGOTA & BERKAS LENGKAP */}
       <Modal
@@ -1649,7 +2044,20 @@ export function SubmissionList({
                 </div>
                 <div className="detail-row">
                   <span className="detail-label">Status Seleksi</span>
-                  <span><span className={`badge ${statusBadge.className}`}>{statusBadge.label}</span></span>
+                  <span>
+                    <span
+                      className={`status-pill status-${detailOpen.status}`}
+                      style={{
+                        textTransform: "uppercase",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "3px 10px",
+                        borderRadius: 20,
+                      }}
+                    >
+                      {statusBadge.label}
+                    </span>
+                  </span>
                 </div>
                 <div className="detail-row"><span className="detail-label">Tanggal Mendaftar</span><span>{formatTanggalPanjang(detailOpen.submittedAt)}</span></div>
                 {detailOpen.adminNote && (

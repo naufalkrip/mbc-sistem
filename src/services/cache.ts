@@ -19,7 +19,13 @@ export const CACHE_KEYS = {
   REKRUITMEN_FORM: "rekrutmen-form",
   REKRUITMEN_SUBMISSIONS: "rekrutmen-submissions",
   REKRUITMEN_STATS: "rekrutmen-stats",
+  ORDER_FORMS: "order-forms",
+  ORDER_ACTIVE_FORM: "order-active-form",
+  ORDERS: "orders",
+  ORDER_STATS: "order-stats",
   DASHBOARD: "dashboard",
+  KUPON: "kupon-locations",
+  KUPON_STATS: "kupon-stats",
 } as const;
 
 interface CacheEntry {

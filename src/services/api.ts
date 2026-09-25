@@ -20,8 +20,14 @@ import type {
   RekrutmenFieldType,
   RekrutmenSubmissionStatus,
   User,
+  OrderForm,
+  OrderField,
+  OrderFormWithFields,
+  OrderWithAnswers,
+  OrderStats,
+  OrderStatus,
 } from "../types";
-import { normAbsensi, normAnggota, normTransaksi, normalizeStatusAnggota } from "../utils/format";
+import { normAbsensi, normAnggota, normTransaksi, normalizeStatusAnggota, isValidPhotoUrl } from "../utils/format";
 import { CACHE_KEYS, cacheSet, cacheMutate, cacheClear } from "./cache";
 import { saveMemberPhoto, deleteMemberPhoto } from "./photoStorage";
 
@@ -93,6 +99,25 @@ const VALID_ACTIONS = new Set([
   "addUser",
   "updateUser",
   "deleteUser",
+  "getOrderForms",
+  "getOrderForm",
+  "addOrderForm",
+  "updateOrderForm",
+  "deleteOrderForm",
+  "getOrderFields",
+  "addOrderField",
+  "updateOrderField",
+  "deleteOrderField",
+  "reorderOrderFields",
+  "getOrders",
+  "addOrder",
+  "updateOrderStatus",
+  "deleteOrder",
+  "getOrderStats",
+  "getCouponLocations",
+  "addCouponLocation",
+  "updateCouponLocation",
+  "deleteCouponLocation",
 ]);
 
 type ActionName = (typeof VALID_ACTIONS extends Set<infer T> ? T : never) & string;
@@ -1159,6 +1184,61 @@ export function compressImageToSafeHd(file: File, maxChars = 28000): Promise<str
   });
 }
 
+/**
+ * Mengompres gambar menjadi format Full HD (FHD 1080p / hingga 1920px) dengan kualitas tinggi
+ * agar foto banner, panduan size chart kaos, dan visual produk tampil super tajam (tidak blur).
+ */
+export function compressImageToFhd(file: File, maxDim = 1920, quality = 0.88): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Gagal membaca file gambar."));
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      if (!dataUrl) {
+        return reject(new Error("File gambar kosong."));
+      }
+      const img = new Image();
+      img.onerror = () => reject(new Error("Format gambar tidak valid atau rusak."));
+      img.onload = () => {
+        let width = img.width || 1920;
+        let height = img.height || 1080;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          return resolve(dataUrl);
+        }
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+
+        // Latar belakang putih solid untuk gambar transparan PNG
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Jika ukuran file asli sudah WebP atau PNG tajam, gunakan JPEG kualitas tinggi 0.88-0.90
+        const result = canvas.toDataURL("image/jpeg", quality);
+        resolve(result || dataUrl);
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export async function uploadRekrutmenImageItem(
   base64OrFile: string | File,
   fileName?: string
@@ -1222,4 +1302,571 @@ export async function updateUserApi(data: Partial<User> & { id: string }): Promi
 
 export async function deleteUserApi(id: string): Promise<{ message: string }> {
   return await request<{ message: string }>("deleteUser", { id });
+}
+
+// ============================================================
+// KELOLA PESANAN (ORDERS & ORDER FORMS) API LAYER
+// ============================================================
+
+const LOCAL_ORDER_FORMS_KEY = "mbc_local_order_forms";
+const LOCAL_ORDERS_KEY = "mbc_local_orders";
+
+// Initial template forms if empty
+const DEFAULT_INITIAL_FORMS: OrderFormWithFields[] = [
+  {
+    id: "of-kaos-mbc",
+    title: "Formulir Pemesanan Kaos MB Chondro",
+    description: "Silakan isi detail pemesanan kaos MB Chondro berikut ini. Pesanan Anda akan langsung diverifikasi dan diproses oleh tim admin MBC.",
+    status: "aktif",
+    publicLink: "/order/form/of-kaos-mbc",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    fields: [
+      {
+        id: "fld-1",
+        formId: "of-kaos-mbc",
+        label: "Nama Lengkap Customer",
+        description: "Nama pemesan / penanggung jawab",
+        fieldType: "text",
+        required: true,
+        sortOrder: 0,
+        placeholder: "Contoh: Ahmad Fauzi",
+      },
+      {
+        id: "fld-2",
+        formId: "of-kaos-mbc",
+        label: "Nomor WhatsApp",
+        description: "Nomor aktif untuk konfirmasi & update status pengerjaan",
+        fieldType: "whatsapp",
+        required: true,
+        sortOrder: 1,
+        placeholder: "081234567890",
+      },
+      {
+        id: "fld-3",
+        formId: "of-kaos-mbc",
+        label: "Alamat Pengiriman / Domisili",
+        description: "Alamat lengkap pengiriman kaos",
+        fieldType: "textarea",
+        required: true,
+        sortOrder: 2,
+        placeholder: "Jl. Pemuda No. 45, RT 02/03, Kel. Sukamaju...",
+      },
+      {
+        id: "fld-4",
+        formId: "of-kaos-mbc",
+        label: "Model / Tipe Kaos",
+        description: "Pilih model kaos MB Chondro yang dipesan",
+        fieldType: "select",
+        required: true,
+        sortOrder: 3,
+        options: [
+          { id: "1", label: "Kaos Pendek MB Chondro (Cotton Combed 30s)" },
+          { id: "2", label: "Kaos Panjang MB Chondro (Cotton Combed 30s)" },
+          { id: "3", label: "Polo Shirt / Kaos Berkerah MB Chondro" },
+          { id: "4", label: "Kaos Custom Event / Latihan MB Chondro" },
+        ],
+      },
+      {
+        id: "fld-5",
+        formId: "of-kaos-mbc",
+        label: "Jumlah Pesanan (Pcs)",
+        description: "Kuantitas pesanan",
+        fieldType: "number",
+        required: true,
+        sortOrder: 4,
+        placeholder: "Contoh: 12",
+      },
+      {
+        id: "fld-6",
+        formId: "of-kaos-mbc",
+        label: "Ukuran",
+        description: "Pilih ukuran yang diinginkan",
+        fieldType: "radio",
+        required: false,
+        sortOrder: 5,
+        options: [
+          { id: "s", label: "S" },
+          { id: "m", label: "M" },
+          { id: "l", label: "L" },
+          { id: "xl", label: "XL" },
+          { id: "xxl", label: "XXL" },
+          { id: "custom", label: "Campur / Custom (Tulis di Catatan)" },
+        ],
+      },
+      {
+        id: "fld-7",
+        formId: "of-kaos-mbc",
+        label: "Warna Pilihan",
+        description: "Warna dasar produk",
+        fieldType: "select",
+        required: false,
+        sortOrder: 6,
+        options: [
+          { id: "merah", label: "Merah MBC (Utama)" },
+          { id: "hitam", label: "Hitam Solid" },
+          { id: "putih", label: "Putih Bersih" },
+          { id: "navy", label: "Navy / Biru Dongker" },
+        ],
+      },
+      {
+        id: "fld-8",
+        formId: "of-kaos-mbc",
+        label: "Catatan Tambahan & Keterangan Khusus",
+        description: "Rincian spesifikasi, sablon nama, deadline pengerjaan, dll.",
+        fieldType: "textarea",
+        required: false,
+        sortOrder: 7,
+        placeholder: "Misal: Rincian ukuran M=5, L=10, XL=5. Tambah sablon punggung.",
+      },
+      {
+        id: "fld-9",
+        formId: "of-kaos-mbc",
+        label: "Upload Referensi Desain / Mockup",
+        description: "Upload file gambar desain atau bukti contoh yang diinginkan (Opsional)",
+        fieldType: "file",
+        required: false,
+        sortOrder: 8,
+      },
+    ],
+  },
+];
+
+const DEFAULT_INITIAL_ORDERS: OrderWithAnswers[] = [
+  {
+    id: "ORD-001",
+    formId: "of-kaos-mbc",
+    customerName: "Ahmad",
+    whatsapp: "081234567890",
+    status: "masuk",
+    adminNote: "Customer minta selesai tanggal 28 September",
+    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    updatedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    answers: [
+      { id: "a1", orderId: "ORD-001", fieldId: "fld-1", label: "Nama Lengkap Customer", value: "Ahmad Fauzi" },
+      { id: "a2", orderId: "ORD-001", fieldId: "fld-2", label: "Nomor WhatsApp", value: "081234567890" },
+      { id: "a3", orderId: "ORD-001", fieldId: "fld-3", label: "Alamat Pengiriman / Domisili", value: "Jl. Veteran No. 12, Solo" },
+      { id: "a4", orderId: "ORD-001", fieldId: "fld-4", label: "Jenis Pesanan", value: "Kaos Custom MB Chondro" },
+      { id: "a5", orderId: "ORD-001", fieldId: "fld-5", label: "Jumlah Pesanan (Pcs)", value: "24" },
+      { id: "a6", orderId: "ORD-001", fieldId: "fld-6", label: "Ukuran", value: "Campur / Custom (Tulis di Catatan)" },
+      { id: "a7", orderId: "ORD-001", fieldId: "fld-7", label: "Warna Pilihan", value: "Merah MBC (Utama)" },
+      { id: "a8", orderId: "ORD-001", fieldId: "fld-8", label: "Catatan Tambahan", value: "Ukuran M=10, L=10, XL=4. Desain bordir logo dada kiri." },
+    ],
+  },
+  {
+    id: "ORD-002",
+    formId: "of-kaos-mbc",
+    customerName: "Budi",
+    whatsapp: "085712345678",
+    status: "diproses",
+    adminNote: "Proses cetak banner outdoor 3x1 meter",
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000).toISOString(),
+    answers: [
+      { id: "b1", orderId: "ORD-002", fieldId: "fld-1", label: "Nama Lengkap Customer", value: "Budi Santoso" },
+      { id: "b2", orderId: "ORD-002", fieldId: "fld-2", label: "Nomor WhatsApp", value: "085712345678" },
+      { id: "b3", orderId: "ORD-002", fieldId: "fld-3", label: "Alamat Pengiriman / Domisili", value: "Sekretariat Kampus" },
+      { id: "b4", orderId: "ORD-002", fieldId: "fld-4", label: "Jenis Pesanan", value: "Banner / Spanduk Kegiatan" },
+      { id: "b5", orderId: "ORD-002", fieldId: "fld-5", label: "Jumlah Pesanan (Pcs)", value: "2" },
+      { id: "b8", orderId: "ORD-002", fieldId: "fld-8", label: "Catatan Tambahan", value: "Bahan flexi 340gr, mata ayam di tiap sudut." },
+    ],
+  },
+  {
+    id: "ORD-003",
+    formId: "of-kaos-mbc",
+    customerName: "Citra",
+    whatsapp: "088912345678",
+    status: "selesai",
+    adminNote: "Pesanan sudah diambil di kantor MBC",
+    createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    answers: [
+      { id: "c1", orderId: "ORD-003", fieldId: "fld-1", label: "Nama Lengkap Customer", value: "Citra Kirana" },
+      { id: "c2", orderId: "ORD-003", fieldId: "fld-2", label: "Nomor WhatsApp", value: "088912345678" },
+      { id: "c3", orderId: "ORD-003", fieldId: "fld-3", label: "Alamat Pengiriman / Domisili", value: "Perum Griya Indah Blok C2" },
+      { id: "c4", orderId: "ORD-003", fieldId: "fld-4", label: "Jenis Pesanan", value: "Jersey Official MB Chondro" },
+      { id: "c5", orderId: "ORD-003", fieldId: "fld-5", label: "Jumlah Pesanan (Pcs)", value: "5" },
+      { id: "c6", orderId: "ORD-003", fieldId: "fld-6", label: "Ukuran", value: "M" },
+      { id: "c7", orderId: "ORD-003", fieldId: "fld-7", label: "Warna Pilihan", value: "Hitam Solid" },
+    ],
+  },
+];
+
+function getLocalOrderForms(): OrderFormWithFields[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_ORDER_FORMS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  localStorage.setItem(LOCAL_ORDER_FORMS_KEY, JSON.stringify(DEFAULT_INITIAL_FORMS));
+  return DEFAULT_INITIAL_FORMS;
+}
+
+function saveLocalOrderForms(forms: OrderFormWithFields[]) {
+  try {
+    localStorage.setItem(LOCAL_ORDER_FORMS_KEY, JSON.stringify(forms));
+  } catch {}
+}
+
+function getLocalOrders(): OrderWithAnswers[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_ORDERS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(DEFAULT_INITIAL_ORDERS));
+  return DEFAULT_INITIAL_ORDERS;
+}
+
+function saveLocalOrders(orders: OrderWithAnswers[]) {
+  try {
+    localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(orders));
+  } catch {}
+}
+
+// ---------------- API FUNCTIONS ----------------
+
+export async function getOrderFormsApi(): Promise<OrderFormWithFields[]> {
+  try {
+    const remote = await request<OrderFormWithFields[]>("getOrderForms");
+    if (Array.isArray(remote) && remote.length > 0) {
+      cacheSet(CACHE_KEYS.ORDER_FORMS, remote);
+      saveLocalOrderForms(remote);
+      return remote;
+    }
+  } catch {
+    // fallback local storage
+  }
+  const local = getLocalOrderForms();
+  cacheSet(CACHE_KEYS.ORDER_FORMS, local);
+  return local;
+}
+
+export async function getOrderFormDetailApi(id: string): Promise<OrderFormWithFields | null> {
+  const forms = await getOrderFormsApi();
+  if (!id) return forms[0] || null;
+  return forms.find((f) => f.id === id) || forms[0] || null;
+}
+
+export async function saveOrderFormApi(
+  formData: Omit<OrderForm, "createdAt" | "updatedAt"> & { fields: OrderField[] }
+): Promise<ApiResult<OrderFormWithFields>> {
+  const forms = getLocalOrderForms();
+  const now = new Date().toISOString();
+  let updatedForm: OrderFormWithFields;
+
+  if (formData.id && forms.some((f) => f.id === formData.id)) {
+    // Update
+    updatedForm = {
+      ...formData,
+      publicLink: formData.publicLink || `/order/form/${formData.id}`,
+      createdAt: forms.find((f) => f.id === formData.id)?.createdAt || now,
+      updatedAt: now,
+      fields: formData.fields,
+    };
+    const newForms = forms.map((f) => (f.id === formData.id ? updatedForm : f));
+    saveLocalOrderForms(newForms);
+  } else {
+    // Create new
+    const newId = formData.id || "of-" + Math.random().toString(36).substring(2, 9);
+    updatedForm = {
+      ...formData,
+      id: newId,
+      publicLink: `/order/form/${newId}`,
+      createdAt: now,
+      updatedAt: now,
+      fields: formData.fields.map((fld, idx) => ({
+        ...fld,
+        id: fld.id || "fld-" + Math.random().toString(36).substring(2, 8),
+        formId: newId,
+        sortOrder: idx,
+      })),
+    };
+    forms.unshift(updatedForm);
+    saveLocalOrderForms(forms);
+  }
+
+  // Coba sinkronisasi ke server Google Apps Script jika aktif
+  try {
+    if (formData.id && forms.some((f) => f.id === formData.id)) {
+      await request("updateOrderForm", updatedForm as unknown as Record<string, unknown>);
+    } else {
+      await request("addOrderForm", updatedForm as unknown as Record<string, unknown>);
+    }
+  } catch {}
+
+  cacheSet(CACHE_KEYS.ORDER_FORMS, getLocalOrderForms());
+  cacheClear(CACHE_KEYS.ORDER_ACTIVE_FORM);
+  return { success: true, data: updatedForm };
+}
+
+export async function deleteOrderFormApi(id: string): Promise<ApiResult<null>> {
+  const forms = getLocalOrderForms().filter((f) => f.id !== id);
+  saveLocalOrderForms(forms);
+  cacheSet(CACHE_KEYS.ORDER_FORMS, forms);
+
+  try {
+    await request("deleteOrderForm", { id });
+  } catch {}
+
+  return { success: true, data: null };
+}
+
+export async function getOrdersApi(formId?: string): Promise<OrderWithAnswers[]> {
+  try {
+    const remote = await request<OrderWithAnswers[]>("getOrders", { formId });
+    if (Array.isArray(remote) && remote.length > 0) {
+      cacheSet(CACHE_KEYS.ORDERS, remote);
+      saveLocalOrders(remote);
+      return remote;
+    }
+  } catch {}
+
+  let orders = getLocalOrders();
+  if (formId) {
+    orders = orders.filter((o) => o.formId === formId);
+  }
+  cacheSet(CACHE_KEYS.ORDERS, orders);
+  return orders;
+}
+
+export async function submitCustomerOrderApi(payload: {
+  formId: string;
+  customerName?: string;
+  whatsapp?: string;
+  answers: {
+    fieldId: string;
+    label: string;
+    value: string;
+    fileUrl?: string | null;
+    fileName?: string | null;
+    fileType?: string | null;
+  }[];
+}): Promise<ApiResult<{ id: string; customerName: string; whatsapp: string; createdAt: string }>> {
+  const orders = getLocalOrders();
+  const nextNum = orders.length + 1;
+  const orderId = "ORD-" + ("00" + nextNum).slice(-3);
+  const now = new Date().toISOString();
+
+  let customerName = payload.customerName || "";
+  let whatsapp = payload.whatsapp || "";
+
+  if (!customerName || !whatsapp) {
+    for (const ans of payload.answers) {
+      const lbl = ans.label.toLowerCase();
+      if (!customerName && (lbl.includes("nama") || lbl.includes("customer") || lbl.includes("lengkap"))) {
+        customerName = ans.value.trim();
+      }
+      if (!whatsapp && (lbl.includes("wa") || lbl.includes("whatsapp") || lbl.includes("hp") || lbl.includes("telepon") || lbl.includes("phone"))) {
+        whatsapp = ans.value.trim();
+      }
+    }
+  }
+
+  const newOrder: OrderWithAnswers = {
+    id: orderId,
+    formId: payload.formId,
+    customerName: customerName || "Customer",
+    whatsapp: whatsapp || "-",
+    status: "masuk",
+    adminNote: "",
+    createdAt: now,
+    updatedAt: now,
+    answers: payload.answers.map((a, idx) => ({
+      id: "ans-" + idx + "-" + Math.random().toString(36).slice(2, 6),
+      orderId,
+      fieldId: a.fieldId,
+      label: a.label,
+      value: a.value,
+      fileUrl: a.fileUrl,
+      fileName: a.fileName,
+      fileType: a.fileType,
+      createdAt: now,
+    })),
+  };
+
+  orders.unshift(newOrder);
+  saveLocalOrders(orders);
+  cacheSet(CACHE_KEYS.ORDERS, orders);
+  cacheClear(CACHE_KEYS.ORDER_STATS);
+
+  // Sync with remote Apps Script if available
+  try {
+    await request("addOrder", payload as unknown as Record<string, unknown>);
+  } catch {}
+
+  return {
+    success: true,
+    data: {
+      id: orderId,
+      customerName: newOrder.customerName,
+      whatsapp: newOrder.whatsapp,
+      createdAt: now,
+    },
+  };
+}
+
+export async function updateOrderStatusApi(
+  id: string,
+  status: OrderStatus,
+  adminNote?: string
+): Promise<ApiResult<OrderWithAnswers>> {
+  const orders = getLocalOrders();
+  const now = new Date().toISOString();
+  let updatedOrder: OrderWithAnswers | null = null;
+
+  const newOrders = orders.map((o) => {
+    if (o.id === id) {
+      updatedOrder = {
+        ...o,
+        status,
+        adminNote: adminNote !== undefined ? adminNote : o.adminNote,
+        updatedAt: now,
+      };
+      return updatedOrder;
+    }
+    return o;
+  });
+
+  if (!updatedOrder) {
+    return { success: false, message: "Pesanan tidak ditemukan." };
+  }
+
+  saveLocalOrders(newOrders);
+  cacheSet(CACHE_KEYS.ORDERS, newOrders);
+  cacheClear(CACHE_KEYS.ORDER_STATS);
+
+  try {
+    await request("updateOrderStatus", { id, status, adminNote });
+  } catch {}
+
+  return { success: true, data: updatedOrder };
+}
+
+export async function deleteOrderApi(id: string): Promise<ApiResult<null>> {
+  const orders = getLocalOrders().filter((o) => o.id !== id);
+  saveLocalOrders(orders);
+  cacheSet(CACHE_KEYS.ORDERS, orders);
+  cacheClear(CACHE_KEYS.ORDER_STATS);
+
+  try {
+    await request("deleteOrder", { id });
+  } catch {}
+
+  return { success: true, data: null };
+}
+
+export async function getOrderStatsApi(formId?: string): Promise<OrderStats> {
+  const orders = await getOrdersApi(formId);
+  const total = orders.length;
+  let masuk = 0;
+  let diproses = 0;
+  let selesai = 0;
+
+  for (const o of orders) {
+    if (o.status === "masuk") masuk++;
+    else if (o.status === "diproses") diproses++;
+    else if (o.status === "selesai") selesai++;
+  }
+
+  const stats: OrderStats = { total, masuk, diproses, selesai };
+  cacheSet(CACHE_KEYS.ORDER_STATS, stats);
+  return stats;
+}
+
+// ============================================================
+// KUPON LOCATIONS API
+// ============================================================
+
+import type { CouponLocation, CouponStats } from "../types";
+
+function normCouponLocation(raw: Record<string, unknown>): CouponLocation {
+  const rawPhoto = String(raw.photoUrl ?? raw.photo_url ?? raw.foto ?? "");
+  const photoUrl = isValidPhotoUrl(rawPhoto) ? rawPhoto.trim() : undefined;
+
+  return {
+    id: String(raw.id ?? ""),
+    name: String(raw.name ?? raw.nama ?? ""),
+    picName: String(raw.picName ?? raw.pic_name ?? raw.pic ?? ""),
+    whatsapp: String(raw.whatsapp ?? raw.wa ?? ""),
+    latitude: parseFloat(String(raw.latitude ?? raw.lat ?? 0)),
+    longitude: parseFloat(String(raw.longitude ?? raw.lng ?? raw.lon ?? 0)),
+    address: String(raw.address ?? raw.alamat ?? ""),
+    description: String(raw.description ?? raw.deskripsi ?? ""),
+    photoUrl,
+    status: (raw.status === "nonaktif" ? "nonaktif" : "aktif") as CouponLocation["status"],
+    createdAt: String(raw.createdAt ?? raw.created_at ?? ""),
+    updatedAt: String(raw.updatedAt ?? raw.updated_at ?? ""),
+  };
+}
+
+export async function getCouponLocationsApi(activeOnly = false): Promise<CouponLocation[]> {
+  const raw = await request<unknown[]>("getCouponLocations", { activeOnly });
+  const list = (raw ?? []).map((item) => normCouponLocation(item as Record<string, unknown>));
+  cacheSet(CACHE_KEYS.KUPON, list);
+  return list;
+}
+
+export async function addCouponLocationApi(
+  data: Omit<CouponLocation, "id" | "createdAt" | "updatedAt">
+): Promise<ApiResult<CouponLocation>> {
+  try {
+    const raw = await request<Record<string, unknown>>("addCouponLocation", {
+      name: data.name,
+      picName: data.picName,
+      whatsapp: data.whatsapp,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      address: data.address,
+      description: data.description ?? "",
+      photoUrl: data.photoUrl ?? "",
+      status: data.status,
+    });
+    const loc = normCouponLocation(raw);
+    cacheMutate<CouponLocation[]>(CACHE_KEYS.KUPON, (prev) => [loc, ...(prev ?? [])]);
+    return { success: true, data: loc };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Gagal menambah lokasi." };
+  }
+}
+
+export async function updateCouponLocationApi(
+  data: Partial<CouponLocation> & { id: string }
+): Promise<ApiResult<CouponLocation>> {
+  try {
+    const raw = await request<Record<string, unknown>>("updateCouponLocation", {
+      id: data.id,
+      name: data.name,
+      picName: data.picName,
+      whatsapp: data.whatsapp,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      address: data.address,
+      description: data.description ?? "",
+      photoUrl: data.photoUrl ?? "",
+      status: data.status,
+    });
+    const loc = normCouponLocation(raw);
+    cacheMutate<CouponLocation[]>(CACHE_KEYS.KUPON, (prev) =>
+      (prev ?? []).map((l) => (l.id === loc.id ? loc : l))
+    );
+    return { success: true, data: loc };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Gagal memperbarui lokasi." };
+  }
+}
+
+export async function deleteCouponLocationApi(id: string): Promise<ApiResult<null>> {
+  try {
+    await request("deleteCouponLocation", { id });
+    cacheMutate<CouponLocation[]>(CACHE_KEYS.KUPON, (prev) =>
+      (prev ?? []).filter((l) => l.id !== id)
+    );
+    return { success: true, data: null };
+  } catch (e) {
+    return { success: false, message: e instanceof Error ? e.message : "Gagal menghapus lokasi." };
+  }
+}
+
+export function getCouponStatsFromList(list: CouponLocation[]): CouponStats {
+  const aktif = list.filter((l) => l.status === "aktif").length;
+  return { total: list.length, aktif, nonaktif: list.length - aktif };
 }
