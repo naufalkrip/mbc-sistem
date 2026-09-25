@@ -28,6 +28,7 @@ import {
   submitCustomerOrderApi,
   compressImageToFhd,
   fileToBase64,
+  uploadOrderImageItem,
 } from "../services/api";
 import logo from "../aset/logo.png";
 import { formatNomorWhatsAppUrl, formatRupiah, parseVariantConfig } from "../utils/format";
@@ -363,7 +364,7 @@ export function PublicOrderForm() {
   const handleFileUpload = async (field: OrderField, file: File | null) => {
     if (!file) return;
 
-    const maxLimitMb = 5;
+    const maxLimitMb = field.maxFileSize || 5;
     const maxLimitBytes = maxLimitMb * 1024 * 1024;
 
     if (file.size > maxLimitBytes) {
@@ -375,27 +376,33 @@ export function PublicOrderForm() {
 
     setUploadingFiles((prev) => ({ ...prev, [field.id]: true }));
     try {
-      let base64 = "";
+      let finalUrl = "";
       if (file.type.startsWith("image/")) {
-        try {
-          base64 = await compressImageToFhd(file, 1920, 0.88);
-        } catch (err) {
-          console.warn("Compression failed, fallback to raw base64:", err);
-          base64 = await fileToBase64(file);
+        const upRes = await uploadOrderImageItem(file);
+        if (upRes.success && upRes.data?.url) {
+          finalUrl = upRes.data.url;
+        } else {
+          finalUrl = await compressImageToFhd(file, 1600, 0.85);
         }
       } else {
-        base64 = await fileToBase64(file);
+        finalUrl = await fileToBase64(file);
       }
+
       setFileAnswers((prev) => ({
         ...prev,
         [field.id]: {
-          url: base64,
+          url: finalUrl,
           name: file.name,
           size: file.size,
           type: file.type,
         },
       }));
       handleInputChange(field.id, file.name);
+      setFormErrors((prev) => {
+        const next = { ...prev };
+        delete next[field.id];
+        return next;
+      });
     } catch {
       toastError("Gagal membaca berkas unggahan.");
     } finally {
@@ -426,8 +433,13 @@ export function PublicOrderForm() {
 
     sortedFields.forEach((fld) => {
       const val = answers[fld.id] || "";
-      if (fld.required && !val.trim() && fld.fieldType !== "info_text") {
-        errors[fld.id] = `${fld.label} wajib diisi.`;
+      const isFileField = fld.fieldType === "file" || fld.fieldType === "image";
+      const hasFile = Boolean(fileAnswers[fld.id]?.url);
+
+      if (fld.required && fld.fieldType !== "info_text") {
+        if (isFileField ? !hasFile : !val.trim()) {
+          errors[fld.id] = `${fld.label} wajib diisi.`;
+        }
       }
       // Validasi khusus varian ukuran & jumlah
       if (fld.fieldType === "variant_matrix" || fld.fieldType === "product_configuration") {
@@ -1711,8 +1723,8 @@ export function PublicOrderForm() {
                       </div>
                     )}
 
-                    {/* INPUT: FILE / BERKAS */}
-                    {field.fieldType === "file" && (
+                    {/* INPUT: FILE / BERKAS / FOTO */}
+                    {(field.fieldType === "file" || field.fieldType === "image") && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
                         {!fileAnswers[field.id] ? (
                           <label

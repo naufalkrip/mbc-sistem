@@ -13,7 +13,7 @@ import {
 import type { OrderField, OrderForm, OrderFieldType, OrderFieldOption } from "../../types";
 import { Modal } from "../ui/Modal";
 import { useToast } from "../../contexts/ToastContext";
-import { compressImageToFhd } from "../../services/api";
+import { uploadOrderImageItem } from "../../services/api";
 import { parseVariantConfig, serializeVariantConfig, formatRupiah } from "../../utils/format";
 
 interface OrderFormBuilderModalProps {
@@ -217,13 +217,16 @@ export function OrderFormBuilderModal({
     }
     try {
       setUploadingImage(true);
-      // Kompres dengan resolusi Full HD (FHD 1080p / hingga 1920px) agar jernih dan tajam
-      const base64 = await compressImageToFhd(file, 1920, 0.88);
-      setBannerImageUrl(base64);
-      if (!bannerImageTitle) {
-        setBannerImageTitle("Panduan Desain / Ukuran Kaos MB Chondro");
+      const res = await uploadOrderImageItem(file);
+      if (res.success && res.data?.url) {
+        setBannerImageUrl(res.data.url);
+        if (!bannerImageTitle) {
+          setBannerImageTitle("Panduan Desain / Ukuran Kaos MB Chondro");
+        }
+        toastSuccess("Foto keterangan berhasil dimuat!");
+      } else {
+        toastError("Gagal mengunggah foto.");
       }
-      toastSuccess("Foto keterangan Full HD (tajam) berhasil dimuat!");
     } catch {
       toastError("Gagal memproses gambar.");
     } finally {
@@ -238,13 +241,16 @@ export function OrderFormBuilderModal({
       return;
     }
     try {
-      // Kompres resolusi Full HD (FHD) agar tajam
-      const base64 = await compressImageToFhd(file, 1920, 0.88);
-      updateFieldProperty(fieldIndex, {
-        imageUrl: base64,
-        imageTitle: fields[fieldIndex].imageTitle || `Contoh: ${fields[fieldIndex].label}`,
-      });
-      toastSuccess("Foto keterangan pertanyaan Full HD berhasil dimuat!");
+      const res = await uploadOrderImageItem(file);
+      if (res.success && res.data?.url) {
+        updateFieldProperty(fieldIndex, {
+          imageUrl: res.data.url,
+          imageTitle: fields[fieldIndex].imageTitle || `Contoh: ${fields[fieldIndex].label}`,
+        });
+        toastSuccess("Foto keterangan pertanyaan berhasil dimuat!");
+      } else {
+        toastError("Gagal mengunggah foto keterangan.");
+      }
     } catch {
       toastError("Gagal memproses gambar pertanyaan.");
     }

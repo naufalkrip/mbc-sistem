@@ -254,6 +254,7 @@ export type OrderFieldType =
   | "checkbox"
   | "whatsapp"
   | "file"
+  | "image"
   | "variant_matrix"
   | "product_configuration"
   | "info_text";

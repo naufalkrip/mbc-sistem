@@ -1267,6 +1267,53 @@ export async function uploadRekrutmenImageItem(
   }
 }
 
+export async function uploadOrderImageItem(
+  base64OrFile: string | File,
+  fileName?: string
+): Promise<ApiResult<{ url: string; fileId?: string }>> {
+  try {
+    let base64 = "";
+    let name = fileName || "foto_pesanan.jpg";
+
+    if (typeof base64OrFile === "string") {
+      base64 = base64OrFile;
+    } else {
+      name = base64OrFile.name;
+      if (base64OrFile.type.startsWith("image/")) {
+        try {
+          base64 = await compressImageToFhd(base64OrFile, 1920, 0.88);
+        } catch {
+          base64 = await fileToBase64(base64OrFile);
+        }
+      } else {
+        base64 = await fileToBase64(base64OrFile);
+      }
+    }
+
+    try {
+      const result = await request<{ url: string; fileId?: string }>("uploadOrderImage", {
+        base64,
+        fileName: name,
+      });
+      if (result && result.url) {
+        return { success: true, data: result };
+      }
+    } catch {}
+
+    return {
+      success: true,
+      data: {
+        url: base64,
+      },
+    };
+  } catch (e) {
+    return {
+      success: false,
+      message: e instanceof Error ? e.message : "Gagal memproses gambar.",
+    };
+  }
+}
+
 // ---------------- DASHBOARD ----------------
 
 export async function getDashboard(): Promise<DashboardData> {

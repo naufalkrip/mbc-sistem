@@ -122,16 +122,16 @@ var SHEET_CONFIG = [
     key: "ORDER_FORM",
     name: "ORDER_FORM",
     idPrefix: "OF",
-    headers: ["id", "title", "description", "status", "publicLink", "createdAt", "updatedAt"],
-    keys: ["id", "title", "description", "status", "publicLink", "createdAt", "updatedAt"],
+    headers: ["id", "title", "description", "status", "publicLink", "bannerImageUrl", "bannerImageTitle", "createdAt", "updatedAt"],
+    keys: ["id", "title", "description", "status", "publicLink", "bannerImageUrl", "bannerImageTitle", "createdAt", "updatedAt"],
     idCol: 0
   },
   {
     key: "ORDER_FIELDS",
     name: "ORDER_FIELDS",
     idPrefix: "OFLD",
-    headers: ["id", "formId", "label", "description", "fieldType", "required", "options", "sortOrder", "placeholder", "maxFileSize", "createdAt", "updatedAt"],
-    keys: ["id", "formId", "label", "description", "fieldType", "required", "options", "sortOrder", "placeholder", "maxFileSize", "createdAt", "updatedAt"],
+    headers: ["id", "formId", "label", "description", "fieldType", "required", "options", "sortOrder", "placeholder", "maxFileSize", "imageUrl", "imageTitle", "infoText", "exampleImageUrl", "price", "createdAt", "updatedAt"],
+    keys: ["id", "formId", "label", "description", "fieldType", "required", "options", "sortOrder", "placeholder", "maxFileSize", "imageUrl", "imageTitle", "infoText", "exampleImageUrl", "price", "createdAt", "updatedAt"],
     idCol: 0
   },
   {
@@ -324,6 +324,8 @@ function executeAction(action, data) {
       return getRekrutmenStats(data.formId);
 
     // ==================== KELOLA PESANAN ====================
+    case "uploadOrderImage":
+      return uploadOrderImage(data);
     case "getOrderForms":
       return getOrderForms();
     case "getOrderForm":
@@ -2483,6 +2485,11 @@ function getOrderForms() {
         sortOrder: Number(f.sortOrder || 0),
         placeholder: f.placeholder ? String(f.placeholder) : "",
         maxFileSize: f.maxFileSize ? Number(f.maxFileSize) : 5,
+        imageUrl: f.imageUrl ? String(f.imageUrl) : "",
+        imageTitle: f.imageTitle ? String(f.imageTitle) : "",
+        infoText: f.infoText ? String(f.infoText) : "",
+        exampleImageUrl: f.exampleImageUrl ? String(f.exampleImageUrl) : "",
+        price: f.price ? Number(f.price) : undefined,
         createdAt: f.createdAt,
         updatedAt: f.updatedAt
       };
@@ -2498,6 +2505,8 @@ function getOrderForms() {
       description: String(form.description || ""),
       status: String(form.status || "aktif"),
       publicLink: String(form.publicLink || ("/order/form/" + form.id)),
+      bannerImageUrl: form.bannerImageUrl ? String(form.bannerImageUrl) : "",
+      bannerImageTitle: form.bannerImageTitle ? String(form.bannerImageTitle) : "",
       createdAt: form.createdAt,
       updatedAt: form.updatedAt,
       fields: flds,
@@ -2524,12 +2533,22 @@ function addOrderForm(data) {
   var now = new Date().toISOString();
   var pubLink = "/order/form/" + id;
 
+  var bannerUrl = String(data.bannerImageUrl || "").trim();
+  if (bannerUrl.indexOf("data:image/") === 0 && bannerUrl.length > 500) {
+    try {
+      var upB = uploadOrderImage({ base64: bannerUrl, fileName: "banner_" + new Date().getTime() + ".jpg" });
+      if (upB && upB.url) bannerUrl = upB.url;
+    } catch (e) {}
+  }
+
   var item = {
     id: id,
     title: String(data.title).trim(),
     description: String(data.description || "").trim(),
     status: String(data.status || "aktif"),
     publicLink: pubLink,
+    bannerImageUrl: bannerUrl,
+    bannerImageTitle: String(data.bannerImageTitle || "").trim(),
     createdAt: now,
     updatedAt: now
   };
@@ -2541,6 +2560,15 @@ function addOrderForm(data) {
     for (var i = 0; i < data.fields.length; i++) {
       var f = data.fields[i];
       var fId = generateId(fldCfg);
+
+      var imgUrl = String(f.imageUrl || "").trim();
+      if (imgUrl.indexOf("data:image/") === 0 && imgUrl.length > 500) {
+        try {
+          var upF = uploadOrderImage({ base64: imgUrl, fileName: "fld_img_" + new Date().getTime() + ".jpg" });
+          if (upF && upF.url) imgUrl = upF.url;
+        } catch (e) {}
+      }
+
       createRow(fldCfg, {
         id: fId,
         formId: id,
@@ -2552,6 +2580,11 @@ function addOrderForm(data) {
         sortOrder: i,
         placeholder: String(f.placeholder || "").trim(),
         maxFileSize: f.maxFileSize ? Number(f.maxFileSize) : 5,
+        imageUrl: imgUrl,
+        imageTitle: String(f.imageTitle || "").trim(),
+        infoText: String(f.infoText || "").trim(),
+        exampleImageUrl: String(f.exampleImageUrl || "").trim(),
+        price: f.price ? Number(f.price) : 0,
         createdAt: now,
         updatedAt: now
       });
@@ -2565,11 +2598,22 @@ function updateOrderForm(data) {
   if (!data.id) throw new Error("ID formulir pesanan tidak ditemukan.");
   var cfg = getSheetConfig("ORDER_FORM");
   var now = new Date().toISOString();
+
+  var bannerUrl = String(data.bannerImageUrl || "").trim();
+  if (bannerUrl.indexOf("data:image/") === 0 && bannerUrl.length > 500) {
+    try {
+      var upB = uploadOrderImage({ base64: bannerUrl, fileName: "banner_" + new Date().getTime() + ".jpg" });
+      if (upB && upB.url) bannerUrl = upB.url;
+    } catch (e) {}
+  }
+
   var item = {
     title: String(data.title || "").trim(),
     description: String(data.description || "").trim(),
     status: String(data.status || "aktif"),
     publicLink: String(data.publicLink || ("/order/form/" + data.id)),
+    bannerImageUrl: bannerUrl,
+    bannerImageTitle: String(data.bannerImageTitle || "").trim(),
     updatedAt: now
   };
   updateRow(cfg, data.id, item);
@@ -2586,6 +2630,15 @@ function updateOrderForm(data) {
     for (var i = 0; i < data.fields.length; i++) {
       var f = data.fields[i];
       var fId = f.id || generateId(fldCfg);
+
+      var imgUrl = String(f.imageUrl || "").trim();
+      if (imgUrl.indexOf("data:image/") === 0 && imgUrl.length > 500) {
+        try {
+          var upF = uploadOrderImage({ base64: imgUrl, fileName: "fld_img_" + new Date().getTime() + ".jpg" });
+          if (upF && upF.url) imgUrl = upF.url;
+        } catch (e) {}
+      }
+
       createRow(fldCfg, {
         id: fId,
         formId: data.id,
@@ -2597,6 +2650,11 @@ function updateOrderForm(data) {
         sortOrder: i,
         placeholder: String(f.placeholder || "").trim(),
         maxFileSize: f.maxFileSize ? Number(f.maxFileSize) : 5,
+        imageUrl: imgUrl,
+        imageTitle: String(f.imageTitle || "").trim(),
+        infoText: String(f.infoText || "").trim(),
+        exampleImageUrl: String(f.exampleImageUrl || "").trim(),
+        price: f.price ? Number(f.price) : 0,
         createdAt: f.createdAt || now,
         updatedAt: now
       });
@@ -2773,6 +2831,22 @@ function addOrder(data) {
     var ansCfg = getSheetConfig("ORDER_ANSWERS");
     for (var i = 0; i < data.answers.length; i++) {
       var itemAns = data.answers[i];
+      var fileUrlStr = String(itemAns.fileUrl || "").trim();
+
+      if (fileUrlStr.indexOf("data:image/") === 0 && fileUrlStr.length > 500) {
+        try {
+          var upRes = uploadOrderImage({
+            base64: fileUrlStr,
+            fileName: itemAns.fileName || ("order_upload_" + new Date().getTime() + ".jpg")
+          });
+          if (upRes && upRes.url) {
+            fileUrlStr = upRes.url;
+          }
+        } catch (e) {
+          console.warn("Gagal auto upload base64 ke drive:", e);
+        }
+      }
+
       var ansId = generateId(ansCfg);
       createRow(ansCfg, {
         id: ansId,
@@ -2780,7 +2854,7 @@ function addOrder(data) {
         fieldId: String(itemAns.fieldId || ""),
         label: String(itemAns.label || ""),
         value: String(itemAns.value || ""),
-        fileUrl: String(itemAns.fileUrl || ""),
+        fileUrl: fileUrlStr,
         fileName: String(itemAns.fileName || ""),
         fileType: String(itemAns.fileType || ""),
         fileSize: itemAns.fileSize ? Number(itemAns.fileSize) : 0,
@@ -2797,6 +2871,40 @@ function addOrder(data) {
     whatsapp: whatsapp,
     createdAt: now,
     message: "Pesanan berhasil dikirim."
+  };
+}
+
+function uploadOrderImage(data) {
+  if (!data || !data.base64) throw new Error("Data gambar wajib dikirim.");
+  var rawBase64 = String(data.base64);
+  var mimeType = "image/jpeg";
+  var fileName = data.fileName || ("order_file_" + new Date().getTime() + ".jpg");
+
+  if (rawBase64.indexOf("data:") === 0) {
+    var parts = rawBase64.split(",");
+    var match = parts[0].match(/:(.*?);/);
+    if (match) mimeType = match[1];
+    rawBase64 = parts[1];
+  }
+
+  var bytes = Utilities.base64Decode(rawBase64);
+  var blob = Utilities.newBlob(bytes, mimeType, fileName);
+
+  var folderName = "mbc sistem Order Assets";
+  var folders = DriveApp.getFoldersByName(folderName);
+  var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+
+  var file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  var fileId = file.getId();
+
+  var directUrl = "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w1600";
+
+  return {
+    fileId: fileId,
+    url: directUrl,
+    name: fileName,
+    message: "Foto berhasil diunggah ke Google Drive dengan kualitas penuh."
   };
 }
 

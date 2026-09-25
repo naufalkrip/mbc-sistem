@@ -335,34 +335,60 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
                     {ans.label}
                   </span>
                   <div style={{ fontSize: 14, color: "var(--navy-900)", wordBreak: "break-word" }}>
-                    {ans.fileUrl ? (
-                      <div style={{ marginTop: 4 }}>
-                        {ans.fileUrl.startsWith("data:image/") || ans.fileUrl.includes("drive.google") ? (
-                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                            <img
-                              src={ans.fileUrl}
-                              alt={ans.label}
-                              style={{
-                                maxWidth: "240px",
-                                maxHeight: "180px",
-                                objectFit: "cover",
-                                borderRadius: 8,
-                                border: "1px solid var(--border)",
-                              }}
-                            />
-                            <a href={ans.fileUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "var(--primary-700)" }}>
-                              Buka Gambar
-                            </a>
+                    {(() => {
+                      const imgTarget = ans.fileUrl || (ans.value?.startsWith("data:image/") || ans.value?.startsWith("http") ? ans.value : null);
+                      const isImage = Boolean(
+                        imgTarget &&
+                        (imgTarget.startsWith("data:image/") ||
+                         imgTarget.includes("drive.google") ||
+                         imgTarget.includes("googleusercontent") ||
+                         /\.(jpg|jpeg|png|webp|gif)$/i.test(imgTarget) ||
+                         ans.fileType?.startsWith("image/"))
+                      );
+
+                      if (imgTarget) {
+                        return (
+                          <div style={{ marginTop: 6 }}>
+                            {isImage ? (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
+                                <img
+                                  src={imgTarget}
+                                  alt={ans.label}
+                                  style={{
+                                    maxWidth: "280px",
+                                    maxHeight: "200px",
+                                    objectFit: "cover",
+                                    borderRadius: 8,
+                                    border: "1px solid var(--border)",
+                                    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                                  }}
+                                />
+                                <a
+                                  href={imgTarget}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn btn-outline btn-sm"
+                                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}
+                                >
+                                  <ExternalLink size={13} /> Lihat Foto Ukuran Penuh
+                                </a>
+                              </div>
+                            ) : (
+                              <a
+                                href={imgTarget}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn btn-outline btn-sm"
+                                style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}
+                              >
+                                <ExternalLink size={13} /> Unduh / Lihat Berkas ({ans.fileName || "Lampiran"})
+                              </a>
+                            )}
                           </div>
-                        ) : (
-                          <a href={ans.fileUrl} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm" style={{ display: "inline-flex", gap: 6, fontSize: 12 }}>
-                            <ExternalLink size={13} /> Lihat File
-                          </a>
-                        )}
-                      </div>
-                    ) : (
-                      <span>{ans.value || "-"}</span>
-                    )}
+                        );
+                      }
+                      return <span>{ans.value || "-"}</span>;
+                    })()}
                   </div>
                 </div>
               ))}
