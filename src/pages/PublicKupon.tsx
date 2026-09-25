@@ -221,7 +221,7 @@ export function PublicKupon() {
     <div className="pk-root">
       <style>{`
         .pk-root { min-height:100vh; font-family:'Poppins','Inter',sans-serif; background:#f8f9fa; display:flex; flex-direction:column; }
-        .pk-header { background:#dc2626; color:white; box-shadow:0 2px 12px rgba(220,38,38,0.3); }
+        .pk-header { background:linear-gradient(135deg, #c8101e 0%, #a41111 50%, #8a1414 100%); color:white; box-shadow:0 6px 20px rgba(185,28,28,0.3); position:relative; overflow:hidden; }
         .pk-header-inner { display:flex; align-items:center; justify-content:space-between; padding:14px 20px 10px; }
         .pk-brand { display:flex; align-items:center; gap:12px; }
         .pk-brand-logo { font-size:2rem; line-height:1; }
