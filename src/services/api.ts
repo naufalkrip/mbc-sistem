@@ -1279,9 +1279,10 @@ export async function uploadOrderImageItem(
       base64 = base64OrFile;
     } else {
       name = base64OrFile.name;
-      if (base64OrFile.type.startsWith("image/")) {
+      const isImg = base64OrFile.type.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|bmp|heic|heif|svg)$/i.test(name);
+      if (isImg) {
         try {
-          base64 = await compressImageToFhd(base64OrFile, 1920, 0.88);
+          base64 = await compressImageToFhd(base64OrFile, 1600, 0.85);
         } catch {
           base64 = await fileToBase64(base64OrFile);
         }
@@ -1290,20 +1291,24 @@ export async function uploadOrderImageItem(
       }
     }
 
+    let driveUrl = "";
+    let driveFileId = "";
     try {
       const result = await request<{ url: string; fileId?: string }>("uploadOrderImage", {
         base64,
         fileName: name,
       });
       if (result && result.url) {
-        return { success: true, data: result };
+        driveUrl = result.url;
+        driveFileId = result.fileId || "";
       }
     } catch {}
 
     return {
       success: true,
       data: {
-        url: base64,
+        url: base64 || driveUrl,
+        fileId: driveFileId,
       },
     };
   } catch (e) {

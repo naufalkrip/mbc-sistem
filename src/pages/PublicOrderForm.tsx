@@ -387,19 +387,21 @@ export function PublicOrderForm() {
 
     setUploadingFiles((prev) => ({ ...prev, [field.id]: true }));
     try {
+      const isImg = file.type.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|bmp|heic|heif|svg)$/i.test(file.name);
       let finalUrl = "";
-      const isImg = file.type.startsWith("image/");
 
       if (isImg) {
-        const upRes = await uploadOrderImageItem(file);
-        if (upRes.success && upRes.data?.url) {
-          finalUrl = upRes.data.url;
-        } else {
+        try {
           finalUrl = await compressImageToFhd(file, 1600, 0.85);
+        } catch {
+          finalUrl = await fileToBase64(file);
         }
       } else {
         finalUrl = await fileToBase64(file);
       }
+
+      // Sync background ke Apps Script / Google Drive
+      void uploadOrderImageItem(finalUrl, file.name);
 
       setFileAnswers((prev) => ({
         ...prev,
