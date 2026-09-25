@@ -386,7 +386,10 @@ export function PublicKupon() {
                         <div className="pk-popup-title">🎟️ {loc.name}</div>
                         <div className="pk-popup-row">📍 {loc.address}</div>
                         <div className="pk-popup-row">👤 {loc.picName}</div>
-                        <div className="pk-popup-row">📱 <a href={`https://wa.me/${formatWa(loc.whatsapp)}`} target="_blank" rel="noreferrer" className="pk-popup-wa">{loc.whatsapp}</a></div>
+                        <div className="pk-popup-row">🎟️ Stok Tiket: {loc.ticketQuota != null ? `${loc.ticketQuota} Tiket` : "Tidak Terbatas"}</div>
+                        {loc.whatsapp && (
+                          <div className="pk-popup-row">📱 <a href={`https://wa.me/${formatWa(loc.whatsapp)}`} target="_blank" rel="noreferrer" className="pk-popup-wa">{loc.whatsapp}</a></div>
+                        )}
                         <div className="pk-popup-actions">
                           <button className="pk-popup-btn pk-popup-btn-detail" onClick={() => setDetailLoc(loc)}>Detail</button>
                           <a
@@ -398,7 +401,9 @@ export function PublicKupon() {
                           >
                             📍 Maps
                           </a>
-                          <a href={`https://wa.me/${formatWa(loc.whatsapp)}`} target="_blank" rel="noreferrer" className="pk-popup-btn pk-popup-btn-wa">💬 Chat</a>
+                          {loc.whatsapp && (
+                            <a href={`https://wa.me/${formatWa(loc.whatsapp)}`} target="_blank" rel="noreferrer" className="pk-popup-btn pk-popup-btn-wa">💬 Chat</a>
+                          )}
                         </div>
                       </div>
                     </Popup>
@@ -442,7 +447,10 @@ export function PublicKupon() {
                   <div className="pk-card-body">
                     <div className="pk-card-name">{loc.name}</div>
                     <div className="pk-card-addr">📍 {loc.address}</div>
-                    <div className="pk-card-pic">👤 {loc.picName}</div>
+                    <div className="pk-card-pic">👤 {loc.picName} {loc.whatsapp ? `(${loc.whatsapp})` : ""}</div>
+                    <div className="pk-card-pic" style={{ color: "#dc2626", fontWeight: 600 }}>
+                      🎟️ {loc.ticketQuota != null ? `Ketersediaan: ${loc.ticketQuota} Tiket` : "Ketersediaan: Tidak Terbatas"}
+                    </div>
                     {userPos && (
                       <div className="pk-card-dist">{haversine(userPos.lat, userPos.lng, loc.latitude, loc.longitude).toFixed(1)} km</div>
                     )}
@@ -495,9 +503,12 @@ export function PublicKupon() {
                 <div className="pk-detail-row"><span>📍</span><span>{detailLoc.address}</span></div>
                 {detailLoc.description && <div className="pk-detail-row"><span>ℹ️</span><span>{detailLoc.description}</span></div>}
                 <div className="pk-detail-row"><span>👤</span><span>{detailLoc.picName}</span></div>
-                <div className="pk-detail-row"><span>📱</span>
-                  <a href={`https://wa.me/${formatWa(detailLoc.whatsapp)}`} target="_blank" rel="noreferrer" className="pk-detail-wa">{detailLoc.whatsapp}</a>
-                </div>
+                <div className="pk-detail-row"><span>🎟️</span><span>Ketersediaan Tiket: <strong>{detailLoc.ticketQuota != null ? `${detailLoc.ticketQuota} Tiket` : "Tidak Terbatas"}</strong></span></div>
+                {detailLoc.whatsapp && (
+                  <div className="pk-detail-row"><span>📱</span>
+                    <a href={`https://wa.me/${formatWa(detailLoc.whatsapp)}`} target="_blank" rel="noreferrer" className="pk-detail-wa">{detailLoc.whatsapp}</a>
+                  </div>
+                )}
                 <div className="pk-detail-row"><span>📌</span><span style={{ fontFamily:"monospace", fontSize:"0.8rem" }}>{detailLoc.latitude}, {detailLoc.longitude}</span></div>
               </div>
               <div className="pk-detail-actions">
@@ -509,9 +520,11 @@ export function PublicKupon() {
                 >
                   <span style={{ fontSize: "1.1rem" }}>📍</span> Buka di Google Maps
                 </a>
-                <a href={`https://wa.me/${formatWa(detailLoc.whatsapp)}`} target="_blank" rel="noreferrer" className="pk-btn pk-btn-wa">
-                  <span>💬</span> Hubungi Penjual via WhatsApp
-                </a>
+                {detailLoc.whatsapp && (
+                  <a href={`https://wa.me/${formatWa(detailLoc.whatsapp)}`} target="_blank" rel="noreferrer" className="pk-btn pk-btn-wa">
+                    <span>💬</span> Hubungi Penjual via WhatsApp
+                  </a>
+                )}
                 <button className="pk-btn pk-btn-map" onClick={() => { handleSelectLoc(detailLoc); setDetailLoc(null); }}>
                   <span>🗺️</span> Tampilkan di Peta
                 </button>

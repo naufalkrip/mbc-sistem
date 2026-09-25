@@ -1888,6 +1888,7 @@ export async function addCouponLocationApi(
       address: data.address,
       description: data.description ?? "",
       photoUrl: data.photoUrl ?? "",
+      ticketQuota: data.ticketQuota,
       status: data.status,
     });
     const loc = normCouponLocation(raw);
@@ -1912,6 +1913,7 @@ export async function updateCouponLocationApi(
       address: data.address,
       description: data.description ?? "",
       photoUrl: data.photoUrl ?? "",
+      ticketQuota: data.ticketQuota,
       status: data.status,
     });
     const loc = normCouponLocation(raw);
