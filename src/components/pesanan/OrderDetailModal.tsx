@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   MessageCircle,
 
@@ -40,6 +40,14 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
   const [adminNote, setAdminNote] = useState<string>(order?.adminNote || "");
   const [updating, setUpdating] = useState(false);
   const [copiedWA, setCopiedWA] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  // Close lightbox on ESC key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setLightboxUrl(null); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   if (!order) return null;
 
@@ -128,7 +136,7 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
     }
   });
 
-  return (
+  return (<>
     <Modal
       open={Boolean(order)}
       title={`DETAIL PESANAN: ${order.id}`}
@@ -354,24 +362,40 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
                                 <img
                                   src={imgTarget}
                                   alt={ans.label}
+                                  title="Klik untuk melihat full screen"
+                                  onClick={() => setLightboxUrl(imgTarget)}
+                                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                                   style={{
-                                    maxWidth: "280px",
-                                    maxHeight: "200px",
-                                    objectFit: "cover",
+                                    maxWidth: "320px",
+                                    maxHeight: "240px",
+                                    objectFit: "contain",
                                     borderRadius: 8,
                                     border: "1px solid var(--border)",
                                     boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                                    cursor: "zoom-in",
+                                    background: "#f8f9fa",
+                                    padding: 4,
                                   }}
                                 />
-                                <a
-                                  href={imgTarget}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="btn btn-outline btn-sm"
-                                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}
-                                >
-                                  <ExternalLink size={13} /> Lihat Foto Ukuran Penuh
-                                </a>
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setLightboxUrl(imgTarget)}
+                                    className="btn btn-outline btn-sm"
+                                    style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}
+                                  >
+                                    🔍 Lihat Full Screen
+                                  </button>
+                                  <a
+                                    href={imgTarget}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="btn btn-outline btn-sm"
+                                    style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}
+                                  >
+                                    <ExternalLink size={13} /> Buka di Tab Baru
+                                  </a>
+                                </div>
                               </div>
                             ) : (
                               <a
@@ -429,5 +453,82 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
         
       </div>
     </Modal>
-  );
+
+    {/* LIGHTBOX FULLSCREEN */}
+    {lightboxUrl && (
+      <div
+        onClick={() => setLightboxUrl(null)}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.94)",
+          zIndex: 99999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "14px 20px",
+            background: "linear-gradient(to bottom, rgba(0,0,0,0.8), transparent)",
+          }}
+        >
+          <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: 600 }}>
+            📷 Lampiran Foto Customer
+          </span>
+          <button
+            onClick={() => setLightboxUrl(null)}
+            style={{
+              background: "rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.3)",
+              color: "#fff",
+              borderRadius: "50%",
+              width: 36, height: 36,
+              cursor: "pointer",
+              fontSize: 16,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >✕</button>
+        </div>
+        <img
+          src={lightboxUrl}
+          alt="Lampiran foto"
+          onClick={(e) => e.stopPropagation()}
+          onError={(e) => { (e.currentTarget as HTMLImageElement).alt = "Foto tidak dapat dimuat"; }}
+          style={{
+            maxWidth: "95vw",
+            maxHeight: "90vh",
+            objectFit: "contain",
+            borderRadius: 8,
+            boxShadow: "0 0 60px rgba(0,0,0,0.8)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: 16,
+            color: "rgba(255,255,255,0.6)",
+            fontSize: 12,
+            background: "rgba(0,0,0,0.5)",
+            padding: "5px 12px",
+            borderRadius: 20,
+            pointerEvents: "none",
+          }}
+        >
+          Klik area gelap atau tekan ESC untuk menutup
+        </div>
+      </div>
+    )}
+  </>);
 }

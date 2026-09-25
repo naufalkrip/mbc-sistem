@@ -1304,10 +1304,12 @@ export async function uploadOrderImageItem(
       }
     } catch {}
 
+    // PENTING: Prioritaskan Drive URL (permanen) di atas base64 (sementara)
+    // base64 hanya digunakan sebagai fallback jika upload Drive gagal
     return {
       success: true,
       data: {
-        url: base64 || driveUrl,
+        url: driveUrl || base64,
         fileId: driveFileId,
       },
     };
@@ -1605,7 +1607,10 @@ export async function saveOrderFormApi(
   const now = new Date().toISOString();
   let updatedForm: OrderFormWithFields;
 
-  if (formData.id && forms.some((f) => f.id === formData.id)) {
+  // Tentukan apakah ini update atau create SEBELUM forms di-mutate
+  const isUpdate = Boolean(formData.id && forms.some((f) => f.id === formData.id));
+
+  if (isUpdate) {
     // Update
     updatedForm = {
       ...formData,
@@ -1636,9 +1641,9 @@ export async function saveOrderFormApi(
     saveLocalOrderForms(forms);
   }
 
-  // Coba sinkronisasi ke server Google Apps Script jika aktif
+  // Sinkronisasi ke server Google Apps Script
   try {
-    if (formData.id && forms.some((f) => f.id === formData.id)) {
+    if (isUpdate) {
       await request("updateOrderForm", updatedForm as unknown as Record<string, unknown>);
     } else {
       await request("addOrderForm", updatedForm as unknown as Record<string, unknown>);

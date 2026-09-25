@@ -388,25 +388,24 @@ export function PublicOrderForm() {
     setUploadingFiles((prev) => ({ ...prev, [field.id]: true }));
     try {
       const isImg = file.type.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif|bmp|heic|heif|svg)$/i.test(file.name);
-      let finalUrl = "";
+      let localPreviewBase64 = "";
 
+      // Buat preview lokal sementara (base64) agar langsung tampil di UI
       if (isImg) {
         try {
-          finalUrl = await compressImageToFhd(file, 1600, 0.85);
+          localPreviewBase64 = await compressImageToFhd(file, 1600, 0.85);
         } catch {
-          finalUrl = await fileToBase64(file);
+          localPreviewBase64 = await fileToBase64(file);
         }
       } else {
-        finalUrl = await fileToBase64(file);
+        localPreviewBase64 = await fileToBase64(file);
       }
 
-      // Sync background ke Apps Script / Google Drive
-      void uploadOrderImageItem(finalUrl, file.name);
-
+      // Tampilkan preview lokal dulu
       setFileAnswers((prev) => ({
         ...prev,
         [field.id]: {
-          url: finalUrl,
+          url: localPreviewBase64,
           name: file.name,
           size: file.size,
           type: file.type || (isImg ? "image/jpeg" : "application/octet-stream"),
@@ -418,6 +417,28 @@ export function PublicOrderForm() {
         delete next[field.id];
         return next;
       });
+
+      // Upload ke Google Drive dan dapatkan URL permanen
+      try {
+        const uploadRes = await uploadOrderImageItem(localPreviewBase64, file.name);
+        if (uploadRes.success && uploadRes.data?.url) {
+          const permanentUrl = uploadRes.data.url;
+          // Ganti preview lokal dengan Drive URL permanen
+          setFileAnswers((prev) => ({
+            ...prev,
+            [field.id]: {
+              url: permanentUrl,
+              name: file.name,
+              size: file.size,
+              type: file.type || (isImg ? "image/jpeg" : "application/octet-stream"),
+            },
+          }));
+        }
+        // Jika upload Drive gagal, URL base64 tetap dipakai sebagai fallback
+        // (Apps Script akan mengonversinya saat pesanan diterima)
+      } catch {
+        // fallback base64 tetap tersimpan
+      }
     } catch (err) {
       console.error("Upload error:", err);
       toastError("Gagal membaca berkas unggahan.");
