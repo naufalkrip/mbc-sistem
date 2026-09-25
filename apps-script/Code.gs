@@ -154,8 +154,8 @@ var SHEET_CONFIG = [
     key: "KUPON_LOCATIONS",
     name: "KUPON_LOCATIONS",
     idPrefix: "KPN",
-    headers: ["id", "name", "picName", "whatsapp", "latitude", "longitude", "address", "description", "photoUrl", "status", "createdAt", "updatedAt"],
-    keys: ["id", "name", "picName", "whatsapp", "latitude", "longitude", "address", "description", "photoUrl", "status", "createdAt", "updatedAt"],
+    headers: ["id", "name", "picName", "whatsapp", "latitude", "longitude", "address", "description", "photoUrl", "ticketQuota", "status", "createdAt", "updatedAt"],
+    keys: ["id", "name", "picName", "whatsapp", "latitude", "longitude", "address", "description", "photoUrl", "ticketQuota", "status", "createdAt", "updatedAt"],
     idCol: 0
   }
 ];
@@ -2995,6 +2995,7 @@ function addCouponLocation(data) {
     address: String(data.address || "").trim(),
     description: String(data.description || "").trim(),
     photoUrl: String(data.photoUrl || "").trim(),
+    ticketQuota: data.ticketQuota !== undefined && data.ticketQuota !== null && data.ticketQuota !== "" ? Number(data.ticketQuota) : "",
     status: String(data.status || "aktif").toLowerCase() === "nonaktif" ? "nonaktif" : "aktif",
     createdAt: now,
     updatedAt: now
@@ -3006,6 +3007,9 @@ function updateCouponLocation(data) {
   if (!data.id) throw new Error("ID lokasi kupon tidak ditemukan.");
   var cfg = getSheetConfig("KUPON_LOCATIONS");
   data.updatedAt = new Date().toISOString();
+  if (data.ticketQuota !== undefined) {
+    data.ticketQuota = data.ticketQuota !== null && data.ticketQuota !== "" ? Number(data.ticketQuota) : "";
+  }
   if (data.status) {
     data.status = String(data.status).toLowerCase() === "nonaktif" ? "nonaktif" : "aktif";
   }

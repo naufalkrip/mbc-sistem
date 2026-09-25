@@ -69,6 +69,7 @@ interface FormState {
   address: string;
   description: string;
   photoUrl: string;
+  ticketQuota: string;
   status: "aktif" | "nonaktif";
 }
 
@@ -81,6 +82,7 @@ const EMPTY_FORM: FormState = {
   address: "",
   description: "",
   photoUrl: "",
+  ticketQuota: "",
   status: "aktif",
 };
 
@@ -289,6 +291,7 @@ export function Kupon() {
       address: loc.address,
       description: loc.description ?? "",
       photoUrl: loc.photoUrl ?? "",
+      ticketQuota: loc.ticketQuota !== undefined && loc.ticketQuota !== null ? String(loc.ticketQuota) : "",
       status: loc.status,
     });
     setFormErrors({});
@@ -336,7 +339,6 @@ export function Kupon() {
     const err: Record<string, string> = {};
     if (!form.name.trim()) err.name = "Nama lokasi penjualan wajib diisi.";
     if (!form.picName.trim()) err.picName = "Nama PIC / penjual wajib diisi.";
-    if (!form.whatsapp.trim()) err.whatsapp = "Nomor WhatsApp wajib diisi.";
 
     const lat = parseFloat(form.latitude);
     const lng = parseFloat(form.longitude);
@@ -369,6 +371,7 @@ export function Kupon() {
       address: form.address.trim(),
       description: form.description.trim(),
       photoUrl: form.photoUrl,
+      ticketQuota: form.ticketQuota.trim() !== "" ? Number(form.ticketQuota) : null,
       status: form.status,
     };
 
@@ -509,6 +512,9 @@ export function Kupon() {
       key: "whatsapp",
       header: "WhatsApp",
       render: (r) => {
+        if (!r.whatsapp || !r.whatsapp.trim()) {
+          return <span style={{ color: "var(--text-muted)", fontSize: "13px" }}>-</span>;
+        }
         const waLink = toWaLink(r.whatsapp);
         return (
           <a
@@ -528,6 +534,31 @@ export function Kupon() {
             <MessageCircle size={14} />
             {formatNoHp(r.whatsapp)}
           </a>
+        );
+      },
+    },
+    {
+      key: "ticketQuota",
+      header: "Ketersediaan Tiket",
+      render: (r) => {
+        const hasQuota = r.ticketQuota !== undefined && r.ticketQuota !== null && r.ticketQuota > 0;
+        return (
+          <span
+            style={{
+              padding: "4px 9px",
+              borderRadius: "6px",
+              fontSize: "12px",
+              fontWeight: 600,
+              background: hasQuota ? "rgba(37, 99, 235, 0.1)" : "rgba(100, 116, 139, 0.1)",
+              color: hasQuota ? "#1d4ed8" : "#475569",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+            }}
+          >
+            <Ticket size={13} />
+            {hasQuota ? `${r.ticketQuota} Tiket` : "Tidak Terbatas"}
+          </span>
         );
       },
     },
@@ -1009,14 +1040,29 @@ export function Kupon() {
 
           {/* WhatsApp */}
           <div className="form-group">
-            <label>Nomor WhatsApp PIC *</label>
+            <label>Nomor WhatsApp PIC (Opsional)</label>
             <input
               value={form.whatsapp}
               onChange={(e) => setFormField("whatsapp", e.target.value)}
-              placeholder="081234567890"
+              placeholder="081234567890 (Boleh dikosongkan)"
               inputMode="tel"
             />
             {formErrors.whatsapp && <span className="field-error">{formErrors.whatsapp}</span>}
+          </div>
+
+          {/* Jumlah Ketersediaan Tiket */}
+          <div className="form-group">
+            <label>Jumlah Ketersediaan Tiket (Opsional)</label>
+            <input
+              type="number"
+              min="0"
+              value={form.ticketQuota}
+              onChange={(e) => setFormField("ticketQuota", e.target.value)}
+              placeholder="Contoh: 100 (Kosongkan jika tidak terbatas)"
+            />
+            <span style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+              Biarkan kosong jika stok tiket tidak terbatas.
+            </span>
           </div>
 
           {/* Status */}
@@ -1241,8 +1287,19 @@ export function Kupon() {
               </div>
 
               <div className="modal-detail-item">
-                <div className="modal-detail-label">WhatsApp</div>
-                <div style={{ fontWeight: 600, color: "#16a34a" }}>{formatNoHp(detailLoc.whatsapp)}</div>
+                <div className="modal-detail-label">WhatsApp PIC</div>
+                <div style={{ fontWeight: 600, color: detailLoc.whatsapp ? "#16a34a" : "var(--text-muted)" }}>
+                  {detailLoc.whatsapp ? formatNoHp(detailLoc.whatsapp) : "- (Tidak Diisi)"}
+                </div>
+              </div>
+
+              <div className="modal-detail-item">
+                <div className="modal-detail-label">Ketersediaan Tiket</div>
+                <div style={{ fontWeight: 600, color: "var(--navy-900)" }}>
+                  {detailLoc.ticketQuota !== undefined && detailLoc.ticketQuota !== null && detailLoc.ticketQuota > 0
+                    ? `${detailLoc.ticketQuota} Tiket`
+                    : "Tidak Terbatas"}
+                </div>
               </div>
 
               <div className="modal-detail-item">

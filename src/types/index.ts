@@ -353,6 +353,7 @@ export interface CouponLocation {
   address: string;
   description?: string;
   photoUrl?: string;
+  ticketQuota?: number | null;
   status: CouponLocationStatus;
   createdAt: string;
   updatedAt: string;

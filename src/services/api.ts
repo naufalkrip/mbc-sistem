@@ -1843,6 +1843,9 @@ function normCouponLocation(raw: Record<string, unknown>): CouponLocation {
   const rawPhoto = String(raw.photoUrl ?? raw.photo_url ?? raw.foto ?? "");
   const photoUrl = isValidPhotoUrl(rawPhoto) ? rawPhoto.trim() : undefined;
 
+  const rawQuota = raw.ticketQuota ?? raw.ticket_quota ?? raw.kuota ?? raw.quota;
+  const ticketQuota = rawQuota !== undefined && rawQuota !== null && String(rawQuota).trim() !== "" ? Number(rawQuota) : null;
+
   return {
     id: String(raw.id ?? ""),
     name: String(raw.name ?? raw.nama ?? ""),
@@ -1853,6 +1856,7 @@ function normCouponLocation(raw: Record<string, unknown>): CouponLocation {
     address: String(raw.address ?? raw.alamat ?? ""),
     description: String(raw.description ?? raw.deskripsi ?? ""),
     photoUrl,
+    ticketQuota: ticketQuota && !isNaN(ticketQuota) ? ticketQuota : null,
     status: (raw.status === "nonaktif" ? "nonaktif" : "aktif") as CouponLocation["status"],
     createdAt: String(raw.createdAt ?? raw.created_at ?? ""),
     updatedAt: String(raw.updatedAt ?? raw.updated_at ?? ""),
