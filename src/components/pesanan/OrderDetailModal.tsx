@@ -18,7 +18,6 @@ import type { OrderWithAnswers, OrderStatus, PaymentStatus } from "../../types";
 import {
   formatNomorHp,
   formatNomorWhatsAppUrl,
-  buatLinkWhatsAppPesanan,
   formatRupiah,
   formatTanggalPanjang,
 } from "../../utils/format";
@@ -30,6 +29,7 @@ interface OrderDetailModalProps {
   onClose: () => void;
   onUpdateStatus: (id: string, status: OrderStatus, adminNote?: string) => Promise<boolean>;
   onUpdatePayment?: (id: string, dpAmount: number, paymentStatus: PaymentStatus) => Promise<boolean>;
+  onOpenWhatsAppModal?: (order: OrderWithAnswers) => void;
 }
 
 const STATUS_STEPS: { key: OrderStatus; label: string; desc: string; icon: typeof Clock }[] = [
@@ -38,7 +38,13 @@ const STATUS_STEPS: { key: OrderStatus; label: string; desc: string; icon: typeo
   { key: "selesai", label: "Selesai", desc: "Pengerjaan telah rampung", icon: CheckCircle },
 ];
 
-export function OrderDetailModal({ order, onClose, onUpdateStatus, onUpdatePayment }: OrderDetailModalProps) {
+export function OrderDetailModal({
+  order,
+  onClose,
+  onUpdateStatus,
+  onUpdatePayment,
+  onOpenWhatsAppModal,
+}: OrderDetailModalProps) {
   const { success: toastSuccess, error: toastError } = useToast();
   const [currentStatus, setCurrentStatus] = useState<OrderStatus>(order?.status || "masuk");
   const [adminNote, setAdminNote] = useState<string>(order?.adminNote || "");
@@ -80,14 +86,6 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus, onUpdatePayme
     (a) => a && (String(a?.label || "").toLowerCase().includes("jenis") || String(a?.label || "").toLowerCase().includes("produk"))
   );
   const jenisPesanan = jenisAnswer && typeof jenisAnswer.value === "string" ? jenisAnswer.value : "Pesanan MB Chondro";
-
-  const waUrl = buatLinkWhatsAppPesanan(
-    order.whatsapp || "",
-    order.customerName || "",
-    order.id,
-    jenisPesanan,
-    currentStatus
-  );
 
   const rawWaClean = formatNomorWhatsAppUrl(order.whatsapp || "");
   const directWaUrl = rawWaClean ? `https://wa.me/${rawWaClean}` : null;
@@ -301,14 +299,25 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus, onUpdatePayme
                 </button>
               </div>
             </div>
+
+            <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: 8, border: "1px solid #f1f5f9" }}>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 3 }}>Tanggal Pesanan</span>
+              <strong style={{ fontSize: 14, color: "var(--navy-900)" }}>
+                {formatTanggalPanjang(order.createdAt)}
+              </strong>
+            </div>
           </div>
 
           {directWaUrl && (
             <div style={{ marginTop: 14 }}>
-              <a
-                href={waUrl || directWaUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  if (onOpenWhatsAppModal) {
+                    onOpenWhatsAppModal(order);
+                  }
+                }}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -316,16 +325,17 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus, onUpdatePayme
                   padding: "8px 16px",
                   background: "#25D366",
                   color: "#ffffff",
+                  border: "none",
                   borderRadius: 8,
                   fontWeight: 600,
                   fontSize: 13,
-                  textDecoration: "none",
+                  cursor: "pointer",
                   boxShadow: "0 2px 6px rgba(37, 211, 102, 0.2)",
                 }}
               >
                 <MessageCircle size={16} />
                 <span>Chat Customer di WhatsApp</span>
-              </a>
+              </button>
             </div>
           )}
         </div>

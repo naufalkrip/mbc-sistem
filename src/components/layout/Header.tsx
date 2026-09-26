@@ -31,7 +31,7 @@ export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
         <div className="header-date">
           <span className="header-date-label">HARI INI</span>
           <span className="header-date-value">
-            <Calendar size={14} style={{ marginRight: 6 }} />
+            <Calendar size={13} />
             {today}
           </span>
         </div>

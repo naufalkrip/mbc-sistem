@@ -38,7 +38,7 @@ import {
   deleteOrderApi,
 } from "../services/api";
 import { CACHE_KEYS } from "../services/cache";
-import { formatTanggalPanjang, formatNomorHp, buatLinkWhatsAppPesanan, formatRupiah } from "../utils/format";
+import { formatRupiah } from "../utils/format";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { SearchBar } from "../components/ui/SearchBar";
 import { Filter as FilterComp } from "../components/ui/Filter";
@@ -275,107 +275,11 @@ export function KelolaPesanan() {
     {
       key: "customerName",
       header: "Customer",
-      render: (row) => {
-        const isLunas = row.paymentStatus === "lunas";
-        const isDp = row.paymentStatus === "dp" || (row.dpAmount && row.dpAmount > 0);
-
-        return (
-          <div>
-            <strong style={{ display: "block", color: "var(--navy-900)", fontSize: 13.5 }}>
-              {row.customerName || "-"}
-            </strong>
-            <div style={{ marginTop: 4 }}>
-              {isLunas ? (
-                <span
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    color: "#15803d",
-                    background: "#dcfce7",
-                    border: "1px solid #86efac",
-                    padding: "1px 7px",
-                    borderRadius: 10,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 3,
-                  }}
-                >
-                  ✓ LUNAS
-                </span>
-              ) : isDp ? (
-                <span
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    color: "#1d4ed8",
-                    background: "#dbeafe",
-                    border: "1px solid #93c5fd",
-                    padding: "1px 7px",
-                    borderRadius: 10,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 3,
-                  }}
-                >
-                  DP: {formatRupiah(row.dpAmount || 0)}
-                </span>
-              ) : (
-                <span
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: 600,
-                    color: "#b91c1c",
-                    background: "#fee2e2",
-                    border: "1px solid #fca5a5",
-                    padding: "1px 7px",
-                    borderRadius: 10,
-                  }}
-                >
-                  Belum DP
-                </span>
-              )}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      key: "whatsapp",
-      header: "WhatsApp",
-      render: (row) => {
-        const jenisAnswer = row.answers.find(
-          (a) => String(a?.label || "").toLowerCase().includes("jenis") || String(a?.label || "").toLowerCase().includes("produk")
-        );
-        const waLink = buatLinkWhatsAppPesanan(
-          row.whatsapp,
-          row.customerName,
-          row.id,
-          jenisAnswer?.value,
-          row.status
-        );
-        return (
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 13, color: "var(--text)" }}>{formatNomorHp(row.whatsapp)}</span>
-            {waLink && (
-              <a
-                href={waLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-icon"
-                title="Chat WhatsApp Customer"
-                style={{
-                  color: "#25D366",
-                  padding: 4,
-                  borderRadius: 6,
-                  display: "inline-flex",
-                }}
-              >
-                <MessageCircle size={15} />
-              </a>
-            )}
-          </div>
-        );
-      },
+      render: (row) => (
+        <strong style={{ display: "block", color: "var(--navy-900)", fontSize: 13.5 }}>
+          {row.customerName || "-"}
+        </strong>
+      ),
     },
     {
       key: "jenis",
@@ -435,15 +339,6 @@ export function KelolaPesanan() {
           </div>
         );
       },
-    },
-    {
-      key: "createdAt",
-      header: "Tanggal",
-      render: (row) => (
-        <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-          {formatTanggalPanjang(row.createdAt).split(" ").slice(0, 3).join(" ")}
-        </span>
-      ),
     },
     {
       key: "status",
@@ -587,13 +482,7 @@ export function KelolaPesanan() {
         </div>
 
         {/* 4 Stat Cards Grid (Clickable for fast filtering) */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: 12,
-          }}
-        >
+        <div className="rekrutmen-stats-grid summary-cards-container">
           {/* Card 1: Total Pesanan */}
           <div
             onClick={() => {
@@ -1182,6 +1071,7 @@ export function KelolaPesanan() {
         onClose={() => setSelectedOrder(null)}
         onUpdateStatus={handleUpdateStatus}
         onUpdatePayment={handleUpdatePayment}
+        onOpenWhatsAppModal={(ord) => setBroadcastOrder(ord)}
       />
 
       {/* FORM BUILDER MODAL */}

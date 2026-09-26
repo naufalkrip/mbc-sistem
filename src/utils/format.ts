@@ -16,6 +16,62 @@ export function formatAngka(nilai: number | string): string {
   return angka.toLocaleString("id-ID", { maximumFractionDigits: 0 });
 }
 
+/**
+ * Rank size: Anak-anak (terkecil -> terbesar) -> Dewasa (terkecil -> terbesar)
+ */
+export function getSizeRank(sizeStr: string): number {
+  if (!sizeStr) return 999;
+  const s = sizeStr.trim().toUpperCase();
+
+  // 1. Anak-anak / Kids sizes (Rank 100 - 199)
+  if (s.includes("ANAK") || s.includes("KIDS") || s.includes("BABY")) {
+    if (s.includes("1") || s.includes("XS")) return 101;
+    if (s.includes("2") || s.includes("S")) return 102;
+    if (s.includes("3") || s.includes("M")) return 103;
+    if (s.includes("4") || s.includes("L")) return 104;
+    if (s.includes("5") || s.includes("XL")) return 105;
+    if (s.includes("6")) return 106;
+    if (s.includes("8")) return 108;
+    if (s.includes("10")) return 110;
+    if (s.includes("12")) return 112;
+    return 150;
+  }
+
+  // Pure numeric sizes under 16 (usually kids sizes)
+  const numMatch = s.match(/^SIZE\s*(\d+)$/i) || s.match(/^(\d+)$/);
+  if (numMatch) {
+    const val = parseInt(numMatch[1], 10);
+    if (val <= 14) return 100 + val;
+  }
+
+  // 2. Dewasa / Adult sizes (Rank 200 - 299)
+  if (s === "XXS") return 200;
+  if (s === "XS") return 201;
+  if (s === "S") return 202;
+  if (s === "M") return 203;
+  if (s === "L") return 204;
+  if (s === "XL") return 205;
+  if (s === "XXL" || s === "2XL") return 206;
+  if (s === "XXXL" || s === "3XL") return 207;
+  if (s === "XXXXL" || s === "4XL") return 208;
+  if (s === "5XL") return 209;
+  if (s === "6XL") return 210;
+
+  // Prefix matches for adult sizes
+  if (s.startsWith("XXS")) return 200;
+  if (s.startsWith("XS")) return 201;
+  if (s.startsWith("S")) return 202;
+  if (s.startsWith("M")) return 203;
+  if (s.startsWith("L")) return 204;
+  if (s.startsWith("XL")) return 205;
+  if (s.startsWith("XXL") || s.startsWith("2XL")) return 206;
+  if (s.startsWith("3XL") || s.startsWith("XXXL")) return 207;
+  if (s.startsWith("4XL")) return 208;
+  if (s.startsWith("5XL")) return 209;
+
+  return 900;
+}
+
 /** Format tanggal menjadi DD/MM/YYYY. Contoh: 16/08/2026 */
 export function formatTanggal(tanggal: string): string {
   if (!tanggal) return "-";

@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { OrderWithAnswers } from "../types";
-import { formatTanggalPanjang } from "../utils/format";
+import { formatTanggalPanjang, formatNomorHp, formatRupiah, getSizeRank } from "../utils/format";
 import logoUrl from "../aset/logo.png";
 import poppinsRegular from "../aset/fonts/Poppins-Regular.ttf";
 import poppinsSemiBold from "../aset/fonts/Poppins-SemiBold.ttf";
@@ -190,52 +190,282 @@ export async function exportOrdersToPDF(
   doc.setFont("Poppins", "bold");
   doc.setFontSize(13);
   doc.setTextColor(...NAVY);
-  doc.text("Laporan Data Pesanan Customer", MARGIN, 33);
+  doc.text("Laporan Rekap & Detail Pesanan Customer", MARGIN, 32);
 
   doc.setFont("Poppins", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(...SLATE);
-  doc.text(`Filter / Kategori: ${filterTitle} · Total: ${orders.length} pesanan`, MARGIN, 38);
+  doc.text(`Filter / Kategori: ${filterTitle} · Total Data: ${orders.length} Pesanan`, MARGIN, 37);
 
-  // Table Data
-  const tableData = orders.map((o, idx) => {
-    // Ambil produk singkat dari answers
+  // Calculate Summary Statistics (Rekap)
+  const masukCount = orders.filter((o) => o.status === "masuk").length;
+  const diprosesCount = orders.filter((o) => o.status === "diproses").length;
+  const selesaiCount = orders.filter((o) => o.status === "selesai").length;
+
+  const lunasCount = orders.filter((o) => o.paymentStatus === "lunas").length;
+  const dpCount = orders.filter((o) => o.paymentStatus === "dp" || (o.dpAmount && o.dpAmount > 0)).length;
+  const belumBayarCount = orders.filter((o) => o.paymentStatus === "belum_bayar" && (!o.dpAmount || o.dpAmount === 0)).length;
+  const totalDpAmount = orders.reduce((sum, o) => sum + (o.dpAmount || 0), 0);
+
+  // Draw Summary Panel Box
+  const summaryBoxY = 41;
+  const boxHeight = 21;
+  doc.setFillColor(...ROW_ALT);
+  doc.setDrawColor(...LINE);
+  doc.setLineWidth(0.3);
+  doc.rect(MARGIN, summaryBoxY, w - 2 * MARGIN, boxHeight, "FD");
+
+  doc.setFont("Poppins", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...BURGUNDY);
+  doc.text("RINGKASAN REKAP PESANAN & STATUS PEMBAYARAN", MARGIN + 4, summaryBoxY + 5);
+
+  doc.setFont("Poppins", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...BODY);
+  doc.text(`Status Pengerjaan :  Masuk (${masukCount})   |   Diproses (${diprosesCount})   |   Selesai (${selesaiCount})`, MARGIN + 4, summaryBoxY + 11);
+  doc.text(`Status Pembayaran :  Lunas (${lunasCount})   |   DP (${dpCount})   |   Belum Bayar (${belumBayarCount})   |   Total DP Terkumpul: ${formatRupiah(totalDpAmount)}`, MARGIN + 4, summaryBoxY + 16.5);
+
+  // ----------------------------------------------------
+  // REKAPITULASI TOTAL UKURAN & LENGAN PRODUK (FOR PDF)
+  // ----------------------------------------------------
+  const recapMap = new Map<string, { product: string; size: string; sleeve: string; qty: number }>();
+
+  orders.forEach((o) => {
     const safeAnswers = Array.isArray(o.answers) ? o.answers : [];
-    const jenisAnswer = safeAnswers.find((a) =>
-      String(a?.label || "").toLowerCase().includes("jenis") || String(a?.label || "").toLowerCase().includes("produk")
+    const jenisAnswer = safeAnswers.find(
+      (a) =>
+        a &&
+        (String(a?.label || "").toLowerCase().includes("jenis") ||
+          String(a?.label || "").toLowerCase().includes("produk"))
     );
-    const qtyAnswer = safeAnswers.find((a) =>
-      String(a?.label || "").toLowerCase().includes("jumlah") || String(a?.label || "").toLowerCase().includes("qty")
+    const productName = jenisAnswer && typeof jenisAnswer.value === "string" ? jenisAnswer.value : "Pesanan Produk";
+
+    safeAnswers.forEach((ans) => {
+      if (!ans) return;
+      const ansValStr = typeof ans.value === "string" ? ans.value : String(ans.value || "");
+      if (ansValStr.includes("•")) {
+        const lines = ansValStr.split("\n");
+        lines.forEach((line) => {
+          if (line.trim().startsWith("•")) {
+            const match = line.match(/•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\]/i);
+            if (match) {
+              const qty = parseInt(match[1], 10);
+              const size = match[2].trim();
+              const sleeve = match[3].trim();
+
+              const key = `${productName}|${size}|${sleeve}`;
+              const existing = recapMap.get(key);
+              if (existing) {
+                existing.qty += qty;
+              } else {
+                recapMap.set(key, { product: productName, size, sleeve, qty });
+              }
+            }
+          }
+        });
+      }
+    });
+  });
+
+  const recapItems = Array.from(recapMap.values());
+  recapItems.sort((a, b) => {
+    if (a.product !== b.product) return a.product.localeCompare(b.product);
+
+    // Separate sleeve: Lengan Pendek first, Lengan Panjang second
+    const isPanjangA = a.sleeve.toLowerCase().includes("panjang");
+    const isPanjangB = b.sleeve.toLowerCase().includes("panjang");
+    if (isPanjangA !== isPanjangB) {
+      return isPanjangA ? 1 : -1;
+    }
+
+    // Sort by size rank (anak-anak ke dewasa, terkecil ke terbesar)
+    const rankA = getSizeRank(a.size);
+    const rankB = getSizeRank(b.size);
+    if (rankA !== rankB) return rankA - rankB;
+
+    return a.size.localeCompare(b.size);
+  });
+
+  let currentY = summaryBoxY + boxHeight + 4;
+
+  // Render Product Size & Sleeve Summary Table if items exist
+  if (recapItems.length > 0) {
+    const recapTableData = recapItems.map((item, idx) => [
+      idx + 1,
+      item.product,
+      item.sleeve,
+      item.size,
+      `${item.qty} Pcs`,
+    ]);
+
+    autoTable(doc, {
+      startY: currentY,
+      margin: { left: MARGIN, right: MARGIN },
+      head: [["No", "Nama Produk", "Model Lengan", "Size / Ukuran", "Total Pcs"]],
+      body: recapTableData,
+      theme: "plain",
+      styles: {
+        font: "Poppins",
+        fontSize: 7.5,
+        textColor: BODY,
+        cellPadding: { top: 2, right: 3, bottom: 2, left: 3 },
+        overflow: "linebreak",
+        lineWidth: 0.1,
+        lineColor: LINE,
+      },
+      headStyles: {
+        fillColor: NAVY,
+        textColor: WHITE,
+        fontStyle: "bold",
+        fontSize: 8,
+        halign: "left",
+        cellPadding: { top: 3, right: 3, bottom: 3, left: 3 },
+      },
+      alternateRowStyles: {
+        fillColor: ROW_ALT,
+      },
+      columnStyles: {
+        0: { cellWidth: 8, halign: "center" },
+        1: { cellWidth: 55, fontStyle: "bold" },
+        2: { cellWidth: 45 },
+        3: { cellWidth: 45, fontStyle: "bold" },
+        4: { cellWidth: 29, halign: "right", fontStyle: "bold" },
+      },
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 6;
+  }
+
+  // Section Header for Customer Detail
+  doc.setFont("Poppins", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...NAVY);
+  doc.text("RINCIAN DETAIL PESANAN PER CUSTOMER", MARGIN, currentY);
+
+  // Table Data (Detailed Customer breakdown without ID)
+  const tableData = orders.map((o, idx) => {
+    const safeAnswers = Array.isArray(o.answers) ? o.answers : [];
+
+    // Customer & Contact
+    const waText = o.whatsapp ? formatNomorHp(o.whatsapp) : "-";
+    const customerCell = `${o.customerName || "-"}\nWA: ${waText}`;
+
+    // Tanggal
+    const tanggalCell = formatTanggalPanjang(o.createdAt).split(" ").slice(0, 3).join(" ");
+
+    // Main Product / Jenis
+    const jenisAnswer = safeAnswers.find(
+      (a) =>
+        a &&
+        (String(a?.label || "").toLowerCase().includes("jenis") ||
+          String(a?.label || "").toLowerCase().includes("produk") ||
+          String(a?.label || "").toLowerCase().includes("model"))
     );
-    const orderDesc = [
-      jenisAnswer?.value || "-",
-      qtyAnswer ? `(${qtyAnswer.value})` : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
+    const mainProduct = jenisAnswer?.value ? String(jenisAnswer.value) : "";
+
+    // Parse Variants & Qty
+    const variantLines: string[] = [];
+    let totalQty = 0;
+    let totalPriceStr = "";
+
+    safeAnswers.forEach((ans) => {
+      if (!ans) return;
+      const ansValStr = typeof ans.value === "string" ? ans.value : (ans.value != null ? String(ans.value) : "");
+      if (ansValStr.includes("•")) {
+        const lines = ansValStr.split("\n");
+        lines.forEach((line) => {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("•")) {
+            variantLines.push(trimmed);
+          } else if (trimmed.includes("Total:")) {
+            const matchTotal = trimmed.match(/Total:\s*(\d+)\s*pcs(?:\s*\|\s*(.*?))?$/i);
+            if (matchTotal) {
+              totalQty = parseInt(matchTotal[1], 10);
+              if (matchTotal[2]) totalPriceStr = matchTotal[2].trim();
+            }
+          }
+        });
+      }
+    });
+
+    // Other Form Details
+    const otherDetails: string[] = [];
+    safeAnswers.forEach((ans) => {
+      if (!ans) return;
+      const label = String(ans.label || "").trim();
+      const val = typeof ans.value === "string" ? ans.value : String(ans.value || "");
+      if (!label || !val) return;
+
+      const lowerLabel = label.toLowerCase();
+      if (
+        lowerLabel.includes("nama") ||
+        lowerLabel.includes("whatsapp") ||
+        lowerLabel.includes("no hp") ||
+        lowerLabel.includes("jenis")
+      ) {
+        return;
+      }
+      if (val.includes("•")) return;
+
+      otherDetails.push(`${label}: ${val}`);
+    });
+
+    const rincianParts: string[] = [];
+    if (mainProduct) {
+      rincianParts.push(`Produk: ${mainProduct}`);
+    }
+    if (variantLines.length > 0) {
+      rincianParts.push("Varian / Size:");
+      variantLines.forEach((vl) => rincianParts.push(`  ${vl}`));
+    }
+    if (totalQty > 0 || totalPriceStr) {
+      rincianParts.push(`Total: ${totalQty > 0 ? totalQty + " pcs" : ""} ${totalPriceStr ? "| " + totalPriceStr : ""}`);
+    }
+    if (otherDetails.length > 0) {
+      rincianParts.push("Detail Form:");
+      otherDetails.forEach((od) => rincianParts.push(`  • ${od}`));
+    }
+    if (o.adminNote) {
+      rincianParts.push(`Catatan: ${o.adminNote}`);
+    }
+
+    const detailText = rincianParts.length > 0 ? rincianParts.join("\n") : "Pesanan Custom";
+
+    // Status Pesanan
+    const statusText = (o.status || "masuk").toUpperCase();
+
+    // Pembayaran Text
+    const isLunas = o.paymentStatus === "lunas";
+    const isDp = o.paymentStatus === "dp" || (o.dpAmount && o.dpAmount > 0);
+    let paymentText = "Belum Bayar";
+    if (isLunas) {
+      paymentText = "✓ LUNAS";
+    } else if (isDp) {
+      paymentText = `DP: ${formatRupiah(o.dpAmount || 0)}`;
+    }
 
     return [
       idx + 1,
-      o.id,
-      o.customerName,
-      o.whatsapp,
-      orderDesc || "Pesanan Custom",
-      formatTanggalPanjang(o.createdAt).split(" ").slice(0, 3).join(" "),
-      o.status.toUpperCase(),
+      customerCell,
+      tanggalCell,
+      detailText,
+      statusText,
+      paymentText,
     ];
   });
 
   autoTable(doc, {
-    startY: 43,
+    startY: currentY + 3,
     margin: { left: MARGIN, right: MARGIN },
-    head: [["No", "ID", "Customer", "WhatsApp", "Jenis Pesanan", "Tanggal", "Status"]],
+    head: [["No", "Customer & Kontak", "Tanggal", "Rincian Item & Detail Pesanan", "Status", "Pembayaran"]],
     body: tableData,
     theme: "plain",
     styles: {
       font: "Poppins",
       fontSize: 8,
       textColor: BODY,
-      cellPadding: { top: 2.5, right: 3, bottom: 2.5, left: 3 },
+      cellPadding: { top: 3, right: 3, bottom: 3, left: 3 },
       overflow: "linebreak",
       lineWidth: 0.1,
       lineColor: LINE,
@@ -252,13 +482,12 @@ export async function exportOrdersToPDF(
       fillColor: ROW_ALT,
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: "center" },
-      1: { cellWidth: 22, fontStyle: "bold" },
-      2: { cellWidth: 35 },
-      3: { cellWidth: 28 },
-      4: { cellWidth: 42 },
-      5: { cellWidth: 25 },
-      6: { cellWidth: 20, halign: "center", fontStyle: "bold" },
+      0: { cellWidth: 8, halign: "center" },
+      1: { cellWidth: 38, fontStyle: "bold" },
+      2: { cellWidth: 24 },
+      3: { cellWidth: 68 },
+      4: { cellWidth: 20, halign: "center", fontStyle: "bold" },
+      5: { cellWidth: 24, halign: "right", fontStyle: "bold" },
     },
     didDrawPage: () => {},
   });
