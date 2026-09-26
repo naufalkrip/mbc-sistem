@@ -23,6 +23,8 @@ import {
 import { useToast } from "../../contexts/ToastContext";
 import { useApi } from "../../hooks/useApi";
 import { CACHE_KEYS } from "../../services/cache";
+import { ActionDropdown } from "../ui/ActionDropdown";
+
 
 interface FormDetail {
   tanggal: string;
@@ -354,24 +356,10 @@ export function TransaksiDetail() {
       key: "aksi",
       header: "Aksi",
       render: (r) => (
-        <div className="action-group">
-          <button
-            className="action-btn"
-            data-tooltip="Edit Transaksi"
-            aria-label="Edit Transaksi"
-            onClick={(e) => { e.stopPropagation(); openEdit(r); }}
-          >
-            <Pencil size={16} />
-          </button>
-          <button
-            className="action-btn danger"
-            data-tooltip="Hapus"
-            aria-label="Hapus"
-            onClick={(e) => { e.stopPropagation(); setToDelete(r); }}
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
+        <ActionDropdown items={[
+          { label: "Edit", icon: <Pencil size={14} />, onClick: () => openEdit(r) },
+          { label: "Hapus", icon: <Trash2 size={14} />, onClick: () => setToDelete(r), danger: true },
+        ]} />
       ),
     },
   ];

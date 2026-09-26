@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { createPortal } from "react-dom";
 
 export interface ActionItem {
   label: string;
@@ -15,19 +16,53 @@ interface ActionDropdownProps {
 
 export function ActionDropdown({ items }: ActionDropdownProps) {
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [menuPosition, setMenuPosition] = useState<"bottom" | "top">("bottom");
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+
+  const updatePosition = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const menuPosition = spaceBelow < 160 ? "top" : "bottom";
+    
+    setDropdownStyle({
+      position: "fixed",
+      right: window.innerWidth - rect.right,
+      ...(menuPosition === "bottom"
+        ? { top: rect.bottom + 6 }
+        : { bottom: window.innerHeight - rect.top + 6 }),
+    });
+  };
+
+  // Update position on open
+  useEffect(() => {
+    if (open) {
+      updatePosition();
+    }
+  }, [open]);
 
   // Tutup saat klik di luar
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const clickedButton = buttonRef.current && buttonRef.current.contains(target);
+      const clickedMenu = menuRef.current && menuRef.current.contains(target);
+      if (!clickedButton && !clickedMenu) {
         setOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Tutup saat scroll (karena posisi fixed)
+  useEffect(() => {
+    if (!open) return;
+    const handler = () => setOpen(false);
+    window.addEventListener("scroll", handler, { capture: true });
+    return () => window.removeEventListener("scroll", handler, { capture: true });
   }, [open]);
 
   // Tutup saat Escape
@@ -40,21 +75,14 @@ export function ActionDropdown({ items }: ActionDropdownProps) {
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!open && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setMenuPosition(spaceBelow < 160 ? "top" : "bottom");
-    }
     setOpen((v) => !v);
   };
 
   return (
-    <div
-      ref={containerRef}
-      style={{ position: "relative", display: "inline-block" }}
-    >
+    <>
       {/* Trigger Button */}
       <button
+        ref={buttonRef}
         type="button"
         onClick={handleToggle}
         aria-label="Aksi"
@@ -63,27 +91,42 @@ export function ActionDropdown({ items }: ActionDropdownProps) {
         style={{
           display: "inline-flex",
           alignItems: "center",
-          justifyContent: "center",
-          width: 32,
-          height: 32,
-          border: "1px solid var(--border, #e2e8f0)",
-          borderRadius: 8,
-          background: open ? "var(--bg-soft, #f1f5f9)" : "#ffffff",
-          color: "var(--text-secondary, #64748b)",
+          gap: 5,
+          padding: "5px 12px",
+          fontSize: 12,
+          borderRadius: "var(--radius-sm, 8px)",
+          background: open ? "var(--primary-700, #b91c1c)" : "var(--primary-600, #dc2626)",
+          border: "none",
+          color: "#ffffff",
+          fontWeight: 600,
           cursor: "pointer",
-          transition: "all 0.15s",
-          boxShadow: open ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+          boxShadow: "0 1px 3px rgba(220, 38, 38, 0.3)",
+          transition: "all 0.15s ease",
+        }}
+        onMouseEnter={(e) => {
+          if (!open) e.currentTarget.style.background = "var(--primary-700, #b91c1c)";
+        }}
+        onMouseLeave={(e) => {
+          if (!open) e.currentTarget.style.background = "var(--primary-600, #dc2626)";
         }}
       >
-        <MoreHorizontal size={16} />
+        <span>Aksi</span>
+        <ChevronDown
+          size={13}
+          style={{
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.15s ease",
+          }}
+        />
       </button>
 
-      {/* Dropdown Menu */}
-      {open && (
+      {/* Dropdown Menu via Portal */}
+      {open && createPortal(
         <div
+          ref={menuRef}
           role="menu"
           style={{
-            position: "fixed",
+            ...dropdownStyle,
             background: "#ffffff",
             border: "1px solid var(--border-soft, #e2e8f0)",
             borderRadius: 10,
@@ -91,14 +134,6 @@ export function ActionDropdown({ items }: ActionDropdownProps) {
             minWidth: 168,
             zIndex: 99999,
             overflow: "hidden",
-            right: (() => {
-              if (!containerRef.current) return 0;
-              const rect = containerRef.current.getBoundingClientRect();
-              return window.innerWidth - rect.right;
-            })(),
-            ...(menuPosition === "bottom"
-              ? { top: containerRef.current ? containerRef.current.getBoundingClientRect().bottom + 6 : 0 }
-              : { bottom: containerRef.current ? window.innerHeight - containerRef.current.getBoundingClientRect().top + 6 : 0 }),
           }}
         >
           {items.map((item, idx) => (
@@ -151,8 +186,9 @@ export function ActionDropdown({ items }: ActionDropdownProps) {
               {item.label}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }

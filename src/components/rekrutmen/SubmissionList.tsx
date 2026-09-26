@@ -25,6 +25,8 @@ import {
   Users,
   FileSpreadsheet,
   ChevronDown,
+  Plus,
+  QrCode,
 } from "lucide-react";
 import type {
   RekrutmenSubmissionWithAnswers,
@@ -47,6 +49,7 @@ import { SearchBar } from "../ui/SearchBar";
 import { Filter as FilterComp } from "../ui/Filter";
 import { Modal } from "../ui/Modal";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { ActionDropdown } from "../ui/ActionDropdown";
 import { laporanRekrutmen, laporanRekrutmenDetail } from "../../services/pdf";
 import {
   getRekrutmenImageBase64Item,
@@ -68,6 +71,8 @@ interface SubmissionListProps {
   onDeleteSubmission: (id: string) => Promise<boolean>;
   initialStatusFilter?: RekrutmenSubmissionStatus | "";
   onStatusFilterChange?: (status: RekrutmenSubmissionStatus | "") => void;
+  onOpenQr?: () => void;
+  onAddForm?: () => void;
 }
 
 const STATUS_CONFIG: Record<
@@ -501,6 +506,8 @@ export function SubmissionList({
   onDeleteSubmission,
   initialStatusFilter,
   onStatusFilterChange,
+  onOpenQr,
+  onAddForm,
 }: SubmissionListProps) {
   const { success: toastSuccess, error: toastError } = useToast();
 
@@ -1077,214 +1084,36 @@ export function SubmissionList({
       header: "Aksi",
       render: (s) => {
         const { waLolosUrl } = getCandidateInfo(s);
-        const isOpen = openActionId === s.id;
-
         return (
-          <div
-            style={{ position: "relative", display: "inline-block" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpenActionId(isOpen ? null : s.id);
-              }}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
-                padding: "5px 12px",
-                fontSize: 12,
-                borderRadius: "var(--radius-sm, 8px)",
-                background: isOpen ? "var(--primary-700, #b91c1c)" : "var(--primary-600, #dc2626)",
-                border: "none",
-                color: "#ffffff",
-                fontWeight: 600,
-                cursor: "pointer",
-                boxShadow: "0 1px 3px rgba(220, 38, 38, 0.3)",
-                transition: "all 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                if (!isOpen) e.currentTarget.style.background = "var(--primary-700, #b91c1c)";
-              }}
-              onMouseLeave={(e) => {
-                if (!isOpen) e.currentTarget.style.background = "var(--primary-600, #dc2626)";
-              }}
-            >
-              <span>Aksi</span>
-              <ChevronDown
-                size={13}
-                style={{
-                  transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                  transition: "transform 0.15s ease",
-                }}
-              />
-            </button>
-
-            {isOpen && (
-              <div
-                style={{
-                  position: "absolute",
-                  right: 0,
-                  top: "calc(100% + 4px)",
-                  zIndex: 100,
-                  minWidth: "165px",
-                  background: "#ffffff",
-                  borderRadius: "10px",
-                  border: "1px solid var(--border, #e2e8f0)",
-                  boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.08)",
-                  padding: "4px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "2px",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenActionId(null);
-                    setDetailOpen(s);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    width: "100%",
-                    padding: "7px 10px",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                    color: "var(--text, #1e293b)",
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <Eye size={14} style={{ color: "var(--text-muted)" }} />
-                  <span>Lihat Detail</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenActionId(null);
-                    openStatusChange(s);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    width: "100%",
-                    padding: "7px 10px",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                    color: "var(--text, #1e293b)",
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <Check size={14} style={{ color: "#16a34a" }} />
-                  <span>Ubah Status</span>
-                </button>
-
-                {s.status === "lolos" && waLolosUrl && (
-                  <a
-                    href={waLolosUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setOpenActionId(null)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      width: "100%",
-                      padding: "7px 10px",
-                      fontSize: "12px",
-                      fontWeight: 500,
-                      color: "#16a34a",
-                      background: "transparent",
-                      border: "none",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      textDecoration: "none",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  >
-                    <MessageCircle size={14} style={{ color: "#16a34a" }} />
-                    <span>Kirim WA Lolos</span>
-                  </a>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenActionId(null);
-                    handleDownloadDetailPdf(s);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    width: "100%",
-                    padding: "7px 10px",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                    color: "var(--text, #1e293b)",
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <Download size={14} style={{ color: "#0284c7" }} />
-                  <span>Unduh PDF</span>
-                </button>
-
-                <div style={{ height: "1px", background: "var(--border-soft, #f1f5f9)", margin: "2px 0" }} />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenActionId(null);
-                    setDeleteOpen(s);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    width: "100%",
-                    padding: "7px 10px",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                    color: "var(--danger, #dc2626)",
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--primary-50, #fef2f2)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <Trash2 size={14} style={{ color: "var(--danger, #dc2626)" }} />
-                  <span>Hapus</span>
-                </button>
-              </div>
-            )}
+          <div onClick={(e) => e.stopPropagation()}>
+            <ActionDropdown items={[
+              {
+                label: "Lihat Detail",
+                icon: <Eye size={14} />,
+                onClick: () => setDetailOpen(s),
+              },
+              {
+                label: "Ubah Status",
+                icon: <Check size={14} />,
+                onClick: () => openStatusChange(s),
+              },
+              ...(s.status === "lolos" && waLolosUrl ? [{
+                label: "Kirim WA Lolos",
+                icon: <MessageCircle size={14} />,
+                onClick: () => window.open(waLolosUrl, "_blank"),
+              }] : []),
+              {
+                label: "Unduh PDF",
+                icon: <Download size={14} />,
+                onClick: () => handleDownloadDetailPdf(s),
+              },
+              {
+                label: "Hapus",
+                icon: <Trash2 size={14} />,
+                onClick: () => setDeleteOpen(s),
+                danger: true,
+              },
+            ]} />
           </div>
         );
       },
@@ -1802,26 +1631,45 @@ export function SubmissionList({
               </button>
             </div>
 
+            {onOpenQr && (
+              <button
+                type="button"
+                className="btn-red btn-square-icon"
+                onClick={onOpenQr}
+                title="QR Code"
+              >
+                <QrCode size={16} />
+              </button>
+            )}
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-red btn-box-badge"
               onClick={handleExportCSV}
-              title="Ekspor data calon anggota ke CSV"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 12px" }}
+              title="Ekspor CSV"
             >
-              <FileSpreadsheet size={14} />
+              <FileSpreadsheet size={13} />
               <span>CSV</span>
             </button>
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-red btn-box-badge"
               onClick={() => setPdfOpen(true)}
-              title="Cetak Laporan Rekapitulasi PDF Calon Anggota"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "6px 12px" }}
+              title="Ekspor PDF"
             >
-              <FileText size={14} />
+              <FileText size={13} />
               <span>PDF</span>
             </button>
+            {onAddForm && (
+              <button
+                type="button"
+                className="btn-red btn-box-badge"
+                onClick={onAddForm}
+                title="Tambah Formulir"
+              >
+                <Plus size={15} />
+                <span>Tambah Formulir</span>
+              </button>
+            )}
           </div>
         </div>
 

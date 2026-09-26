@@ -1,18 +1,17 @@
 import { useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { useToast } from "../../contexts/ToastContext";
 
 interface DownloadPdfButtonProps {
   onGenerate: () => Promise<void> | void;
   label?: string;
-  variant?: "outline" | "primary";
+  variant?: "outline" | "primary" | "red";
   className?: string;
 }
 
 export function DownloadPdfButton({
   onGenerate,
-  label = "Download PDF",
-  variant = "outline",
+  label = "PDF",
   className = "",
 }: DownloadPdfButtonProps) {
   const { success, error } = useToast();
@@ -33,19 +32,17 @@ export function DownloadPdfButton({
 
   return (
     <button
-      className={`btn ${variant === "primary" ? "btn-primary" : "btn-outline"} ${className}`}
+      className={`btn-red btn-box-badge ${className}`}
       onClick={handleClick}
       disabled={loading}
+      title="Download PDF"
     >
       {loading ? (
-        <>
-          <Loader2 size={16} className="spin" />
-          Membuat PDF...
-        </>
+        <Loader2 size={14} className="spin" />
       ) : (
         <>
-          <Download size={16} />
-          {label}
+          <FileText size={13} />
+          <span>{label}</span>
         </>
       )}
     </button>

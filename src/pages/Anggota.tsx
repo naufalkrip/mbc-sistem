@@ -621,6 +621,7 @@ export function Anggota() {
           sortKey={sortField ?? undefined}
           sortDirection={sortDirection}
           onSort={handleSort}
+          fullHeight
         />
       </div>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Plus,
   Trash2,
@@ -14,7 +14,7 @@ import type { OrderField, OrderForm, OrderFieldType, OrderFieldOption } from "..
 import { Modal } from "../ui/Modal";
 import { useToast } from "../../contexts/ToastContext";
 import { uploadOrderImageItem } from "../../services/api";
-import { parseVariantConfig, serializeVariantConfig, formatRupiah } from "../../utils/format";
+import { parseVariantConfig, serializeVariantConfig, formatRupiah, formatDirectImageUrl, handleImageLoadError } from "../../utils/format";
 
 interface OrderFormBuilderModalProps {
   open: boolean;
@@ -42,7 +42,8 @@ const ORDER_FIELD_TYPE_OPTIONS: { value: OrderFieldType; label: string; desc: st
   { value: "variant_matrix", label: "Varian Pesanan (Ukuran, Lengan, & Jumlah)", desc: "Kotak dinamis: Ukuran (dropdown), Lengan, dan Jumlah yang bisa ditambah customer" },
   { value: "product_configuration", label: "Konfigurasi Produk Pesanan", desc: "Konfigurasi khusus untuk Size, Lengan, Jumlah & Harga terintegrasi" },
   { value: "date", label: "Tanggal", desc: "Pemilih tanggal" },
-  { value: "file", label: "Upload File / Referensi", desc: "Upload gambar / dokumen referensi" },
+  { value: "file", label: "Upload File / Referensi", desc: "Upload dokumen referensi (PDF/DOC)" },
+  { value: "image", label: "Upload Foto / Gambar", desc: "Unggah file berupa foto (JPG/PNG)" },
   { value: "info_text", label: "Blok Informasi Khusus", desc: "Tampilkan teks / informasi penting tanpa perlu input dari customer" },
 ];
 
@@ -139,29 +140,38 @@ export function OrderFormBuilderModal({
   });
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingFieldImages, setUploadingFieldImages] = useState<Record<number, boolean>>({});
+  // isDirty: mencegah polling server menimpa gambar yang baru diupload (belum disimpan)
+  const isDirty = useRef(false);
 
   // Sync state whenever modal is opened or formToEdit changes
+  // Jika isDirty=true (ada perubahan lokal belum disimpan), abaikan sync dari polling server
   useEffect(() => {
     if (open) {
-      if (formToEdit) {
-        setTitle(formToEdit.title || "");
-        setDescription(formToEdit.description || "");
-        setStatus(formToEdit.status || "aktif");
-        setBannerImageUrl(formToEdit.bannerImageUrl || "");
-        setBannerImageTitle(formToEdit.bannerImageTitle || "");
-        if (formToEdit.fields && formToEdit.fields.length > 0) {
-          setFields(JSON.parse(JSON.stringify(formToEdit.fields)));
+      if (!isDirty.current) {
+        if (formToEdit) {
+          setTitle(formToEdit.title || "");
+          setDescription(formToEdit.description || "");
+          setStatus(formToEdit.status || "aktif");
+          setBannerImageUrl(formToEdit.bannerImageUrl || "");
+          setBannerImageTitle(formToEdit.bannerImageTitle || "");
+          if (formToEdit.fields && formToEdit.fields.length > 0) {
+            setFields(JSON.parse(JSON.stringify(formToEdit.fields)));
+          } else {
+            setFields(getDefaultFields());
+          }
         } else {
+          setTitle("Formulir Pemesanan Kaos MB Chondro");
+          setDescription("Silakan lengkapi formulir di bawah ini untuk pemesanan kaos MB Chondro.");
+          setStatus("aktif");
+          setBannerImageUrl("");
+          setBannerImageTitle("");
           setFields(getDefaultFields());
         }
-      } else {
-        setTitle("Formulir Pemesanan Kaos MB Chondro");
-        setDescription("Silakan lengkapi formulir di bawah ini untuk pemesanan kaos MB Chondro.");
-        setStatus("aktif");
-        setBannerImageUrl("");
-        setBannerImageTitle("");
-        setFields(getDefaultFields());
       }
+    } else {
+      // Reset dirty flag saat modal ditutup
+      isDirty.current = false;
     }
   }, [open, formToEdit]);
 
@@ -219,13 +229,14 @@ export function OrderFormBuilderModal({
       setUploadingImage(true);
       const res = await uploadOrderImageItem(file);
       if (res.success && res.data?.url) {
+        isDirty.current = true;
         setBannerImageUrl(res.data.url);
         if (!bannerImageTitle) {
           setBannerImageTitle("Panduan Desain / Ukuran Kaos MB Chondro");
         }
         toastSuccess("Foto keterangan berhasil dimuat!");
       } else {
-        toastError("Gagal mengunggah foto.");
+        toastError(res.message || "Gagal mengunggah foto.");
       }
     } catch {
       toastError("Gagal memproses gambar.");
@@ -241,18 +252,22 @@ export function OrderFormBuilderModal({
       return;
     }
     try {
+      setUploadingFieldImages((prev) => ({ ...prev, [fieldIndex]: true }));
       const res = await uploadOrderImageItem(file);
       if (res.success && res.data?.url) {
+        isDirty.current = true;
         updateFieldProperty(fieldIndex, {
           imageUrl: res.data.url,
           imageTitle: fields[fieldIndex].imageTitle || `Contoh: ${fields[fieldIndex].label}`,
         });
         toastSuccess("Foto keterangan pertanyaan berhasil dimuat!");
       } else {
-        toastError("Gagal mengunggah foto keterangan.");
+        toastError(res.message || "Gagal mengunggah foto keterangan.");
       }
     } catch {
       toastError("Gagal memproses gambar pertanyaan.");
+    } finally {
+      setUploadingFieldImages((prev) => ({ ...prev, [fieldIndex]: false }));
     }
   };
 
@@ -540,8 +555,10 @@ export function OrderFormBuilderModal({
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
                   <img
-                    src={bannerImageUrl}
+                    src={formatDirectImageUrl(bannerImageUrl)}
                     alt="Pratinjau Keterangan"
+                    referrerPolicy="no-referrer"
+                    onError={handleImageLoadError}
                     style={{
                       width: 58,
                       height: 58,
@@ -575,13 +592,14 @@ export function OrderFormBuilderModal({
                       gap: 5,
                       padding: "5px 12px",
                       borderRadius: 8,
-                      cursor: "pointer",
+                      cursor: uploadingImage ? "not-allowed" : "pointer",
                     }}
                   >
-                    <span>Ganti Foto</span>
+                    <span>{uploadingImage ? "Memproses..." : "Ganti Foto"}</span>
                     <input
                       type="file"
                       accept="image/*"
+                      disabled={uploadingImage}
                       onChange={(e) => {
                         if (e.target.files?.[0]) {
                           handleUploadBannerImage(e.target.files[0]);
@@ -1208,15 +1226,16 @@ export function OrderFormBuilderModal({
                             gap: 5,
                             padding: "4px 10px",
                             fontSize: 11.5,
-                            cursor: "pointer",
+                            cursor: uploadingFieldImages[idx] ? "not-allowed" : "pointer",
                             borderRadius: 8,
                           }}
                         >
                           <Upload size={12} />
-                          <span>Pilih Foto</span>
+                          <span>{uploadingFieldImages[idx] ? "Memproses..." : "Pilih Foto"}</span>
                           <input
                             type="file"
                             accept="image/*"
+                            disabled={uploadingFieldImages[idx]}
                             onChange={(e) => {
                               if (e.target.files?.[0]) {
                                 handleUploadFieldImage(idx, e.target.files[0]);
@@ -1259,14 +1278,15 @@ export function OrderFormBuilderModal({
                               gap: 5,
                               padding: "4px 10px",
                               fontSize: 11.5,
-                              cursor: "pointer",
+                              cursor: uploadingFieldImages[idx] ? "not-allowed" : "pointer",
                               borderRadius: 8,
                             }}
                           >
-                            <span>Ganti</span>
+                            <span>{uploadingFieldImages[idx] ? "Memproses..." : "Ganti"}</span>
                             <input
                               type="file"
                               accept="image/*"
+                              disabled={uploadingFieldImages[idx]}
                               onChange={(e) => {
                                 if (e.target.files?.[0]) {
                                   handleUploadFieldImage(idx, e.target.files[0]);

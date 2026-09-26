@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Send, CheckCircle2 } from "lucide-react";
+import { Settings, Send, CheckCircle2, Clock, CheckCircle } from "lucide-react";
 import type { OrderWithAnswers } from "../../types";
 import { formatNomorWhatsAppUrl, formatRupiah } from "../../utils/format";
 import { Modal } from "../ui/Modal";
@@ -12,7 +12,7 @@ interface WhatsAppBroadcastModalProps {
   isContacted: boolean;
 }
 
-const DEFAULT_TEMPLATE = `Halo Kak *{nama}* 👋
+const DEFAULT_TEMPLATE_DIPROSES = `Halo Kak *{nama}* 👋
 
 Terima kasih telah melakukan pemesanan di *MB Chondro Wonopringgo*.
 
@@ -41,26 +41,65 @@ Terima kasih 🙏
 
 *MB Chondro Wonopringgo*`;
 
+const DEFAULT_TEMPLATE_SELESAI = `Halo Kak *{nama}* 👋
+
+Kabar gembira! Pesanan *{jenis_pesanan}* Anda di *MB Chondro Wonopringgo* telah *SELESAI* dikerjakan dan siap diambil 🎉
+
+*RINCIAN PESANAN*
+────────────────────
+{rincian_pesanan}
+────────────────────
+
+*Jumlah Pesanan: {jumlah_pesanan} pcs*
+
+📍 *LOKASI PENGAMBILAN:*
+{lokasi_pengambilan}
+
+Silakan mengonfirmasi ke admin saat hendak mengambil pesanan. Terima kasih! 🙏
+
+*MB Chondro Wonopringgo*`;
+
 const DEFAULT_PAYMENT = `Pembayaran dapat dilakukan melalui:
 
 BRI
 1234567890
 a.n. MB Chondro`;
 
+const DEFAULT_LOKASI = `Basecamp MB Chondro Wonopringgo
+Jl. Raya Wonopringgo No. 12, Pekalongan
+(Jam Operasional: Senin - Sabtu, 08:00 - 17:00 WIB)`;
+
 export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isContacted }: WhatsAppBroadcastModalProps) {
   const { success, error } = useToast();
   const [showSettings, setShowSettings] = useState(false);
-  const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
+  const [activeMode, setActiveMode] = useState<"diproses" | "selesai">("diproses");
+  
+  const [templateDiproses, setTemplateDiproses] = useState(DEFAULT_TEMPLATE_DIPROSES);
+  const [templateSelesai, setTemplateSelesai] = useState(DEFAULT_TEMPLATE_SELESAI);
+  const [lokasiPengambilan, setLokasiPengambilan] = useState(DEFAULT_LOKASI);
   const [paymentInfo, setPaymentInfo] = useState(DEFAULT_PAYMENT);
   const [dpPercent, setDpPercent] = useState(10);
+
+  // Sync activeMode based on order status when order prop changes
+  useEffect(() => {
+    if (order) {
+      if (order.status === "selesai") {
+        setActiveMode("selesai");
+      } else {
+        setActiveMode("diproses");
+      }
+    }
+  }, [order]);
 
   // Load settings from local storage
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("wa_template_settings");
+      const saved = localStorage.getItem("wa_template_settings_v2");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.template) setTemplate(parsed.template);
+        if (parsed.templateDiproses) setTemplateDiproses(parsed.templateDiproses);
+        if (parsed.templateSelesai) setTemplateSelesai(parsed.templateSelesai);
+        if (parsed.lokasiPengambilan) setLokasiPengambilan(parsed.lokasiPengambilan);
         if (parsed.paymentInfo) setPaymentInfo(parsed.paymentInfo);
         if (parsed.dpPercent !== undefined) setDpPercent(parsed.dpPercent);
       }
@@ -69,8 +108,17 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
 
   const saveSettings = () => {
     try {
-      localStorage.setItem("wa_template_settings", JSON.stringify({ template, paymentInfo, dpPercent }));
-      success("Template WhatsApp berhasil disimpan.");
+      localStorage.setItem(
+        "wa_template_settings_v2",
+        JSON.stringify({
+          templateDiproses,
+          templateSelesai,
+          lokasiPengambilan,
+          paymentInfo,
+          dpPercent,
+        })
+      );
+      success("Pengaturan template WhatsApp berhasil disimpan.");
       setShowSettings(false);
     } catch (err) {
       error("Gagal menyimpan pengaturan.");
@@ -84,15 +132,19 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
   let totalQty = 0;
   let totalPriceNumber = 0;
 
-  // Identify order name (jenis pesanan)
-  const jenisAnswer = order.answers.find(
-    (a) => String(a?.label || "").toLowerCase().includes("jenis") || String(a?.label || "").toLowerCase().includes("produk")
-  );
-  const jenisPesanan = jenisAnswer ? jenisAnswer.value : "Kaos MB Chondro";
+  const safeAnswers = Array.isArray(order.answers) ? order.answers : [];
 
-  order.answers.forEach((ans) => {
-    if (typeof ans.value === "string" && ans.value.includes("•")) {
-      const lines = ans.value.split("\n");
+  // Identify order name (jenis pesanan)
+  const jenisAnswer = safeAnswers.find(
+    (a) => a && (String(a?.label || "").toLowerCase().includes("jenis") || String(a?.label || "").toLowerCase().includes("produk"))
+  );
+  const jenisPesanan = jenisAnswer && typeof jenisAnswer.value === "string" ? jenisAnswer.value : "Kaos MB Chondro";
+
+  safeAnswers.forEach((ans) => {
+    if (!ans) return;
+    const ansValStr = typeof ans.value === "string" ? ans.value : String(ans.value || "");
+    if (ansValStr.includes("•")) {
+      const lines = ansValStr.split("\n");
       lines.forEach((line) => {
         if (line.trim().startsWith("•")) {
           const match = line.match(/•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\](?:\s*@\s*Rp\s*([\d.]+)=\s*Rp\s*([\d.]+))?/i);
@@ -108,7 +160,6 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
               subtotal,
             });
           } else {
-             // Fallback regex for non-price format
              const matchNoPrice = line.match(/•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\]/i);
              if (matchNoPrice) {
                 parsedVariants.push({
@@ -121,7 +172,6 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
              }
           }
         } else if (line.includes("Total:")) {
-          // Parse string like: (Total: 3 pcs | Rp 170.000)
           const matchTotal = line.match(/Total:\s*(\d+)\s*pcs(?:\s*\|\s*Rp\s*([\d.]+))?/i);
           if (matchTotal) {
             totalQty = parseInt(matchTotal[1], 10);
@@ -160,16 +210,20 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
     })
     .join("\n\n");
 
-  const finalMessage = template
-    .replace(/{nama}/g, order.customerName)
+  const currentTemplate = activeMode === "selesai" ? templateSelesai : templateDiproses;
+
+  const finalMessage = currentTemplate
+    .replace(/{nama}/g, order.customerName || "Customer")
+    .replace(/{jenis_pesanan}/g, jenisPesanan)
     .replace(/{rincian_pesanan}/g, rincianText || "Rincian pesanan tidak tersedia")
     .replace(/{jumlah_pesanan}/g, String(totalQty))
     .replace(/{total_harga}/g, formatRupiah(totalPriceNumber))
     .replace(/{dp_persen}/g, String(dpPercent))
     .replace(/{nominal_dp}/g, formatRupiah(dpNominal))
-    .replace(/{info_pembayaran}/g, paymentInfo);
+    .replace(/{info_pembayaran}/g, paymentInfo)
+    .replace(/{lokasi_pengambilan}/g, lokasiPengambilan);
 
-  const rawWaClean = formatNomorWhatsAppUrl(order.whatsapp);
+  const rawWaClean = formatNomorWhatsAppUrl(order.whatsapp || "");
   const directWaUrl = rawWaClean ? `https://wa.me/${rawWaClean}?text=${encodeURIComponent(finalMessage)}` : null;
 
   const handleOpenWhatsApp = () => {
@@ -188,47 +242,98 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         {showSettings ? (
           <>
-            <div>
-              <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6 }}>
-                Template Pesan
-              </label>
-              <textarea
-                className="input"
-                style={{ width: "100%", height: 300, resize: "vertical", fontSize: "13px", fontFamily: "monospace" }}
-                value={template}
-                onChange={(e) => setTemplate(e.target.value)}
-              />
-              <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: 6 }}>
-                Variable: {"{nama}, {rincian_pesanan}, {jumlah_pesanan}, {total_harga}, {dp_persen}, {nominal_dp}, {info_pembayaran}"}
-              </p>
+            <div style={{ display: "flex", gap: 8, borderBottom: "1px solid var(--border)", paddingBottom: 8 }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${activeMode === "diproses" ? "btn-primary" : "btn-outline"}`}
+                onClick={() => setActiveMode("diproses")}
+              >
+                Template Diproses (Konfirmasi DP)
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${activeMode === "selesai" ? "btn-primary" : "btn-outline"}`}
+                onClick={() => setActiveMode("selesai")}
+              >
+                Template Selesai (Pengambilan)
+              </button>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6 }}>
-                  Persentase DP (%)
-                </label>
-                <input
-                  type="number"
-                  className="input"
-                  style={{ width: "100%" }}
-                  value={dpPercent}
-                  onChange={(e) => setDpPercent(Number(e.target.value) || 0)}
-                  min={0}
-                  max={100}
-                />
-              </div>
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6 }}>
-                Informasi Pembayaran
-              </label>
-              <textarea
-                className="input"
-                style={{ width: "100%", height: 100, resize: "vertical", fontSize: "13px" }}
-                value={paymentInfo}
-                onChange={(e) => setPaymentInfo(e.target.value)}
-              />
-            </div>
+
+            {activeMode === "diproses" ? (
+              <>
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6 }}>
+                    Template Pesanan Diproses (DP)
+                  </label>
+                  <textarea
+                    className="form-input"
+                    style={{ width: "100%", height: 220, resize: "vertical", fontSize: "12.5px", fontFamily: "monospace" }}
+                    value={templateDiproses}
+                    onChange={(e) => setTemplateDiproses(e.target.value)}
+                  />
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: 4 }}>
+                    Variabel: {"{nama}, {jenis_pesanan}, {rincian_pesanan}, {jumlah_pesanan}, {total_harga}, {dp_persen}, {nominal_dp}, {info_pembayaran}"}
+                  </p>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6 }}>
+                      Persentase DP (%)
+                    </label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      style={{ width: "100%" }}
+                      value={dpPercent}
+                      onChange={(e) => setDpPercent(Number(e.target.value) || 0)}
+                      min={0}
+                      max={100}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6 }}>
+                    Informasi Pembayaran / Rekening DP
+                  </label>
+                  <textarea
+                    className="form-input"
+                    style={{ width: "100%", height: 80, resize: "vertical", fontSize: "12.5px" }}
+                    value={paymentInfo}
+                    onChange={(e) => setPaymentInfo(e.target.value)}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6 }}>
+                    Template Pesanan Selesai (Pengambilan)
+                  </label>
+                  <textarea
+                    className="form-input"
+                    style={{ width: "100%", height: 220, resize: "vertical", fontSize: "12.5px", fontFamily: "monospace" }}
+                    value={templateSelesai}
+                    onChange={(e) => setTemplateSelesai(e.target.value)}
+                  />
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: 4 }}>
+                    Variabel: {"{nama}, {jenis_pesanan}, {rincian_pesanan}, {jumlah_pesanan}, {lokasi_pengambilan}"}
+                  </p>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6 }}>
+                    Lokasi Pengambilan Pesanan
+                  </label>
+                  <textarea
+                    className="form-input"
+                    style={{ width: "100%", height: 80, resize: "vertical", fontSize: "12.5px" }}
+                    value={lokasiPengambilan}
+                    onChange={(e) => setLokasiPengambilan(e.target.value)}
+                    placeholder="Masukkan nama lokasi, alamat, atau jam operasional..."
+                  />
+                </div>
+              </>
+            )}
+
             <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 10 }}>
               <button type="button" className="btn btn-outline" onClick={() => setShowSettings(false)}>
                 Batal
@@ -240,58 +345,113 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
           </>
         ) : (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-              <div style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+              <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
                 <span style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>Customer</span>
-                <strong style={{ fontSize: "14px", color: "var(--navy-900)" }}>{order.customerName}</strong>
+                <strong style={{ fontSize: "13.5px", color: "var(--navy-900)" }}>{order.customerName}</strong>
               </div>
-              <div style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+              <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
                 <span style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>Nomor WhatsApp</span>
-                <strong style={{ fontSize: "14px", color: "var(--navy-900)" }}>{order.whatsapp}</strong>
+                <strong style={{ fontSize: "13.5px", color: "var(--navy-900)" }}>{order.whatsapp}</strong>
               </div>
-              <div style={{ background: "#f8fafc", padding: "12px 16px", borderRadius: 8, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: 8, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
                   <span style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>Status Kontak</span>
                   {isContacted ? (
-                    <strong style={{ fontSize: "14px", color: "#16a34a", display: "flex", alignItems: "center", gap: 6 }}>
-                      <CheckCircle2 size={16} /> Sudah Dihubungi
+                    <strong style={{ fontSize: "13px", color: "#16a34a", display: "flex", alignItems: "center", gap: 5 }}>
+                      <CheckCircle2 size={15} /> Sudah Dihubungi
                     </strong>
                   ) : (
-                    <strong style={{ fontSize: "14px", color: "#dc2626" }}>Belum Dihubungi</strong>
+                    <strong style={{ fontSize: "13px", color: "#dc2626" }}>Belum Dihubungi</strong>
                   )}
                 </div>
                 {!isContacted && (
-                  <button type="button" className="btn btn-outline btn-sm" onClick={onMarkContacted} style={{ fontSize: "11px" }}>
-                    Tandai Sudah
+                  <button type="button" className="btn btn-outline btn-sm" onClick={onMarkContacted} style={{ fontSize: "11px", padding: "3px 8px" }}>
+                    Tandai
                   </button>
                 )}
               </div>
             </div>
 
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <strong style={{ fontSize: "14px", color: "var(--navy-900)" }}>Preview Pesan</strong>
+            {/* TAB SELECTOR UNTUK PILIH MODE PESAN */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, background: "#f1f5f9", padding: 4, borderRadius: 10, border: "1px solid #e2e8f0" }}>
+              <div style={{ display: "flex", gap: 4, flex: 1 }}>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => setShowSettings(true)}
-                  style={{ color: "#3b82f6", fontSize: "13px" }}
+                  onClick={() => setActiveMode("diproses")}
+                  style={{
+                    flex: 1,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    padding: "7px 12px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: activeMode === "diproses" ? "#2563eb" : "transparent",
+                    color: activeMode === "diproses" ? "#ffffff" : "var(--text-secondary)",
+                    fontWeight: activeMode === "diproses" ? 600 : 500,
+                    fontSize: 12.5,
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                  }}
                 >
-                  <Settings size={16} style={{ marginRight: 6 }} /> Pengaturan Template
+                  <Clock size={14} />
+                  <span>Konfirmasi Diproses (DP)</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveMode("selesai")}
+                  style={{
+                    flex: 1,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    padding: "7px 12px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: activeMode === "selesai" ? "#16a34a" : "transparent",
+                    color: activeMode === "selesai" ? "#ffffff" : "var(--text-secondary)",
+                    fontWeight: activeMode === "selesai" ? 600 : 500,
+                    fontSize: 12.5,
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <CheckCircle size={14} />
+                  <span>Pengambilan Selesai</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowSettings(true)}
+                style={{ color: "var(--primary-700, #c8101e)", fontSize: "12px", fontWeight: 600, padding: "4px 10px" }}
+              >
+                <Settings size={14} style={{ marginRight: 4 }} /> Pengaturan Template
+              </button>
+            </div>
+
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <strong style={{ fontSize: "13px", color: "var(--navy-900)" }}>
+                  Pratinjau Pesan ({activeMode === "selesai" ? "Pesanan Selesai / Pengambilan" : "Pesanan Diproses / DP"})
+                </strong>
               </div>
               <div
                 style={{
-                  background: "#f0fdf4",
-                  border: "1px solid #86efac",
+                  background: activeMode === "selesai" ? "#f0fdf4" : "#eff6ff",
+                  border: activeMode === "selesai" ? "1px solid #86efac" : "1px solid #93c5fd",
                   padding: "16px",
-                  borderRadius: 8,
-                  fontSize: "13.5px",
-                  color: "#166534",
+                  borderRadius: 10,
+                  fontSize: "13px",
+                  color: activeMode === "selesai" ? "#166534" : "#1e40af",
                   whiteSpace: "pre-wrap",
                   fontFamily: "system-ui, sans-serif",
                   lineHeight: 1.6,
-                  maxHeight: "45vh",
+                  maxHeight: "40vh",
                   overflowY: "auto",
                 }}
               >
@@ -299,7 +459,7 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 10 }}>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 6 }}>
               <button type="button" className="btn btn-outline" onClick={onClose}>
                 Tutup
               </button>
@@ -308,9 +468,15 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
                 className="btn btn-primary"
                 onClick={handleOpenWhatsApp}
                 disabled={!directWaUrl}
-                style={{ display: "flex", alignItems: "center", gap: 8 }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  background: activeMode === "selesai" ? "#16a34a" : "#25D366",
+                  borderColor: activeMode === "selesai" ? "#16a34a" : "#25D366",
+                }}
               >
-                <Send size={18} /> Buka WhatsApp
+                <Send size={16} /> Buka WhatsApp
               </button>
             </div>
           </>

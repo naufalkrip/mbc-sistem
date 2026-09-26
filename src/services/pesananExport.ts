@@ -113,16 +113,17 @@ export function exportOrdersToCSV(orders: OrderWithAnswers[], filename = "data-p
   ];
 
   const rows = orders.map((o) => {
-    const detailText = o.answers
-      .map((a) => `${a.label}: ${a.value}`)
+    const safeAnswers = Array.isArray(o.answers) ? o.answers : [];
+    const detailText = safeAnswers
+      .map((a) => `${a?.label || ""}: ${a?.value || ""}`)
       .join(" | ")
       .replace(/"/g, '""');
 
     return [
       `"${o.id}"`,
-      `"${o.customerName.replace(/"/g, '""')}"`,
-      `"${o.whatsapp}"`,
-      `"${o.status.toUpperCase()}"`,
+      `"${(o.customerName || "").replace(/"/g, '""')}"`,
+      `"${o.whatsapp || ""}"`,
+      `"${(o.status || "").toUpperCase()}"`,
       `"${formatTanggalPanjang(o.createdAt)}"`,
       `"${detailText}"`,
       `"${(o.adminNote || "").replace(/"/g, '""')}"`,
@@ -199,11 +200,12 @@ export async function exportOrdersToPDF(
   // Table Data
   const tableData = orders.map((o, idx) => {
     // Ambil produk singkat dari answers
-    const jenisAnswer = o.answers.find((a) =>
-      a.label.toLowerCase().includes("jenis") || a.label.toLowerCase().includes("produk")
+    const safeAnswers = Array.isArray(o.answers) ? o.answers : [];
+    const jenisAnswer = safeAnswers.find((a) =>
+      String(a?.label || "").toLowerCase().includes("jenis") || String(a?.label || "").toLowerCase().includes("produk")
     );
-    const qtyAnswer = o.answers.find((a) =>
-      a.label.toLowerCase().includes("jumlah") || a.label.toLowerCase().includes("qty")
+    const qtyAnswer = safeAnswers.find((a) =>
+      String(a?.label || "").toLowerCase().includes("jumlah") || String(a?.label || "").toLowerCase().includes("qty")
     );
     const orderDesc = [
       jenisAnswer?.value || "-",

@@ -685,3 +685,56 @@ export function serializeVariantConfig(config: VariantConfig): string {
     sleeves: Array.isArray(config.sleeves) ? config.sleeves.join(", ") : config.sleeves,
   });
 }
+
+/** Mengubah URL foto / Google Drive link menjadi URL gambar langsung (direct image endpoint) */
+export function formatDirectImageUrl(url?: string | null): string {
+  if (!url || typeof url !== "string") return "";
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === "undefined" || trimmed === "null" || trimmed === "-") return "";
+  if (trimmed.startsWith("data:image/") || trimmed.startsWith("blob:")) return trimmed;
+
+  // Ekstrak ID berkas dari berbagai format URL Google Drive
+  const driveMatch = trimmed.match(/(?:id=|d\/|file\/d\/|open\?id=)([a-zA-Z0-9_-]{25,})/);
+  if (driveMatch && driveMatch[1]) {
+    const fileId = driveMatch[1];
+    return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`;
+  }
+
+  return trimmed;
+}
+
+/** Handler onError fallback otomatis untuk elemen <img> yang memuat gambar Google Drive */
+export function handleImageLoadError(e: React.SyntheticEvent<HTMLImageElement, Event>) {
+  const img = e.currentTarget;
+  const currentSrc = img.src || "";
+  const tryCount = Number(img.dataset.tryCount || 0);
+
+  if (tryCount >= 3) {
+    img.style.display = "none";
+    const parent = img.parentElement;
+    if (parent && !parent.querySelector(".img-fallback-notice")) {
+      const notice = document.createElement("div");
+      notice.className = "img-fallback-notice";
+      notice.style.cssText = "padding: 10px 14px; text-align: center; font-size: 12px; color: #b91c1c; background: #fef2f2; border: 1px dashed #fca5a5; border-radius: 8px; margin: 8px 0; width: 100%; box-sizing: border-box;";
+      const driveMatch = currentSrc.match(/(?:id=|d\/|file\/d\/|open\?id=)([a-zA-Z0-9_-]{25,})/);
+      const fileId = driveMatch ? driveMatch[1] : "";
+      const openUrl = fileId ? `https://drive.google.com/file/d/${fileId}/view` : currentSrc;
+      notice.innerHTML = `<span>📷 Foto keterangan tidak dapat dimuat langsung. <a href="${openUrl}" target="_blank" rel="noreferrer" style="color:#b91c1c; font-weight:700; text-decoration:underline;">Klik di sini untuk membuka foto ↗</a></span>`;
+      parent.appendChild(notice);
+    }
+    return;
+  }
+
+  img.dataset.tryCount = String(tryCount + 1);
+  const driveMatch = currentSrc.match(/(?:id=|d\/|file\/d\/|open\?id=)([a-zA-Z0-9_-]{25,})/);
+  if (driveMatch && driveMatch[1]) {
+    const fileId = driveMatch[1];
+    if (tryCount === 0) {
+      img.src = `https://lh3.googleusercontent.com/d/${fileId}`;
+    } else if (tryCount === 1) {
+      img.src = `https://drive.google.com/uc?export=view&id=${fileId}`;
+    } else if (tryCount === 2) {
+      img.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+    }
+  }
+}

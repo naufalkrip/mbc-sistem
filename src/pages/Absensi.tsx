@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ArrowDown,
   ArrowUp,
@@ -103,6 +104,8 @@ function StatusSelect({
 
 export function Absensi() {
   const { success: toastSuccess, error: toastError } = useToast();
+  const [searchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "riwayat" ? "riwayat" : "input";
   // Faster polling (5s) for real-time feel on absensi page
   const { data: anggotaData, loading: loadingAnggota } = useApi<Anggota[]>(
     getAnggota,
@@ -662,15 +665,15 @@ export function Absensi() {
   };
 
   const riwayatColumns: Column<SesiAbsensi>[] = [
-    { key: "no", header: "No", render: (_r, idx) => <>{sesiPagination.start + idx + 1}</> },
-    { key: "tanggal", header: "Tanggal", render: (r) => formatTanggal(r.tanggal) },
-    { key: "kegiatan", header: "Tempat/Kegiatan" },
-    { key: "waktu", header: "Waktu" },
+    { key: "no", header: "No", render: (_r, idx) => <span style={{ whiteSpace: "nowrap" }}>{sesiPagination.start + idx + 1}</span> },
+    { key: "tanggal", header: "Tanggal", render: (r) => <span style={{ whiteSpace: "nowrap" }}>{formatTanggal(r.tanggal)}</span> },
+    { key: "kegiatan", header: "Tempat/Kegiatan", render: (r) => <div style={{ minWidth: "110px", wordBreak: "break-word" }}>{r.kegiatan}</div> },
+    { key: "waktu", header: "Waktu", render: (r) => <span style={{ whiteSpace: "nowrap" }}>{r.waktu}</span> },
     {
       key: "jumlahAnggota",
       header: "Jumlah Anggota",
       render: (r) => (
-        <span className="text-muted-sm">
+        <span className="text-muted-sm" style={{ whiteSpace: "nowrap" }}>
           {r.jumlahAnggota} anggota
         </span>
       ),
@@ -678,7 +681,11 @@ export function Absensi() {
     {
       key: "ringkasan",
       header: "Ringkasan",
-      render: (r) => <span className="text-muted-sm">{buatRingkasanSesi(r.daftar)}</span>,
+      render: (r) => (
+        <div style={{ fontSize: "12px", color: "var(--text-secondary)", wordBreak: "break-word", lineHeight: 1.4 }}>
+          {buatRingkasanSesi(r.daftar)}
+        </div>
+      ),
     },
     {
       key: "aksi",
@@ -695,373 +702,377 @@ export function Absensi() {
 
   return (
     <div className="page-grid">
-      {/* RINGKASAN KEHADIRAN - SATU PANEL MERAH */}
-      <div className="summary-panel">
-        <div className="summary-panel-header">
-          <div>
-            <h3>Ringkasan Kehadiran</h3>
-            <p>Pilih rentang waktu untuk melihat ringkasan data</p>
-          </div>
-          <DateRangePicker
-            value={summaryRange}
-            onChange={setSummaryRange}
-          />
-        </div>
-        <div className="absensi-summary-grid">
-          {/* Hadir */}
-          <div className="absensi-stat-card">
-            <div className="absensi-stat-head">
-              <div className="absensi-stat-icon">
-                <CheckCircle2 size={15} />
+      {activeTab === "riwayat" ? (
+        <>
+          {/* RINGKASAN KEHADIRAN - SATU PANEL MERAH */}
+          <div className="summary-panel">
+            <div className="summary-panel-header">
+              <div>
+                <h3>Ringkasan Kehadiran</h3>
+                <p>Pilih rentang waktu untuk melihat ringkasan data</p>
               </div>
-              <span>Hadir</span>
+              <DateRangePicker
+                value={summaryRange}
+                onChange={setSummaryRange}
+              />
             </div>
-            <div className="absensi-stat-value">
-              {summaryStat.hadir.toLocaleString("id-ID")}
-            </div>
-          </div>
-
-          {/* Izin */}
-          <div className="absensi-stat-card">
-            <div className="absensi-stat-head">
-              <div className="absensi-stat-icon">
-                <FileText size={15} />
+            <div className="absensi-summary-grid">
+              {/* Hadir */}
+              <div className="absensi-stat-card">
+                <div className="absensi-stat-head">
+                  <div className="absensi-stat-icon">
+                    <CheckCircle2 size={15} />
+                  </div>
+                  <span>Hadir</span>
+                </div>
+                <div className="absensi-stat-value">
+                  {summaryStat.hadir.toLocaleString("id-ID")}
+                </div>
               </div>
-              <span>Izin</span>
-            </div>
-            <div className="absensi-stat-value">
-              {summaryStat.izin.toLocaleString("id-ID")}
-            </div>
-          </div>
 
-          {/* Sakit */}
-          <div className="absensi-stat-card">
-            <div className="absensi-stat-head">
-              <div className="absensi-stat-icon">
-                <Thermometer size={15} />
+              {/* Izin */}
+              <div className="absensi-stat-card">
+                <div className="absensi-stat-head">
+                  <div className="absensi-stat-icon">
+                    <FileText size={15} />
+                  </div>
+                  <span>Izin</span>
+                </div>
+                <div className="absensi-stat-value">
+                  {summaryStat.izin.toLocaleString("id-ID")}
+                </div>
               </div>
-              <span>Sakit</span>
-            </div>
-            <div className="absensi-stat-value">
-              {summaryStat.sakit.toLocaleString("id-ID")}
-            </div>
-          </div>
 
-          {/* Cuti */}
-          <div className="absensi-stat-card">
-            <div className="absensi-stat-head">
-              <div className="absensi-stat-icon">
-                <CalendarOff size={15} />
+              {/* Sakit */}
+              <div className="absensi-stat-card">
+                <div className="absensi-stat-head">
+                  <div className="absensi-stat-icon">
+                    <Thermometer size={15} />
+                  </div>
+                  <span>Sakit</span>
+                </div>
+                <div className="absensi-stat-value">
+                  {summaryStat.sakit.toLocaleString("id-ID")}
+                </div>
               </div>
-              <span>Cuti</span>
-            </div>
-            <div className="absensi-stat-value">
-              {summaryStat.cuti.toLocaleString("id-ID")}
-            </div>
-          </div>
 
-          {/* Alpa */}
-          <div className="absensi-stat-card">
-            <div className="absensi-stat-head">
-              <div className="absensi-stat-icon">
-                <XCircle size={15} />
+              {/* Cuti */}
+              <div className="absensi-stat-card">
+                <div className="absensi-stat-head">
+                  <div className="absensi-stat-icon">
+                    <CalendarOff size={15} />
+                  </div>
+                  <span>Cuti</span>
+                </div>
+                <div className="absensi-stat-value">
+                  {summaryStat.cuti.toLocaleString("id-ID")}
+                </div>
               </div>
-              <span>Alpa</span>
-            </div>
-            <div className="absensi-stat-value">
-              {summaryStat.alpa.toLocaleString("id-ID")}
-            </div>
-          </div>
 
-          {/* Persentase Kehadiran */}
-          <div className="absensi-stat-card highlight">
-            <div className="absensi-stat-head">
-              <div className="absensi-stat-icon">
-                <Percent size={15} />
+              {/* Alpa */}
+              <div className="absensi-stat-card">
+                <div className="absensi-stat-head">
+                  <div className="absensi-stat-icon">
+                    <XCircle size={15} />
+                  </div>
+                  <span>Alpa</span>
+                </div>
+                <div className="absensi-stat-value">
+                  {summaryStat.alpa.toLocaleString("id-ID")}
+                </div>
               </div>
-              <span>Kehadiran</span>
-            </div>
-            <div className="absensi-stat-value">
-              {summaryStat.persentase}%
+
+              {/* Persentase Kehadiran */}
+              <div className="absensi-stat-card highlight">
+                <div className="absensi-stat-head">
+                  <div className="absensi-stat-icon">
+                    <Percent size={15} />
+                  </div>
+                  <span>Kehadiran</span>
+                </div>
+                <div className="absensi-stat-value">
+                  {summaryStat.persentase}%
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* INPUT ABSENSI */}
-      {/* FORM INPUT ABSENSI */}
-      <div className="card">
-        <div className="card-header">
-          <div>
-            <h2>Input Absensi</h2>
-            <p>Kelola data absensi kegiatan dan status kehadiran anggota</p>
-          </div>
-        </div>
+          {/* RIWAYAT ABSENSI */}
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <h2>Riwayat Absensi</h2>
+                <p>Daftar absensi yang telah dibuat</p>
+              </div>
+              <div className="header-actions">
+                <DownloadPdfButton onGenerate={handleDownloadPdf} />
+              </div>
+            </div>
 
-        {/* 1. FILTER & PENCARIAN ANGGOTA */}
-        <div className="form-section-title">Daftar Anggota</div>
-        <p className="form-section-sub">Cari dan filter anggota yang akan diabsen</p>
-
-        <div className="toolbar">
-          <SearchBar value={memberSearch} onChange={setMemberSearch} placeholder="Cari nama / nama panggilan / divisi..." />
-          <Filter label="Divisi" value={memberDivisi} onChange={setMemberDivisi} options={divisiOptions} />
-          <div className="filter">
-            <label className="filter-label">Urutan</label>
-            <button
-              type="button"
-              className={`filter-btn ${memberSortField === "divisi" ? "active" : ""}`}
-              onClick={openDivisiSortModal}
-              title="Buka popup untuk memilih urutan divisi"
-            >
-              <ListOrdered size={15} style={{ color: memberSortField === "divisi" ? "var(--primary)" : "var(--text-muted)" }} />
-              <span>Urutan Divisi</span>
-              {customDivisiOrder.length > 0 && (
-                <span
-                  style={{
-                    marginLeft: "2px",
-                    fontSize: "11px",
-                    backgroundColor: memberSortField === "divisi" ? "var(--primary-100)" : "var(--bg-soft, #f1f5f9)",
-                    color: memberSortField === "divisi" ? "var(--primary)" : "var(--text-secondary)",
-                    padding: "1px 6px",
-                    borderRadius: "9999px",
-                    fontWeight: 600,
-                  }}
-                >
-                  {customDivisiOrder.length}
-                </span>
+            <div className="toolbar">
+              <SearchBar value={riwayatSearch} onChange={setRiwayatSearch} placeholder="Cari riwayat..." />
+              <Filter
+                label="Periode"
+                value={periode}
+                onChange={(v) => setPeriode(v as PeriodeType)}
+                options={[
+                  { value: "bulanIni", label: "Bulan ini" },
+                  { value: "bulanLalu", label: "Bulan lalu" },
+                  { value: "custom", label: "Custom" },
+                ]}
+                allLabel="Semua"
+              />
+              {periode === "custom" && (
+                <>
+                  <DatePicker label="Dari" value={customDari} onChange={setCustomDari} />
+                  <DatePicker label="Sampai" value={customSampai} onChange={setCustomSampai} />
+                </>
               )}
-            </button>
-          </div>
-        </div>
+            </div>
 
-        {memberSortField && (
-          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginBottom: "0.85rem" }}>
-            <button
-              type="button"
-              className="sort-active-badge"
-              onClick={() => {
-                if (memberSortField === "divisi") setCustomDivisiOrder([]);
-                setMemberSortField(null);
-                setMemberSortDirection("asc");
-              }}
-              title="Klik untuk reset urutan default"
-            >
-              <span>
-                Urut: {memberSortField === "nama" ? "Nama Lengkap" : memberSortField === "namaPanggilan" ? "Nama Panggilan" : customDivisiOrder.length > 0 ? "Divisi (Pilihan Urutan)" : "Divisi"} ({memberSortDirection === "asc" ? "A-Z" : "Z-A"})
-              </span>
-              <span className="sort-badge-close">×</span>
-            </button>
-            {memberSortField === "divisi" && (
+            <DataTable
+              columns={riwayatColumns}
+              data={pagedSesi}
+              loading={loading}
+              rowKey={(r) => r.key}
+              emptyMessage="Belum ada riwayat absensi."
+              fullHeight={true}
+            />
+            <Pagination
+              page={sesiPagination.page}
+              totalPages={sesiPagination.totalPages}
+              totalItems={sesiFiltered.length}
+              pageSize={sesiPagination.pageSize}
+              onPageChange={sesiPagination.setPage}
+            />
+          </div>
+        </>
+      ) : (
+        /* FORM INPUT ABSENSI */
+        <div className="card">
+          <div className="card-header">
+            <div>
+              <h2>Input Absensi</h2>
+              <p>Kelola data absensi kegiatan dan status kehadiran anggota</p>
+            </div>
+          </div>
+
+          {/* 1. FILTER & PENCARIAN ANGGOTA */}
+          <div className="form-section-title">Daftar Anggota</div>
+          <p className="form-section-sub">Cari dan filter anggota yang akan diabsen</p>
+
+          <div className="toolbar">
+            <SearchBar value={memberSearch} onChange={setMemberSearch} placeholder="Cari nama / nama panggilan / divisi..." />
+            <Filter label="Divisi" value={memberDivisi} onChange={setMemberDivisi} options={divisiOptions} />
+            <div className="filter">
+              <label className="filter-label">Urutan</label>
               <button
                 type="button"
-                className="divisi-preset-btn"
-                style={{ padding: "0.2rem 0.55rem" }}
+                className={`filter-btn ${memberSortField === "divisi" ? "active" : ""}`}
                 onClick={openDivisiSortModal}
-                title="Ubah urutan divisi"
+                title="Buka popup untuk memilih urutan divisi"
               >
-                <ListOrdered size={12} /> Ubah
+                <ListOrdered size={15} style={{ color: memberSortField === "divisi" ? "var(--primary)" : "var(--text-muted)" }} />
+                <span>Urutan Divisi</span>
+                {customDivisiOrder.length > 0 && (
+                  <span
+                    style={{
+                      marginLeft: "2px",
+                      fontSize: "11px",
+                      backgroundColor: memberSortField === "divisi" ? "var(--primary-100)" : "var(--bg-soft, #f1f5f9)",
+                      color: memberSortField === "divisi" ? "var(--primary)" : "var(--text-secondary)",
+                      padding: "1px 6px",
+                      borderRadius: "9999px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {customDivisiOrder.length}
+                  </span>
+                )}
               </button>
-            )}
-          </div>
-        )}
-
-        <hr className="form-section-divider" />
-
-        {/* 2. INPUT ABSENSI (DIBAWAH FITUR FILTER DAFTAR ANGGOTA) */}
-        <div className="form-section-title">Input Absensi</div>
-        <p className="form-section-sub">Tentukan tanggal, kegiatan, dan waktu absensi</p>
-
-        <div className="absensi-field-grid">
-          <div className="form-group">
-            <label>Tanggal</label>
-            <input type="date" value={formTanggal} onChange={(e) => setFormTanggal(e.target.value)} />
-            {formErrors.tanggal && <span className="field-error">{formErrors.tanggal}</span>}
-          </div>
-          <div className="form-group">
-            <label>Tempat / Kegiatan</label>
-            <input
-              value={formKegiatan}
-              onChange={(e) => setFormKegiatan(e.target.value)}
-              placeholder="Masukkan tempat atau nama kegiatan"
-              list="kegiatan-suggest"
-            />
-            <datalist id="kegiatan-suggest">
-              {KEGIATAN_SUGGEST.map((k) => (
-                <option key={k} value={k} />
-              ))}
-            </datalist>
-            {formErrors.kegiatan && <span className="field-error">{formErrors.kegiatan}</span>}
-          </div>
-          <div className="form-group">
-            <label>Waktu</label>
-            <select
-              className="waktu-select"
-              value={formWaktu}
-              onChange={(e) => setFormWaktu(e.target.value as WaktuAbsensi | "")}
-            >
-              <option value="" disabled>
-                Pilih waktu absensi
-              </option>
-              {WAKTU_ABSENSI.map((w) => (
-                <option key={w} value={w}>
-                  {w}
-                </option>
-              ))}
-            </select>
-            {formErrors.waktu && <span className="field-error">{formErrors.waktu}</span>}
-          </div>
-        </div>
-
-        <hr className="form-section-divider" />
-
-        {/* 3. STATUS KEHADIRAN ANGGOTA */}
-        <div className="form-section-title">Kehadiran Anggota</div>
-        <p className="form-section-sub">Tentukan status kehadiran setiap anggota</p>
-
-        {anggotaFiltered.length === 0 && !loading ? (
-          <EmptyState
-            title={anggota.length === 0 ? "Belum ada anggota yang terdaftar" : "Tidak ada anggota yang cocok"}
-            message={
-              anggota.length === 0
-                ? "Tambahkan anggota terlebih dahulu melalui menu Anggota."
-                : "Ubah pencarian atau filter divisi untuk melihat anggota."
-            }
-          />
-        ) : (
-          <div className="member-table">
-            <div className="member-table-head">
-              <span className="member-cell no">No</span>
-              <span
-                className={`member-cell name member-th-sortable ${memberSortField === "nama" ? "active" : ""}`}
-                onClick={() => handleMemberSort("nama")}
-                title="Klik untuk mengurutkan Nama Lengkap"
-              >
-                <span>Nama Lengkap</span>
-                <span className={`sort-icon-box ${memberSortField === "nama" ? "active" : "idle"}`}>
-                  {memberSortField === "nama" && memberSortDirection === "asc" ? (
-                    <ArrowUp size={12} className="sort-arrow" />
-                  ) : memberSortField === "nama" && memberSortDirection === "desc" ? (
-                    <ArrowDown size={12} className="sort-arrow" />
-                  ) : (
-                    <ArrowUpDown size={11} className="sort-arrow-idle" />
-                  )}
-                </span>
-              </span>
-              <span
-                className={`member-cell nickname member-th-sortable ${memberSortField === "namaPanggilan" ? "active" : ""}`}
-                onClick={() => handleMemberSort("namaPanggilan")}
-                title="Klik untuk mengurutkan Nama Panggilan"
-              >
-                <span>Nama Panggilan</span>
-                <span className={`sort-icon-box ${memberSortField === "namaPanggilan" ? "active" : "idle"}`}>
-                  {memberSortField === "namaPanggilan" && memberSortDirection === "asc" ? (
-                    <ArrowUp size={12} className="sort-arrow" />
-                  ) : memberSortField === "namaPanggilan" && memberSortDirection === "desc" ? (
-                    <ArrowDown size={12} className="sort-arrow" />
-                  ) : (
-                    <ArrowUpDown size={11} className="sort-arrow-idle" />
-                  )}
-                </span>
-              </span>
-              <span
-                className={`member-cell divisi member-th-sortable ${memberSortField === "divisi" ? "active" : ""}`}
-                onClick={() => handleMemberSort("divisi")}
-                title="Klik untuk mengatur urutan divisi"
-              >
-                <span>Divisi</span>
-                <span className={`sort-icon-box ${memberSortField === "divisi" ? "active" : "idle"}`}>
-                  <ListOrdered size={12} className={memberSortField === "divisi" ? "sort-arrow" : "sort-arrow-idle"} />
-                </span>
-              </span>
-              <span className="member-cell status">Status Kehadiran</span>
             </div>
-            {anggotaFiltered.map((a, i) => {
-              const showDivisiHeader = !memberSortField || memberSortField === "divisi";
-              const prev = i > 0 ? anggotaFiltered[i - 1] : null;
-              const grupBerubah = showDivisiHeader && (!prev || (prev.divisi || "Lainnya") !== (a.divisi || "Lainnya"));
-              return (
-                <Fragment key={a.id}>
-                  {grupBerubah && (
-                    <div className="member-divisi-header">{a.divisi || "Lainnya"}</div>
-                  )}
-                  <div className="member-row">
-                    <span className="member-cell no">{i + 1}</span>
-                    <span className="member-cell name">{a.nama}</span>
-                    <span className="member-cell nickname">{a.namaPanggilan || "-"}</span>
-                    <span className="member-cell divisi">{a.divisi || "-"}</span>
-                    <span className="member-cell status">
-                      <StatusSelect
-                        value={formStatus[a.id] ?? "Hadir"}
-                        onChange={(s) => setFormStatus((prev) => ({ ...prev, [a.id]: s }))}
-                      />
-                    </span>
-                  </div>
-                </Fragment>
-              );
-            })}
           </div>
-        )}
 
-        {formErrors.anggota && (
-          <p className="field-error" style={{ marginTop: 12 }}>{formErrors.anggota}</p>
-        )}
-
-        <div className="absensi-save">
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving || loading}>
-            <Save size={17} />
-            {saving ? "Menyimpan..." : "Simpan Absensi"}
-          </button>
-        </div>
-      </div>
-
-      {/* RIWAYAT ABSENSI */}
-      <div className="card">
-        <div className="card-header">
-          <div>
-            <h2>Riwayat Absensi</h2>
-            <p>Daftar absensi yang telah dibuat</p>
-          </div>
-          <div className="header-actions">
-            <DownloadPdfButton onGenerate={handleDownloadPdf} />
-          </div>
-        </div>
-
-        <div className="toolbar">
-          <SearchBar value={riwayatSearch} onChange={setRiwayatSearch} placeholder="Cari riwayat..." />
-          <Filter
-            label="Periode"
-            value={periode}
-            onChange={(v) => setPeriode(v as PeriodeType)}
-            options={[
-              { value: "bulanIni", label: "Bulan ini" },
-              { value: "bulanLalu", label: "Bulan lalu" },
-              { value: "custom", label: "Custom" },
-            ]}
-            allLabel="Semua"
-          />
-          {periode === "custom" && (
-            <>
-              <DatePicker label="Dari" value={customDari} onChange={setCustomDari} />
-              <DatePicker label="Sampai" value={customSampai} onChange={setCustomSampai} />
-            </>
+          {memberSortField && (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginBottom: "0.85rem" }}>
+              <button
+                type="button"
+                className="sort-active-badge"
+                onClick={() => {
+                  if (memberSortField === "divisi") setCustomDivisiOrder([]);
+                  setMemberSortField(null);
+                  setMemberSortDirection("asc");
+                }}
+                title="Klik untuk reset urutan default"
+              >
+                <span>
+                  Urut: {memberSortField === "nama" ? "Nama Lengkap" : memberSortField === "namaPanggilan" ? "Nama Panggilan" : customDivisiOrder.length > 0 ? "Divisi (Pilihan Urutan)" : "Divisi"} ({memberSortDirection === "asc" ? "A-Z" : "Z-A"})
+                </span>
+                <span className="sort-badge-close">×</span>
+              </button>
+              {memberSortField === "divisi" && (
+                <button
+                  type="button"
+                  className="divisi-preset-btn"
+                  style={{ padding: "0.2rem 0.55rem" }}
+                  onClick={openDivisiSortModal}
+                  title="Ubah urutan divisi"
+                >
+                  <ListOrdered size={12} /> Ubah
+                </button>
+              )}
+            </div>
           )}
-        </div>
 
-        <DataTable
-          columns={riwayatColumns}
-          data={pagedSesi}
-          loading={loading}
-          rowKey={(r) => r.key}
-          emptyMessage="Belum ada riwayat absensi. Silakan buat absensi pertama menggunakan form di atas."
-        />
-        <Pagination
-          page={sesiPagination.page}
-          totalPages={sesiPagination.totalPages}
-          totalItems={sesiFiltered.length}
-          pageSize={sesiPagination.pageSize}
-          onPageChange={sesiPagination.setPage}
-        />
-      </div>
+          <hr className="form-section-divider" />
+
+          {/* 2. INPUT ABSENSI (DIBAWAH FITUR FILTER DAFTAR ANGGOTA) */}
+          <div className="form-section-title">Input Absensi</div>
+          <p className="form-section-sub">Tentukan tanggal, kegiatan, dan waktu absensi</p>
+
+          <div className="absensi-field-grid">
+            <div className="form-group">
+              <label>Tanggal</label>
+              <input type="date" value={formTanggal} onChange={(e) => setFormTanggal(e.target.value)} />
+              {formErrors.tanggal && <span className="field-error">{formErrors.tanggal}</span>}
+            </div>
+            <div className="form-group">
+              <label>Tempat / Kegiatan</label>
+              <input
+                value={formKegiatan}
+                onChange={(e) => setFormKegiatan(e.target.value)}
+                placeholder="Masukkan tempat atau nama kegiatan"
+                list="kegiatan-suggest"
+              />
+              <datalist id="kegiatan-suggest">
+                {KEGIATAN_SUGGEST.map((k) => (
+                  <option key={k} value={k} />
+                ))}
+              </datalist>
+              {formErrors.kegiatan && <span className="field-error">{formErrors.kegiatan}</span>}
+            </div>
+            <div className="form-group">
+              <label>Waktu</label>
+              <select
+                className="waktu-select"
+                value={formWaktu}
+                onChange={(e) => setFormWaktu(e.target.value as WaktuAbsensi | "")}
+              >
+                <option value="" disabled>
+                  Pilih waktu absensi
+                </option>
+                {WAKTU_ABSENSI.map((w) => (
+                  <option key={w} value={w}>
+                    {w}
+                  </option>
+                ))}
+              </select>
+              {formErrors.waktu && <span className="field-error">{formErrors.waktu}</span>}
+            </div>
+          </div>
+
+          <hr className="form-section-divider" />
+
+          {/* 3. STATUS KEHADIRAN ANGGOTA */}
+          <div className="form-section-title">Kehadiran Anggota</div>
+          <p className="form-section-sub">Tentukan status kehadiran setiap anggota</p>
+
+          {anggotaFiltered.length === 0 && !loading ? (
+            <EmptyState
+              title={anggota.length === 0 ? "Belum ada anggota yang terdaftar" : "Tidak ada anggota yang cocok"}
+              message={
+                anggota.length === 0
+                  ? "Tambahkan anggota terlebih dahulu melalui menu Anggota."
+                  : "Ubah pencarian atau filter divisi untuk melihat anggota."
+              }
+            />
+          ) : (
+            <div className="member-table">
+              <div className="member-table-head">
+                <span className="member-cell no">No</span>
+                <span
+                  className={`member-cell name member-th-sortable ${memberSortField === "nama" ? "active" : ""}`}
+                  onClick={() => handleMemberSort("nama")}
+                  title="Klik untuk mengurutkan Nama Lengkap"
+                >
+                  <span>Nama Lengkap</span>
+                  <span className={`sort-icon-box ${memberSortField === "nama" ? "active" : "idle"}`}>
+                    {memberSortField === "nama" && memberSortDirection === "asc" ? (
+                      <ArrowUp size={12} className="sort-arrow" />
+                    ) : memberSortField === "nama" && memberSortDirection === "desc" ? (
+                      <ArrowDown size={12} className="sort-arrow" />
+                    ) : (
+                      <ArrowUpDown size={11} className="sort-arrow-idle" />
+                    )}
+                  </span>
+                </span>
+                <span
+                  className={`member-cell nickname member-th-sortable ${memberSortField === "namaPanggilan" ? "active" : ""}`}
+                  onClick={() => handleMemberSort("namaPanggilan")}
+                  title="Klik untuk mengurutkan Nama Panggilan"
+                >
+                  <span>Nama Panggilan</span>
+                  <span className={`sort-icon-box ${memberSortField === "namaPanggilan" ? "active" : "idle"}`}>
+                    {memberSortField === "namaPanggilan" && memberSortDirection === "asc" ? (
+                      <ArrowUp size={12} className="sort-arrow" />
+                    ) : memberSortField === "namaPanggilan" && memberSortDirection === "desc" ? (
+                      <ArrowDown size={12} className="sort-arrow" />
+                    ) : (
+                      <ArrowUpDown size={11} className="sort-arrow-idle" />
+                    )}
+                  </span>
+                </span>
+                <span
+                  className={`member-cell divisi member-th-sortable ${memberSortField === "divisi" ? "active" : ""}`}
+                  onClick={() => handleMemberSort("divisi")}
+                  title="Klik untuk mengatur urutan divisi"
+                >
+                  <span>Divisi</span>
+                  <span className={`sort-icon-box ${memberSortField === "divisi" ? "active" : "idle"}`}>
+                    <ListOrdered size={12} className={memberSortField === "divisi" ? "sort-arrow" : "sort-arrow-idle"} />
+                  </span>
+                </span>
+                <span className="member-cell status">Status Kehadiran</span>
+              </div>
+              {anggotaFiltered.map((a, i) => {
+                const showDivisiHeader = !memberSortField || memberSortField === "divisi";
+                const prev = i > 0 ? anggotaFiltered[i - 1] : null;
+                const grupBerubah = showDivisiHeader && (!prev || (prev.divisi || "Lainnya") !== (a.divisi || "Lainnya"));
+                return (
+                  <Fragment key={a.id}>
+                    {grupBerubah && (
+                      <div className="member-divisi-header">{a.divisi || "Lainnya"}</div>
+                    )}
+                    <div className="member-row">
+                      <span className="member-cell no">{i + 1}</span>
+                      <span className="member-cell name">{a.nama}</span>
+                      <span className="member-cell nickname">{a.namaPanggilan || "-"}</span>
+                      <span className="member-cell divisi">{a.divisi || "-"}</span>
+                      <span className="member-cell status">
+                        <StatusSelect
+                          value={formStatus[a.id] ?? "Hadir"}
+                          onChange={(s) => setFormStatus((prev) => ({ ...prev, [a.id]: s }))}
+                        />
+                      </span>
+                    </div>
+                  </Fragment>
+                );
+              })}
+            </div>
+          )}
+
+          {formErrors.anggota && (
+            <p className="field-error" style={{ marginTop: 12 }}>{formErrors.anggota}</p>
+          )}
+
+          <div className="absensi-save">
+            <button className="btn btn-primary" onClick={handleSave} disabled={saving || loading}>
+              <Save size={17} />
+              {saving ? "Menyimpan..." : "Simpan Absensi"}
+            </button>
+          </div>
+        </div>
+      )}
 
       <Modal
         open={detailSesi !== null}

@@ -118,6 +118,7 @@ const VALID_ACTIONS = new Set([
   "addCouponLocation",
   "updateCouponLocation",
   "deleteCouponLocation",
+  "uploadOrderImage",
 ]);
 
 type ActionName = (typeof VALID_ACTIONS extends Set<infer T> ? T : never) & string;
@@ -1302,14 +1303,28 @@ export async function uploadOrderImageItem(
         driveUrl = result.url;
         driveFileId = result.fileId || "";
       }
-    } catch {}
+    } catch (error) {
+      if (!API_CONFIGURED) {
+        // Jika sedang menggunakan Apps Script asli (!API_CONFIGURED artinya menggunakan API asli),
+        // kita TIDAK BOLEH fallback ke base64, karena string base64 raksasa akan
+        // menyebabkan Google Sheets crash saat disimpan. Lempar error agar pengguna tahu.
+        throw new Error(`Gagal mengunggah ke Apps Script: ${error instanceof Error ? error.message : "Error tidak diketahui"}`);
+      }
+    }
 
-    // PENTING: Prioritaskan Drive URL (permanen) di atas base64 (sementara)
-    // base64 hanya digunakan sebagai fallback jika upload Drive gagal
+    // Jika menggunakan mock (API_CONFIGURED), fallback ke base64
+    if (!driveUrl && API_CONFIGURED) {
+      driveUrl = base64;
+    }
+
+    if (!driveUrl) {
+      throw new Error("Gagal mendapatkan URL gambar.");
+    }
+
     return {
       success: true,
       data: {
-        url: driveUrl || base64,
+        url: driveUrl,
         fileId: driveFileId,
       },
     };

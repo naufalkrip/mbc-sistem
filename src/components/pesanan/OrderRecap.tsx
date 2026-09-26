@@ -26,16 +26,21 @@ export function OrderRecap({ orders, onItemClick }: OrderRecapProps) {
       // Hanya rekap pesanan yang valid/aktif (menunggu, diproses, selesai)
       // Semua order yang di-pass sudah valid (masuk, diproses, selesai)
 
-      const jenisAnswer = o.answers.find(
-        (a) =>
-          String(a?.label || "").toLowerCase().includes("jenis") ||
-          String(a?.label || "").toLowerCase().includes("produk")
-      );
-      const productName = jenisAnswer ? jenisAnswer.value : "Pesanan Produk";
+      const safeAnswers = Array.isArray(o.answers) ? o.answers : [];
 
-      o.answers.forEach((ans) => {
-        if (typeof ans.value === "string" && ans.value.includes("•")) {
-          const lines = ans.value.split("\n");
+      const jenisAnswer = safeAnswers.find(
+        (a) =>
+          a &&
+          (String(a?.label || "").toLowerCase().includes("jenis") ||
+          String(a?.label || "").toLowerCase().includes("produk"))
+      );
+      const productName = jenisAnswer && typeof jenisAnswer.value === "string" ? jenisAnswer.value : "Pesanan Produk";
+
+      safeAnswers.forEach((ans) => {
+        if (!ans) return;
+        const ansValStr = typeof ans.value === "string" ? ans.value : String(ans.value || "");
+        if (ansValStr.includes("•")) {
+          const lines = ansValStr.split("\n");
           lines.forEach((line) => {
             if (line.trim().startsWith("•")) {
               const match = line.match(

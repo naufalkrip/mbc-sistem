@@ -16,6 +16,8 @@ import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { CurrencyInput } from "../ui/CurrencyInput";
 import { DownloadPdfButton } from "../ui/DownloadPdfButton";
 import { FinancialSummary } from "./FinancialSummary";
+import { ActionDropdown } from "../ui/ActionDropdown";
+
 
 interface KeuanganProps {
   title: string;
@@ -248,10 +250,10 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
       key: "aksi",
       header: "Aksi",
       render: (r) => (
-        <div className="action-group">
-          <button className="action-btn" data-tooltip="Edit" aria-label="Edit" onClick={(e) => { e.stopPropagation(); openEdit(r); }}><Pencil size={16} /></button>
-          <button className="action-btn danger" data-tooltip="Hapus" aria-label="Hapus" onClick={(e) => { e.stopPropagation(); setToDelete(r); }}><Trash2 size={16} /></button>
-        </div>
+        <ActionDropdown items={[
+          { label: "Edit", icon: <Pencil size={14} />, onClick: () => openEdit(r) },
+          { label: "Hapus", icon: <Trash2 size={14} />, onClick: () => setToDelete(r), danger: true },
+        ]} />
       ),
     },
   ];
@@ -296,6 +298,7 @@ export function Keuangan({ title, subtitle, loading, transaksi, onRefresh, onSav
           rowKey={(r) => r.id}
           emptyTitle="Tidak ada data"
           emptyMessage="Tidak ada transaksi."
+          fullHeight
         />
         {filtered.length > 0 && (
           <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border-soft)", fontSize: "12px", color: "var(--text-muted)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useMemo, useCallback } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Users,
   CheckCircle2,
@@ -12,8 +12,6 @@ import {
   Edit,
   Trash2,
   Check,
-  FileText,
-  ChevronDown,
   Sparkles,
   QrCode,
   Download,
@@ -73,18 +71,12 @@ export function Rekrutmen() {
     { pollingInterval: 8000, revalidateOnFocus: true, immediate: true }
   );
 
-  const [activeTab, setActiveTab] = useState<"submissions" | "form">("submissions");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = (searchParams.get("tab") === "form" ? "form" : "submissions") as "submissions" | "form";
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [editingForm, setEditingForm] = useState<RekrutmenFormWithFields | null>(null);
   const [copiedLinkMap, setCopiedLinkMap] = useState<Record<string, boolean>>({});
-  const [openActionFormId, setOpenActionFormId] = useState<string | null>(null);
   const [qrModalData, setQrModalData] = useState<{ title: string; url: string; filename: string } | null>(null);
-
-  useEffect(() => {
-    const handleOutsideClick = () => setOpenActionFormId(null);
-    window.addEventListener("click", handleOutsideClick);
-    return () => window.removeEventListener("click", handleOutsideClick);
-  }, []);
 
   // Safe calculated statistics
   const subsList = useMemo(() => submissions || [], [submissions]);
@@ -102,7 +94,7 @@ export function Rekrutmen() {
 
   const handleCardStatusClick = (st: RekrutmenSubmissionStatus | "") => {
     setSelectedStatusFilter(st);
-    setActiveTab("submissions");
+    setSearchParams({});
   };
 
   const handleCopyLink = (targetFormId: string) => {
@@ -368,72 +360,6 @@ export function Rekrutmen() {
         </div>
       </div>
 
-      {/* 2. TAB CONTROLS (DAFTAR CALON ANGGOTA vs FORMULIR PENDAFTARAN) & ACTION */}
-      <div className="page-tab-header" style={{ borderBottom: "1px solid var(--border)", paddingBottom: 6 }}>
-        <div className="page-segmented-tabs">
-          <button
-            type="button"
-            className="page-tab-btn"
-            onClick={() => setActiveTab("submissions")}
-            style={{
-              fontWeight: activeTab === "submissions" ? 700 : 500,
-              background: activeTab === "submissions" ? "#ffffff" : "transparent",
-              color: activeTab === "submissions" ? "var(--primary-700)" : "var(--text-secondary)",
-              boxShadow: activeTab === "submissions" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
-            }}
-          >
-            <Users size={16} />
-            <span>Daftar Calon Anggota ({subsList.length})</span>
-          </button>
-
-          <button
-            type="button"
-            className="page-tab-btn"
-            onClick={() => setActiveTab("form")}
-            style={{
-              fontWeight: activeTab === "form" ? 700 : 500,
-              background: activeTab === "form" ? "#ffffff" : "transparent",
-              color: activeTab === "form" ? "var(--primary-700)" : "var(--text-secondary)",
-              boxShadow: activeTab === "form" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
-            }}
-          >
-            <FileText size={16} />
-            <span>Formulir Pendaftaran ({form ? 1 : 0})</span>
-          </button>
-        </div>
-
-        <div className="page-tab-actions">
-          {form && (
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={() =>
-                setQrModalData({
-                  title: form.title,
-                  url: `${window.location.origin}/rekrutmen/form/${form.id}`,
-                  filename: `qr-rekrutmen-${form.id}.png`,
-                })
-              }
-              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-              title="Tampilkan QR Code formulir pendaftaran"
-            >
-              <QrCode size={16} /> QR Code Pendaftaran
-            </button>
-          )}
-
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              setEditingForm(null);
-              setIsBuilderOpen(true);
-            }}
-          >
-            <Plus size={17} /> Tambah Formulir Pendaftaran
-          </button>
-        </div>
-      </div>
-
       {/* TAB CONTENT 1: DAFTAR CALON ANGGOTA */}
       {activeTab === "submissions" && (
         <>
@@ -461,9 +387,20 @@ export function Rekrutmen() {
                 borderRadius: "var(--radius-md, 12px)",
               }}
             >
-              <p style={{ margin: 0, color: "var(--text-muted)" }}>
+              <p style={{ margin: "0 0 16px 0", color: "var(--text-muted)" }}>
                 Belum ada formulir aktif untuk melihat pendaftar.
               </p>
+              <button
+                type="button"
+                className="btn-red btn-box-badge"
+                onClick={() => {
+                  setEditingForm(null);
+                  setIsBuilderOpen(true);
+                }}
+              >
+                <Plus size={15} />
+                <span>Tambah Formulir</span>
+              </button>
             </div>
           )}
         </>
@@ -472,17 +409,48 @@ export function Rekrutmen() {
       {/* TAB CONTENT 2: PENGATURAN FORMULIR */}
       {activeTab === "form" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div
+            style={{
+              background: "#ffffff",
+              padding: "14px 16px",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--border)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--navy-900)" }}>
+              Formulir Pendaftaran
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button
+                type="button"
+                className="btn-red btn-box-badge"
+                onClick={() => {
+                  setEditingForm(null);
+                  setIsBuilderOpen(true);
+                }}
+                title="Tambah Formulir"
+              >
+                <Plus size={15} />
+                <span>Tambah Formulir</span>
+              </button>
+            </div>
+          </div>
           {form ? (
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                display: "flex",
+                flexDirection: "column",
                 gap: 16,
+                width: "100%",
               }}
             >
               {(() => {
                 const count = subsList.length;
                 const isCopied = copiedLinkMap[form.id];
+                const publicUrl = `${window.location.origin}/rekrutmen/form/${form.id}`;
 
                 return (
                   <div
@@ -490,13 +458,15 @@ export function Rekrutmen() {
                     style={{
                       background: "#ffffff",
                       border: "1px solid var(--border)",
-                      borderRadius: "var(--radius-md)",
-                      padding: 18,
+                      borderRadius: "var(--radius-md, 12px)",
+                      padding: 20,
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "space-between",
                       gap: 16,
-                      boxShadow: "var(--shadow-card)",
+                      boxShadow: "var(--shadow-card, 0 1px 3px rgba(0,0,0,0.06))",
+                      width: "100%",
+                      boxSizing: "border-box",
                     }}
                   >
                     <div>
@@ -505,20 +475,37 @@ export function Rekrutmen() {
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "flex-start",
-                          gap: 10,
+                          gap: 12,
                           marginBottom: 8,
+                          flexWrap: "wrap",
                         }}
                       >
-                        <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
-                          {form.title}
-                        </h4>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
+                            {form.title}
+                          </h4>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              color: "var(--text-muted)",
+                              background: "var(--bg-soft)",
+                              padding: "2px 8px",
+                              borderRadius: 6,
+                              border: "1px solid var(--border-soft)",
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            ID: {form.id}
+                          </span>
+                        </div>
+
                         <span
                           className={`status-pill ${form.status === "dibuka" ? "status-lolos" : "status-menunggu"}`}
                           style={{
                             fontSize: 11,
                             fontWeight: 700,
                             textTransform: "uppercase",
-                            padding: "2px 8px",
+                            padding: "2px 10px",
                             borderRadius: 20,
                           }}
                         >
@@ -526,11 +513,11 @@ export function Rekrutmen() {
                         </span>
                       </div>
 
-                      <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                      <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
                         {form.description || "Tidak ada deskripsi."}
                       </p>
 
-                      <div style={{ display: "flex", gap: 12, fontSize: 12, color: "var(--text-muted)" }}>
+                      <div style={{ display: "flex", gap: 12, fontSize: 12, color: "var(--text-muted)", flexWrap: "wrap", alignItems: "center" }}>
                         <span>
                           Pertanyaan: <strong>{form.fields?.length || 0} butir</strong>
                         </span>
@@ -544,7 +531,7 @@ export function Rekrutmen() {
                     {/* Public Link Preview Box */}
                     <div className="form-link-box">
                       <span className="form-link-url">
-                        {`${window.location.origin}/rekrutmen/form/${form.id}`}
+                        {publicUrl}
                       </span>
                       <div className="form-link-actions">
                         <button
@@ -552,7 +539,7 @@ export function Rekrutmen() {
                           onClick={() =>
                             setQrModalData({
                               title: form.title,
-                              url: `${window.location.origin}/rekrutmen/form/${form.id}`,
+                              url: publicUrl,
                               filename: `qr-rekrutmen-${form.id}.png`,
                             })
                           }
@@ -594,7 +581,7 @@ export function Rekrutmen() {
                       </div>
                     </div>
 
-                    {/* Actions */}
+                    {/* Actions Row */}
                     <div className="form-card-actions" onClick={(e) => e.stopPropagation()}>
                       <div className="form-card-actions-left">
                         <button
@@ -610,13 +597,23 @@ export function Rekrutmen() {
                           <span>Edit Formulir</span>
                         </button>
 
+                        <Link
+                          to={`/rekrutmen/form/${form.id}`}
+                          target="_blank"
+                          className="btn btn-outline btn-sm"
+                          style={{ borderRadius: 8, padding: "5px 12px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}
+                        >
+                          <ExternalLink size={13} />
+                          <span>Preview Formulir</span>
+                        </Link>
+
                         <button
                           type="button"
                           className="btn btn-outline btn-sm"
                           onClick={() =>
                             setQrModalData({
                               title: form.title,
-                              url: `${window.location.origin}/rekrutmen/form/${form.id}`,
+                              url: publicUrl,
                               filename: `qr-rekrutmen-${form.id}.png`,
                             })
                           }
@@ -628,149 +625,52 @@ export function Rekrutmen() {
                         </button>
                       </div>
 
-                      <div style={{ position: "relative", display: "inline-block" }}>
+                      <div className="form-card-actions-right">
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenActionFormId(openActionFormId === form.id ? null : form.id);
-                          }}
+                          className="btn btn-outline btn-sm"
+                          onClick={() => handleToggleFormStatus(form)}
                           style={{
+                            borderRadius: 8,
+                            padding: "5px 12px",
+                            fontSize: 12,
                             display: "inline-flex",
                             alignItems: "center",
                             gap: 5,
-                            padding: "5px 12px",
-                            fontSize: 12,
-                            borderRadius: "var(--radius-sm, 8px)",
-                            background: openActionFormId === form.id ? "var(--primary-700, #b91c1c)" : "var(--primary-600, #dc2626)",
-                            border: "none",
-                            color: "#ffffff",
                             fontWeight: 600,
-                            cursor: "pointer",
-                            boxShadow: "0 1px 3px rgba(220, 38, 38, 0.3)",
-                            transition: "all 0.15s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (openActionFormId !== form.id) e.currentTarget.style.background = "var(--primary-700, #b91c1c)";
-                          }}
-                          onMouseLeave={(e) => {
-                            if (openActionFormId !== form.id) e.currentTarget.style.background = "var(--primary-600, #dc2626)";
+                            color: form.status === "dibuka" ? "#d97706" : "#16a34a",
+                            borderColor: form.status === "dibuka" ? "rgba(217, 119, 6, 0.4)" : "rgba(22, 163, 74, 0.4)",
+                            background: form.status === "dibuka" ? "rgba(217, 119, 6, 0.06)" : "rgba(22, 163, 74, 0.06)",
                           }}
                         >
-                          <span>Aksi</span>
-                          <ChevronDown
-                            size={13}
-                            style={{
-                              transform: openActionFormId === form.id ? "rotate(180deg)" : "rotate(0deg)",
-                              transition: "transform 0.15s ease",
-                            }}
-                          />
+                          {form.status === "dibuka" ? (
+                            <>
+                              <XCircle size={13} />
+                              <span>Tutup Form</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 size={13} />
+                              <span>Buka Form</span>
+                            </>
+                          )}
                         </button>
 
-                        {openActionFormId === form.id && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              right: 0,
-                              bottom: "calc(100% + 4px)",
-                              zIndex: 100,
-                              minWidth: "165px",
-                              background: "#ffffff",
-                              borderRadius: "10px",
-                              border: "1px solid var(--border, #e2e8f0)",
-                              boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.08)",
-                              padding: "4px",
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "2px",
-                            }}
-                          >
-                            <Link
-                              to={`/rekrutmen/form/${form.id}`}
-                              target="_blank"
-                              onClick={() => setOpenActionFormId(null)}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                width: "100%",
-                                padding: "7px 10px",
-                                fontSize: "12px",
-                                fontWeight: 500,
-                                color: "var(--text, #1e293b)",
-                                background: "transparent",
-                                border: "none",
-                                borderRadius: "6px",
-                                cursor: "pointer",
-                                textAlign: "left",
-                                textDecoration: "none",
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
-                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                            >
-                              <ExternalLink size={14} style={{ color: "var(--text-muted)" }} />
-                              <span>Preview Formulir</span>
-                            </Link>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenActionFormId(null);
-                                void handleToggleFormStatus(form);
-                              }}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                width: "100%",
-                                padding: "7px 10px",
-                                fontSize: "12px",
-                                fontWeight: 500,
-                                color: form.status === "dibuka" ? "var(--text-secondary)" : "#16a34a",
-                                background: "transparent",
-                                border: "none",
-                                borderRadius: "6px",
-                                cursor: "pointer",
-                                textAlign: "left",
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
-                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                            >
-                              <Check size={14} style={{ color: form.status === "dibuka" ? "var(--text-muted)" : "#16a34a" }} />
-                              <span>{form.status === "dibuka" ? "Nonaktifkan Formulir" : "Aktifkan Formulir"}</span>
-                            </button>
-
-                            <div style={{ height: "1px", background: "var(--border-soft, #f1f5f9)", margin: "2px 0" }} />
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenActionFormId(null);
-                                void handleDeleteForm(form.id, form.title);
-                              }}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                width: "100%",
-                                padding: "7px 10px",
-                                fontSize: "12px",
-                                fontWeight: 500,
-                                color: "var(--danger, #dc2626)",
-                                background: "transparent",
-                                border: "none",
-                                borderRadius: "6px",
-                                cursor: "pointer",
-                                textAlign: "left",
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--primary-50, #fef2f2)")}
-                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                            >
-                              <Trash2 size={14} style={{ color: "var(--danger, #dc2626)" }} />
-                              <span>Hapus Formulir</span>
-                            </button>
-                          </div>
-                        )}
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => handleDeleteForm(form.id, form.title)}
+                          style={{
+                            borderRadius: 8,
+                            padding: "5px 10px",
+                            fontSize: 12,
+                            color: "var(--danger)",
+                            fontWeight: 600,
+                          }}
+                        >
+                          <Trash2 size={13} />
+                          <span>Hapus</span>
+                        </button>
                       </div>
                     </div>
                   </div>

@@ -1,16 +1,13 @@
 import { useState, useEffect } from "react";
 import {
   MessageCircle,
-
   CheckCircle,
   Clock,
   Layers,
-
-
   ExternalLink,
-
   Copy,
   Check,
+  Loader2,
 } from "lucide-react";
 import type { OrderWithAnswers, OrderStatus } from "../../types";
 import {
@@ -39,6 +36,7 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
   const [currentStatus, setCurrentStatus] = useState<OrderStatus>(order?.status || "masuk");
   const [adminNote, setAdminNote] = useState<string>(order?.adminNote || "");
   const [updating, setUpdating] = useState(false);
+  const [updatingStatusKey, setUpdatingStatusKey] = useState<OrderStatus | null>(null);
   const [copiedWA, setCopiedWA] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
@@ -49,30 +47,42 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // Sync state when order prop changes
+  useEffect(() => {
+    if (order) {
+      setCurrentStatus(order.status || "masuk");
+      setAdminNote(order.adminNote || "");
+    }
+  }, [order]);
+
   if (!order) return null;
 
+  const safeAnswers = Array.isArray(order.answers) ? order.answers : [];
+
   // Temukan jenis pesanan dari answers jika ada
-  const jenisAnswer = order.answers.find(
-    (a) => String(a?.label || "").toLowerCase().includes("jenis") || String(a?.label || "").toLowerCase().includes("produk")
+  const jenisAnswer = safeAnswers.find(
+    (a) => a && (String(a?.label || "").toLowerCase().includes("jenis") || String(a?.label || "").toLowerCase().includes("produk"))
   );
-  const jenisPesanan = jenisAnswer ? jenisAnswer.value : "Pesanan";
+  const jenisPesanan = jenisAnswer && typeof jenisAnswer.value === "string" ? jenisAnswer.value : "Pesanan";
 
   const waUrl = buatLinkWhatsAppPesanan(
-    order.whatsapp,
-    order.customerName,
+    order.whatsapp || "",
+    order.customerName || "",
     order.id,
     jenisPesanan,
     currentStatus
   );
 
-  const rawWaClean = formatNomorWhatsAppUrl(order.whatsapp);
+  const rawWaClean = formatNomorWhatsAppUrl(order.whatsapp || "");
   const directWaUrl = rawWaClean ? `https://wa.me/${rawWaClean}` : null;
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
-    if (newStatus === currentStatus) return;
+    if (newStatus === currentStatus || updating) return;
+    setUpdatingStatusKey(newStatus);
     setUpdating(true);
     const ok = await onUpdateStatus(order.id, newStatus, adminNote);
     setUpdating(false);
+    setUpdatingStatusKey(null);
     if (ok) {
       setCurrentStatus(newStatus);
       toastSuccess(`Status pesanan ${order.id} berhasil diubah ke ${newStatus.toUpperCase()}`);
@@ -107,9 +117,11 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
   let totalPrice = "";
   const otherAnswers: any[] = [];
 
-  order.answers.forEach((ans) => {
-    if (typeof ans.value === "string" && ans.value.includes("•")) {
-      const lines = ans.value.split("\n");
+  safeAnswers.forEach((ans) => {
+    if (!ans) return;
+    const ansValStr = typeof ans.value === "string" ? ans.value : (ans.value != null ? String(ans.value) : "");
+    if (ansValStr.includes("•")) {
+      const lines = ansValStr.split("\n");
       lines.forEach((line) => {
         if (line.trim().startsWith("•")) {
           const match = line.match(/•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\](?:\s*@\s*(.*?)=\s*(.*?))?$/i);
@@ -170,6 +182,7 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
           >
             {STATUS_STEPS.map((step) => {
               const active = currentStatus === step.key;
+              const isUpdatingThis = updating && updatingStatusKey === step.key;
               return (
                 <button
                   key={step.key}
@@ -181,24 +194,32 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 6,
-                    padding: "8px 10px",
+                    padding: "9px 12px",
                     borderRadius: 8,
-                    border: "none",
+                    border: active
+                      ? "1px solid transparent"
+                      : "1px solid var(--border-soft, #e2e8f0)",
                     background: active
                       ? step.key === "selesai"
-                        ? "var(--green-600)"
+                        ? "#16a34a"
                         : step.key === "diproses"
-                        ? "var(--blue-600)"
-                        : "var(--primary-700)"
-                      : "transparent",
+                        ? "#2563eb"
+                        : "#d97706"
+                      : "var(--bg-soft, #f8fafc)",
                     color: active ? "#ffffff" : "var(--text-secondary)",
-                    fontWeight: active ? 600 : 500,
+                    fontWeight: active ? 700 : 500,
                     fontSize: 13,
                     cursor: updating ? "not-allowed" : "pointer",
-                    transition: "all 0.15s ease",
+                    transition: "all 0.22s cubic-bezier(0.16, 1, 0.3, 1)",
+                    boxShadow: active ? "0 3px 10px rgba(0,0,0,0.12)" : "none",
+                    transform: active ? "scale(1.02)" : "scale(1)",
                   }}
                 >
-                  <step.icon size={15} />
+                  {isUpdatingThis ? (
+                    <Loader2 size={15} className="spinning" />
+                  ) : (
+                    <step.icon size={15} />
+                  )}
                   <span>{step.label}</span>
                 </button>
               );
@@ -338,20 +359,21 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
             
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {otherAnswers.map((ans, idx) => (
-                <div key={ans.id || idx}>
+                <div key={ans?.id || idx}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
-                    {ans.label}
+                    {ans?.label || "Jawaban"}
                   </span>
                   <div style={{ fontSize: 14, color: "var(--navy-900)", wordBreak: "break-word" }}>
                     {(() => {
-                      const imgTarget = ans.fileUrl || (ans.value?.startsWith("data:image/") || ans.value?.startsWith("http") ? ans.value : null);
+                      const ansValStr = typeof ans?.value === "string" ? ans.value : (ans?.value != null ? String(ans.value) : "");
+                      const imgTarget = ans?.fileUrl || (ansValStr.startsWith("data:image/") || ansValStr.startsWith("http") ? ansValStr : null);
                       const isImage = Boolean(
                         imgTarget &&
                         (imgTarget.startsWith("data:image/") ||
                          imgTarget.includes("drive.google") ||
                          imgTarget.includes("googleusercontent") ||
                          /\.(jpg|jpeg|png|webp|gif)$/i.test(imgTarget) ||
-                         ans.fileType?.startsWith("image/"))
+                         (typeof ans?.fileType === "string" && ans.fileType.startsWith("image/")))
                       );
 
                       if (imgTarget) {
@@ -361,7 +383,7 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
                               <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
                                 <img
                                   src={imgTarget}
-                                  alt={ans.label}
+                                  alt={ans?.label || "Lampiran"}
                                   title="Klik untuk melihat full screen"
                                   onClick={() => setLightboxUrl(imgTarget)}
                                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
@@ -405,13 +427,13 @@ export function OrderDetailModal({ order, onClose, onUpdateStatus }: OrderDetail
                                 className="btn btn-outline btn-sm"
                                 style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}
                               >
-                                <ExternalLink size={13} /> Unduh / Lihat Berkas ({ans.fileName || "Lampiran"})
+                                <ExternalLink size={13} /> Unduh / Lihat Berkas ({ans?.fileName || "Lampiran"})
                               </a>
                             )}
                           </div>
                         );
                       }
-                      return <span>{ans.value || "-"}</span>;
+                      return <span>{ansValStr || "-"}</span>;
                     })()}
                   </div>
                 </div>

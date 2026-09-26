@@ -31,7 +31,7 @@ import {
   uploadOrderImageItem,
 } from "../services/api";
 import logo from "../aset/logo.png";
-import { formatNomorWhatsAppUrl, formatRupiah, parseVariantConfig } from "../utils/format";
+import { formatNomorWhatsAppUrl, formatRupiah, parseVariantConfig, formatDirectImageUrl, handleImageLoadError } from "../utils/format";
 
 interface CustomerAnswerState {
   fieldId: string;
@@ -1046,8 +1046,10 @@ export function PublicOrderForm() {
                     }}
                   >
                     <img
-                      src={form.bannerImageUrl}
+                      src={formatDirectImageUrl(form.bannerImageUrl)}
                       alt={form.bannerImageTitle || "Panduan Kaos"}
+                      referrerPolicy="no-referrer"
+                      onError={handleImageLoadError}
                       style={{
                         width: "100%",
                         height: "auto",
@@ -1088,30 +1090,33 @@ export function PublicOrderForm() {
                       key={field.id}
                       id={`field-${field.id}`}
                       style={{
-                        background: "rgba(224, 242, 254, 0.4)",
-                        border: "1px solid rgba(186, 230, 253, 0.8)",
+                        background: "linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)",
+                        border: "1.5px solid #86efac",
                         padding: "16px 18px",
                         borderRadius: 12,
                         marginBottom: 16,
+                        boxShadow: "0 2px 8px rgba(22, 163, 74, 0.07)",
                       }}
                     >
-                      <h4 style={{ margin: "0 0 8px", fontSize: "15px", color: "#0284c7" }}>
+                      <h4 style={{ margin: "0 0 8px", fontSize: "15px", color: "#16a34a", display: "flex", alignItems: "center", gap: 6 }}>
                         <Info size={18} style={{ display: "inline", verticalAlign: "middle", marginRight: 6, marginTop: -2 }} />
                         {field.label}
                       </h4>
                       {field.description && (
-                        <div style={{ fontSize: "13.5px", color: "#334155", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                        <div style={{ fontSize: "13.5px", color: "#166534", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
                           {field.description}
                         </div>
                       )}
                       {field.imageUrl && (
                         <div style={{ marginTop: 12 }}>
                           <img
-                            src={field.imageUrl}
+                            src={formatDirectImageUrl(field.imageUrl)}
                             alt={field.imageTitle || "Info Image"}
+                            referrerPolicy="no-referrer"
+                            onError={handleImageLoadError}
                             onClick={() =>
                               setActiveLightboxImage({
-                                url: field.imageUrl || "",
+                                url: formatDirectImageUrl(field.imageUrl) || "",
                                 title: field.imageTitle || field.label,
                               })
                             }
@@ -1120,13 +1125,13 @@ export function PublicOrderForm() {
                               maxHeight: 300,
                               objectFit: "contain",
                               borderRadius: 8,
-                              border: "1px solid #cbd5e1",
+                              border: "1px solid #86efac",
                               cursor: "zoom-in",
                               backgroundColor: "#fff",
                             }}
                           />
                           {field.imageTitle && (
-                            <p style={{ margin: "6px 0 0", fontSize: "12px", color: "var(--text-muted)", textAlign: "center" }}>
+                            <p style={{ margin: "6px 0 0", fontSize: "12px", color: "#16a34a", textAlign: "center" }}>
                               {field.imageTitle}
                             </p>
                           )}
@@ -1166,14 +1171,15 @@ export function PublicOrderForm() {
                       <div
                         style={{
                           marginBottom: 8,
-                          padding: 10,
-                          background: "#ffffff",
-                          border: "1px solid #e2e8f0",
-                          borderRadius: 8,
+                          padding: "10px 14px",
+                          background: "linear-gradient(135deg, #fff5f5 0%, #fff0f0 100%)",
+                          border: "1.5px solid #fecaca",
+                          borderRadius: 10,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
                           gap: 12,
+                          boxShadow: "0 2px 6px rgba(220, 38, 38, 0.06)",
                         }}
                       >
                         <div
@@ -1186,20 +1192,22 @@ export function PublicOrderForm() {
                           }}
                           onClick={() =>
                             setActiveLightboxImage({
-                              url: field.imageUrl || "",
+                              url: formatDirectImageUrl(field.imageUrl) || "",
                               title: field.imageTitle || `Contoh: ${field.label}`,
                             })
                           }
                         >
                           <img
-                            src={field.imageUrl}
+                            src={formatDirectImageUrl(field.imageUrl)}
                             alt={field.imageTitle || "Contoh"}
+                            referrerPolicy="no-referrer"
+                            onError={handleImageLoadError}
                             style={{
                               width: 52,
                               height: 52,
                               objectFit: "cover",
                               borderRadius: 6,
-                              border: "1px solid #cbd5e1",
+                              border: "1.5px solid #fca5a5",
                               flexShrink: 0,
                             }}
                           />
@@ -1611,7 +1619,6 @@ export function PublicOrderForm() {
                             <button
                               type="button"
                               onClick={() => addVariantRow(field)}
-                              className="btn btn-outline btn-sm"
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
@@ -1619,7 +1626,15 @@ export function PublicOrderForm() {
                                 padding: "8px 14px",
                                 borderRadius: 8,
                                 fontWeight: 600,
+                                fontSize: 13,
+                                background: "#dc2626",
+                                color: "#fff",
+                                border: "none",
+                                cursor: "pointer",
+                                transition: "background 0.15s",
                               }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "#b91c1c")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "#dc2626")}
                             >
                               <Plus size={14} />
                               <span>+ Tambah Varian / Ukuran Lain</span>
@@ -2422,8 +2437,10 @@ export function PublicOrderForm() {
               }}
             >
               <img
-                src={activeLightboxImage.url}
+                src={formatDirectImageUrl(activeLightboxImage.url)}
                 alt={activeLightboxImage.title}
+                referrerPolicy="no-referrer"
+                onError={handleImageLoadError}
                 onClick={(e) => {
                   e.stopPropagation();
                   // Toggle zoom between 1 and 1.6 on image click

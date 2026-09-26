@@ -17,6 +17,8 @@ import { SearchBar } from "../ui/SearchBar";
 import { DatePicker } from "../ui/DatePicker";
 import { Modal } from "../ui/Modal";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { ActionDropdown } from "../ui/ActionDropdown";
+
 
 interface TransaksiListProps {
   loading: boolean;
@@ -248,43 +250,31 @@ export function TransaksiList({
       key: "aksi",
       header: "Aksi",
       render: (r) => (
-        <div className="action-group" onClick={(e) => e.stopPropagation()}>
-          <button
-            className="action-btn"
-            data-tooltip="Buka & Kelola Rincian"
-            aria-label="Buka & Kelola Rincian"
-            onClick={() => onNavigateToDetail(r.id)}
-            style={{ color: "var(--primary-700, #b91c1c)", background: "rgba(185, 28, 28, 0.08)" }}
-          >
-            <Eye size={16} />
-          </button>
-          {onDownloadPdf && (
-            <button
-              className="action-btn"
-              data-tooltip="Unduh PDF Laporan"
-              aria-label="Unduh PDF Laporan"
-              disabled={downloadingId === r.id}
-              onClick={() => handleDownload(r)}
-            >
-              <Download size={16} />
-            </button>
-          )}
-          <button
-            className="action-btn"
-            data-tooltip="Edit Transaksi"
-            aria-label="Edit Transaksi"
-            onClick={() => openEdit(r)}
-          >
-            <Pencil size={16} />
-          </button>
-          <button
-            className="action-btn danger"
-            data-tooltip="Hapus"
-            aria-label="Hapus"
-            onClick={() => setToDelete(r)}
-          >
-            <Trash2 size={16} />
-          </button>
+        <div onClick={(e) => e.stopPropagation()}>
+          <ActionDropdown items={[
+            {
+              label: "Buka Rincian",
+              icon: <Eye size={14} />,
+              onClick: () => onNavigateToDetail(r.id),
+            },
+            ...(onDownloadPdf ? [{
+              label: downloadingId === r.id ? "Mengunduh..." : "Unduh PDF",
+              icon: <Download size={14} />,
+              onClick: () => handleDownload(r),
+              disabled: downloadingId === r.id,
+            }] : []),
+            {
+              label: "Edit",
+              icon: <Pencil size={14} />,
+              onClick: () => openEdit(r),
+            },
+            {
+              label: "Hapus",
+              icon: <Trash2 size={14} />,
+              onClick: () => setToDelete(r),
+              danger: true,
+            },
+          ]} />
         </div>
       ),
     },
@@ -376,6 +366,7 @@ export function TransaksiList({
           onRowClick={(r) => onNavigateToDetail(r.id)}
           emptyTitle="Belum ada transaksi temporer"
           emptyMessage="Belum ada transaksi temporer yang dibuat. Klik tombol 'Tambah Transaksi Baru' untuk mulai menginput pos anggaran atau kegiatan."
+          fullHeight
         />
         {filtered.length > 0 && (
           <div

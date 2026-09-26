@@ -22,6 +22,7 @@ import { useToast } from "../../contexts/ToastContext";
 import { getRekrutmenFormData, addRekrutmenSubmissionItem, compressImageToSafeHd, fileToBase64 } from "../../services/api";
 import { CACHE_KEYS } from "../../services/cache";
 import logo from "../../aset/logo.png";
+import { formatDirectImageUrl } from "../../utils/format";
 
 interface FormAnswer {
   fieldId: string;
@@ -1517,7 +1518,7 @@ export function PublicForm() {
                 </div>
               ) : (
                 <img
-                  src={activeSampleImage.url}
+                  src={formatDirectImageUrl(activeSampleImage.url)}
                   alt={activeSampleImage.title || "Pratinjau"}
                   referrerPolicy={activeSampleImage.url.startsWith("http") ? "no-referrer" : undefined}
                   onLoad={() => setLightboxLoading(false)}

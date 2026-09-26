@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Package,
   Plus,
@@ -8,6 +8,7 @@ import {
   MessageCircle,
   Eye,
   CheckCircle2,
+  XCircle,
   Clock,
   Layers,
   FileSpreadsheet,
@@ -53,8 +54,9 @@ import { ActionDropdown } from "../components/ui/ActionDropdown";
 export function KelolaPesanan() {
   const { success: toastSuccess, error: toastError } = useToast();
 
-  // Tab State
-  const [activeTab, setActiveTab] = useState<"pesanan" | "formulir">("pesanan");
+  // Tab State — dikendalikan via URL search param ?tab=formulir
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = (searchParams.get("tab") === "formulir" ? "formulir" : "pesanan") as "pesanan" | "formulir";
 
   // Fetch Forms
   const {
@@ -164,8 +166,16 @@ export function KelolaPesanan() {
     const res = await updateOrderStatusApi(id, status, adminNote);
     if (res.success) {
       void refreshOrders(true);
+      const updatedOrder = selectedOrder && selectedOrder.id === id 
+        ? { ...selectedOrder, status, adminNote: adminNote ?? selectedOrder.adminNote }
+        : orderList.find((o) => o.id === id) || null;
+
       if (selectedOrder && selectedOrder.id === id) {
-        setSelectedOrder((prev) => (prev ? { ...prev, status, adminNote: adminNote ?? prev.adminNote } : null));
+        setSelectedOrder(updatedOrder);
+      }
+
+      if (status === "diproses" && updatedOrder) {
+        setBroadcastOrder(updatedOrder);
       }
       return true;
     }
@@ -465,7 +475,7 @@ export function KelolaPesanan() {
           <div
             onClick={() => {
               setStatusFilter("semua");
-              setActiveTab("pesanan");
+              setSearchParams({});
             }}
             className={`rekrutmen-stat-card ${activeTab === "pesanan" && statusFilter === "semua" ? "active" : ""}`}
             title="Klik untuk melihat semua pesanan"
@@ -483,7 +493,7 @@ export function KelolaPesanan() {
           <div
             onClick={() => {
               setStatusFilter("masuk");
-              setActiveTab("pesanan");
+              setSearchParams({});
             }}
             className={`rekrutmen-stat-card ${activeTab === "pesanan" && statusFilter === "masuk" ? "active" : ""}`}
             title="Klik untuk menyaring pesanan masuk"
@@ -503,7 +513,7 @@ export function KelolaPesanan() {
           <div
             onClick={() => {
               setStatusFilter("diproses");
-              setActiveTab("pesanan");
+              setSearchParams({});
             }}
             className={`rekrutmen-stat-card ${activeTab === "pesanan" && statusFilter === "diproses" ? "active" : ""}`}
             title="Klik untuk menyaring pesanan yang sedang diproses"
@@ -521,7 +531,7 @@ export function KelolaPesanan() {
           <div
             onClick={() => {
               setStatusFilter("selesai");
-              setActiveTab("pesanan");
+              setSearchParams({});
             }}
             className={`rekrutmen-stat-card ${activeTab === "pesanan" && statusFilter === "selesai" ? "active" : ""}`}
             title="Klik untuk menyaring pesanan selesai"
@@ -537,72 +547,7 @@ export function KelolaPesanan() {
         </div>
       </div>
 
-      {/* 2. TAB CONTROLS (DAFTAR PESANAN vs FORMULIR AKTIF) & ACTION */}
-      <div className="page-tab-header" style={{ borderBottom: "1px solid var(--border)", paddingBottom: 6 }}>
-        <div className="page-segmented-tabs">
-          <button
-            type="button"
-            className="page-tab-btn"
-            onClick={() => setActiveTab("pesanan")}
-            style={{
-              fontWeight: activeTab === "pesanan" ? 700 : 500,
-              background: activeTab === "pesanan" ? "#ffffff" : "transparent",
-              color: activeTab === "pesanan" ? "var(--primary-700)" : "var(--text-secondary)",
-              boxShadow: activeTab === "pesanan" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
-            }}
-          >
-            <Package size={16} />
-            <span>Daftar Pesanan ({orderList.length})</span>
-          </button>
 
-          <button
-            type="button"
-            className="page-tab-btn"
-            onClick={() => setActiveTab("formulir")}
-            style={{
-              fontWeight: activeTab === "formulir" ? 700 : 500,
-              background: activeTab === "formulir" ? "#ffffff" : "transparent",
-              color: activeTab === "formulir" ? "var(--primary-700)" : "var(--text-secondary)",
-              boxShadow: activeTab === "formulir" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
-            }}
-          >
-            <FileText size={16} />
-            <span>Formulir Pesanan ({forms?.length || 0})</span>
-          </button>
-        </div>
-
-        <div className="page-tab-actions">
-          {forms && forms.length > 0 && (
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={() => {
-                const defaultForm = forms[0];
-                setQrModalData({
-                  title: defaultForm.title,
-                  url: `${window.location.origin}/order/form/${defaultForm.id}`,
-                  filename: `qr-pesanan-${defaultForm.id}.png`,
-                });
-              }}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-              title="Tampilkan QR Code formulir pesanan"
-            >
-              <QrCode size={16} /> QR Code Pesanan
-            </button>
-          )}
-
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              setEditingForm(null);
-              setIsBuilderOpen(true);
-            }}
-          >
-            <Plus size={17} /> Tambah Formulir Pesanan
-          </button>
-        </div>
-      </div>
 
       {/* TAB CONTENT 1: DAFTAR PESANAN */}
       {activeTab === "pesanan" && (
@@ -673,20 +618,20 @@ export function KelolaPesanan() {
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <button
                   type="button"
-                  className="btn btn-outline btn-sm"
+                  className="btn-red btn-box-badge"
                   onClick={handleExportCSV}
-                  title="Ekspor data pesanan ke CSV"
+                  title="Ekspor CSV"
                 >
-                  <FileSpreadsheet size={14} />
+                  <FileSpreadsheet size={13} />
                   <span>CSV</span>
                 </button>
                 <button
                   type="button"
-                  className="btn btn-outline btn-sm"
+                  className="btn-red btn-box-badge"
                   onClick={handleExportPDF}
-                  title="Ekspor laporan pesanan ke PDF"
+                  title="Ekspor PDF"
                 >
-                  <FileText size={14} />
+                  <FileText size={13} />
                   <span>PDF</span>
                 </button>
               </div>
@@ -760,6 +705,7 @@ export function KelolaPesanan() {
             data={filteredOrders}
             loading={loadingOrders}
             rowKey={(r) => r.id}
+            onRowClick={(row) => setSelectedOrder(row)}
             emptyTitle="Belum Ada Pesanan"
             emptyMessage={
               searchQuery || statusFilter !== "semua" || dateFilter !== "semua"
@@ -773,6 +719,36 @@ export function KelolaPesanan() {
       {/* TAB CONTENT 2: FORMULIR AKTIF */}
       {activeTab === "formulir" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div
+            style={{
+              background: "#ffffff",
+              padding: "14px 16px",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--border)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--navy-900)" }}>
+              Formulir Pesanan ({forms?.length || 0})
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button
+                type="button"
+                className="btn-red btn-box-badge"
+                onClick={() => {
+                  setEditingForm(null);
+                  setIsBuilderOpen(true);
+                }}
+                title="Tambah Formulir"
+              >
+                <Plus size={15} />
+                <span>Tambah Formulir</span>
+              </button>
+            </div>
+          </div>
+
           {/* Empty State */}
           {(!forms || forms.length === 0) && (
             <div
@@ -1022,17 +998,32 @@ export function KelolaPesanan() {
                     <div className="form-card-actions-right">
                       <button
                         type="button"
-                        className="btn btn-ghost btn-sm"
+                        className="btn btn-outline btn-sm"
                         onClick={() => handleToggleFormStatus(form)}
                         style={{
                           borderRadius: 8,
-                          padding: "5px 10px",
+                          padding: "5px 12px",
                           fontSize: 12,
-                          color: form.status === "aktif" ? "var(--text-muted)" : "var(--green-700)",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5,
                           fontWeight: 600,
+                          color: form.status === "aktif" ? "#d97706" : "#16a34a",
+                          borderColor: form.status === "aktif" ? "rgba(217, 119, 6, 0.4)" : "rgba(22, 163, 74, 0.4)",
+                          background: form.status === "aktif" ? "rgba(217, 119, 6, 0.06)" : "rgba(22, 163, 74, 0.06)",
                         }}
                       >
-                        {form.status === "aktif" ? "Tutup Form" : "Buka Form"}
+                        {form.status === "aktif" ? (
+                          <>
+                            <XCircle size={13} />
+                            <span>Tutup Form</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 size={13} />
+                            <span>Buka Form</span>
+                          </>
+                        )}
                       </button>
 
                       <button

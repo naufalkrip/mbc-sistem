@@ -1910,12 +1910,17 @@ function uploadRekrutmenImage(data) {
   var folderName = "mbc sistem Rekrutmen Assets";
   var folders = DriveApp.getFoldersByName(folderName);
   var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+  try {
+    folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {}
 
   var file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {}
   var fileId = file.getId();
 
-  var directUrl = "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w1600";
+  var directUrl = "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w1920";
 
   return {
     fileId: fileId,
@@ -2897,12 +2902,18 @@ function uploadOrderImage(data) {
   var folderName = "mbc sistem Order Assets";
   var folders = DriveApp.getFoldersByName(folderName);
   var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+  try {
+    folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {}
 
   var file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {}
   var fileId = file.getId();
 
-  var directUrl = "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w1600";
+  // Gunakan thumbnail URL yang lebih andal untuk ditampilkan di browser
+  var directUrl = "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w1920";
 
   return {
     fileId: fileId,
@@ -3020,4 +3031,17 @@ function deleteCouponLocation(data) {
   if (!data.id) throw new Error("ID lokasi kupon tidak ditemukan.");
   var cfg = getSheetConfig("KUPON_LOCATIONS");
   return deleteRow(cfg, data.id);
+}
+
+// ============================================================
+// FUNGSI INISIALISASI IZIN GOOGLE DRIVE
+// Jalankan fungsi ini SATU KALI dari editor untuk membuka izin Drive.
+// Setelah berhasil, deploy ulang sebagai "New version".
+// ============================================================
+function initDrivePermission() {
+  var folderName = "mbc sistem Order Assets";
+  var folders = DriveApp.getFoldersByName(folderName);
+  var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+  Logger.log("Drive siap! Folder ID: " + folder.getId());
+  return "OK: " + folder.getId();
 }
