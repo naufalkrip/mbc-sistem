@@ -138,8 +138,8 @@ var SHEET_CONFIG = [
     key: "ORDERS",
     name: "ORDERS",
     idPrefix: "ORD",
-    headers: ["id", "formId", "customerName", "whatsapp", "status", "adminNote", "createdAt", "updatedAt"],
-    keys: ["id", "formId", "customerName", "whatsapp", "status", "adminNote", "createdAt", "updatedAt"],
+    headers: ["id", "formId", "customerName", "whatsapp", "status", "adminNote", "dpAmount", "paymentStatus", "createdAt", "updatedAt"],
+    keys: ["id", "formId", "customerName", "whatsapp", "status", "adminNote", "dpAmount", "paymentStatus", "createdAt", "updatedAt"],
     idCol: 0
   },
   {
@@ -2772,6 +2772,13 @@ function getOrders(formId) {
       return String(a.orderId) === String(order.id);
     });
 
+    var dpVal = Number(order.dpAmount);
+    if (isNaN(dpVal)) dpVal = 0;
+    var payStatus = String(order.paymentStatus || "").trim();
+    if (!payStatus) {
+      payStatus = dpVal > 0 ? "dp" : "belum_bayar";
+    }
+
     return {
       id: String(order.id),
       formId: String(order.formId),
@@ -2779,6 +2786,8 @@ function getOrders(formId) {
       whatsapp: String(order.whatsapp || ""),
       status: String(order.status || "masuk"),
       adminNote: String(order.adminNote || ""),
+      dpAmount: dpVal,
+      paymentStatus: payStatus,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
       answers: myAnswers,
@@ -2830,6 +2839,8 @@ function addOrder(data) {
     whatsapp: whatsapp,
     status: "masuk",
     adminNote: String(data.adminNote || ""),
+    dpAmount: Number(data.dpAmount) || 0,
+    paymentStatus: String(data.paymentStatus || "belum_bayar"),
     createdAt: now,
     updatedAt: now
   };
@@ -2928,14 +2939,22 @@ function updateOrderStatus(data) {
   var cfg = getSheetConfig("ORDERS");
   var now = new Date().toISOString();
   var updatePayload = {
-    status: String(data.status || "masuk"),
     updatedAt: now
   };
+  if (data.status !== undefined) {
+    updatePayload.status = String(data.status);
+  }
   if (data.adminNote !== undefined) {
     updatePayload.adminNote = String(data.adminNote || "");
   }
+  if (data.dpAmount !== undefined) {
+    updatePayload.dpAmount = Number(data.dpAmount) || 0;
+  }
+  if (data.paymentStatus !== undefined) {
+    updatePayload.paymentStatus = String(data.paymentStatus || "belum_bayar");
+  }
   updateRow(cfg, data.id, updatePayload);
-  return { success: true, id: data.id, status: data.status };
+  return { success: true, id: data.id, status: data.status, dpAmount: data.dpAmount, paymentStatus: data.paymentStatus };
 }
 
 function deleteOrder(data) {

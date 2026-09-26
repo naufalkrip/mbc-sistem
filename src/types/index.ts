@@ -300,6 +300,7 @@ export interface OrderFormWithFields extends OrderForm {
 }
 
 export type OrderStatus = "masuk" | "diproses" | "selesai";
+export type PaymentStatus = "belum_bayar" | "dp" | "lunas";
 
 export interface OrderAnswer {
   id: string;
@@ -321,6 +322,8 @@ export interface Order {
   whatsapp: string;
   status: OrderStatus;
   adminNote?: string;
+  dpAmount?: number;
+  paymentStatus?: PaymentStatus;
   createdAt: string;
   updatedAt: string;
 }

@@ -25,6 +25,7 @@ import type {
   OrderFormWithFields,
   OrderStatus,
   OrderStats,
+  PaymentStatus,
 } from "../types";
 import { useApi } from "../hooks/useApi";
 import { useToast } from "../contexts/ToastContext";
@@ -37,7 +38,7 @@ import {
   deleteOrderApi,
 } from "../services/api";
 import { CACHE_KEYS } from "../services/cache";
-import { formatTanggalPanjang, formatNomorHp, buatLinkWhatsAppPesanan } from "../utils/format";
+import { formatTanggalPanjang, formatNomorHp, buatLinkWhatsAppPesanan, formatRupiah } from "../utils/format";
 import { DataTable, type Column } from "../components/ui/DataTable";
 import { SearchBar } from "../components/ui/SearchBar";
 import { Filter as FilterComp } from "../components/ui/Filter";
@@ -164,18 +165,27 @@ export function KelolaPesanan() {
   // Handlers
   const handleUpdateStatus = async (id: string, status: OrderStatus, adminNote?: string) => {
     const res = await updateOrderStatusApi(id, status, adminNote);
-    if (res.success) {
+    if (res.success && res.data) {
       void refreshOrders(true);
-      const updatedOrder = selectedOrder && selectedOrder.id === id 
-        ? { ...selectedOrder, status, adminNote: adminNote ?? selectedOrder.adminNote }
-        : orderList.find((o) => o.id === id) || null;
+      const updatedOrder = res.data;
 
-      if (selectedOrder && selectedOrder.id === id) {
+      if (status === "diproses" || status === "selesai") {
+        setSelectedOrder(null);
+        setBroadcastOrder(updatedOrder);
+      } else if (selectedOrder && selectedOrder.id === id) {
         setSelectedOrder(updatedOrder);
       }
+      return true;
+    }
+    return false;
+  };
 
-      if (status === "diproses" && updatedOrder) {
-        setBroadcastOrder(updatedOrder);
+  const handleUpdatePayment = async (id: string, dpAmount: number, paymentStatus: PaymentStatus) => {
+    const res = await updateOrderStatusApi(id, undefined, undefined, dpAmount, paymentStatus);
+    if (res.success && res.data) {
+      void refreshOrders(true);
+      if (selectedOrder && selectedOrder.id === id) {
+        setSelectedOrder(res.data);
       }
       return true;
     }
@@ -263,22 +273,71 @@ export function KelolaPesanan() {
   // Columns for DataTable (Desktop)
   const columns: Column<OrderWithAnswers>[] = [
     {
-      key: "id",
-      header: "ID Pesanan",
-      render: (row) => (
-        <span style={{ fontWeight: 700, color: "var(--primary-700)", letterSpacing: "0.5px" }}>
-          {row.id}
-        </span>
-      ),
-    },
-    {
       key: "customerName",
       header: "Customer",
-      render: (row) => (
-        <div>
-          <strong style={{ display: "block", color: "var(--text)" }}>{row.customerName || "-"}</strong>
-        </div>
-      ),
+      render: (row) => {
+        const isLunas = row.paymentStatus === "lunas";
+        const isDp = row.paymentStatus === "dp" || (row.dpAmount && row.dpAmount > 0);
+
+        return (
+          <div>
+            <strong style={{ display: "block", color: "var(--navy-900)", fontSize: 13.5 }}>
+              {row.customerName || "-"}
+            </strong>
+            <div style={{ marginTop: 4 }}>
+              {isLunas ? (
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: "#15803d",
+                    background: "#dcfce7",
+                    border: "1px solid #86efac",
+                    padding: "1px 7px",
+                    borderRadius: 10,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                  }}
+                >
+                  ✓ LUNAS
+                </span>
+              ) : isDp ? (
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: "#1d4ed8",
+                    background: "#dbeafe",
+                    border: "1px solid #93c5fd",
+                    padding: "1px 7px",
+                    borderRadius: 10,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                  }}
+                >
+                  DP: {formatRupiah(row.dpAmount || 0)}
+                </span>
+              ) : (
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 600,
+                    color: "#b91c1c",
+                    background: "#fee2e2",
+                    border: "1px solid #fca5a5",
+                    padding: "1px 7px",
+                    borderRadius: 10,
+                  }}
+                >
+                  Belum DP
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: "whatsapp",
@@ -402,6 +461,70 @@ export function KelolaPesanan() {
             }}
           >
             {row.status}
+          </span>
+        );
+      },
+    },
+    {
+      key: "pembayaran",
+      header: "Pembayaran",
+      render: (row) => {
+        const isLunas = row.paymentStatus === "lunas";
+        const isDp = row.paymentStatus === "dp" || (row.dpAmount && row.dpAmount > 0);
+
+        if (isLunas) {
+          return (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#166534",
+                background: "#dcfce7",
+                border: "1px solid #86efac",
+                padding: "2px 8px",
+                borderRadius: 12,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              ✓ LUNAS
+            </span>
+          );
+        }
+        if (isDp) {
+          return (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#1e40af",
+                background: "#dbeafe",
+                border: "1px solid #93c5fd",
+                padding: "2px 8px",
+                borderRadius: 12,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              DP {row.dpAmount ? formatRupiah(row.dpAmount) : ""}
+            </span>
+          );
+        }
+        return (
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#991b1b",
+              background: "#fee2e2",
+              border: "1px solid #fca5a5",
+              padding: "2px 8px",
+              borderRadius: 12,
+            }}
+          >
+            Belum Bayar
           </span>
         );
       },
@@ -1058,6 +1181,7 @@ export function KelolaPesanan() {
         order={selectedOrder}
         onClose={() => setSelectedOrder(null)}
         onUpdateStatus={handleUpdateStatus}
+        onUpdatePayment={handleUpdatePayment}
       />
 
       {/* FORM BUILDER MODAL */}

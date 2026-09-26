@@ -51,6 +51,12 @@ Kabar gembira! Pesanan *{jenis_pesanan}* Anda di *MB Chondro Wonopringgo* telah 
 ────────────────────
 
 *Jumlah Pesanan: {jumlah_pesanan} pcs*
+*Total Tagihan: {total_harga}*
+
+*STATUS PEMBAYARAN:*
+• Nominal DP: {nominal_dp}
+• Sisa Kekurangan: {kekurangan}
+• Status: {status_pembayaran}
 
 📍 *LOKASI PENGAMBILAN:*
 {lokasi_pengambilan}
@@ -98,7 +104,14 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.templateDiproses) setTemplateDiproses(parsed.templateDiproses);
-        if (parsed.templateSelesai) setTemplateSelesai(parsed.templateSelesai);
+        if (parsed.templateSelesai) {
+          // If stored template doesn't have payment variables, auto-migrate to DEFAULT_TEMPLATE_SELESAI
+          if (!parsed.templateSelesai.includes("{nominal_dp}") || !parsed.templateSelesai.includes("{kekurangan}")) {
+            setTemplateSelesai(DEFAULT_TEMPLATE_SELESAI);
+          } else {
+            setTemplateSelesai(parsed.templateSelesai);
+          }
+        }
         if (parsed.lokasiPengambilan) setLokasiPengambilan(parsed.lokasiPengambilan);
         if (parsed.paymentInfo) setPaymentInfo(parsed.paymentInfo);
         if (parsed.dpPercent !== undefined) setDpPercent(parsed.dpPercent);
@@ -125,6 +138,16 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
     }
   };
 
+  const resetToDefault = () => {
+    setTemplateDiproses(DEFAULT_TEMPLATE_DIPROSES);
+    setTemplateSelesai(DEFAULT_TEMPLATE_SELESAI);
+    setLokasiPengambilan(DEFAULT_LOKASI);
+    setPaymentInfo(DEFAULT_PAYMENT);
+    setDpPercent(10);
+    localStorage.removeItem("wa_template_settings_v2");
+    success("Template WhatsApp berhasil dikembalikan ke standar awal.");
+  };
+
   if (!order) return null;
 
   // Extract variants and compute totals
@@ -147,11 +170,13 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
       const lines = ansValStr.split("\n");
       lines.forEach((line) => {
         if (line.trim().startsWith("•")) {
-          const match = line.match(/•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\](?:\s*@\s*Rp\s*([\d.]+)=\s*Rp\s*([\d.]+))?/i);
+          const match = line.match(/•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\](?:\s*@\s*(.*?)=\s*(.*?))?$/i);
           if (match) {
             const qty = parseInt(match[1], 10) || 0;
-            const unitPrice = match[4] ? parseInt(match[4].replace(/\./g, ""), 10) : 0;
-            const subtotal = match[5] ? parseInt(match[5].replace(/\./g, ""), 10) : 0;
+            const unitPriceStr = match[4] ? match[4].replace(/[^0-9]/g, "") : "";
+            const subtotalStr = match[5] ? match[5].replace(/[^0-9]/g, "") : "";
+            const unitPrice = unitPriceStr ? parseInt(unitPriceStr, 10) : 0;
+            const subtotal = subtotalStr ? parseInt(subtotalStr, 10) : 0;
             parsedVariants.push({
               qty,
               size: match[2].trim(),
@@ -159,24 +184,14 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
               unitPrice,
               subtotal,
             });
-          } else {
-             const matchNoPrice = line.match(/•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\]/i);
-             if (matchNoPrice) {
-                parsedVariants.push({
-                    qty: parseInt(matchNoPrice[1], 10) || 0,
-                    size: matchNoPrice[2].trim(),
-                    sleeve: matchNoPrice[3].trim(),
-                    unitPrice: 0,
-                    subtotal: 0,
-                  });
-             }
           }
         } else if (line.includes("Total:")) {
-          const matchTotal = line.match(/Total:\s*(\d+)\s*pcs(?:\s*\|\s*Rp\s*([\d.]+))?/i);
+          const matchTotal = line.match(/Total:\s*(\d+)\s*pcs(?:\s*\|\s*(.*?))?$/i);
           if (matchTotal) {
             totalQty = parseInt(matchTotal[1], 10);
             if (matchTotal[2]) {
-              totalPriceNumber = parseInt(matchTotal[2].replace(/\./g, ""), 10);
+              const priceOnly = matchTotal[2].replace(/[^0-9]/g, "");
+              if (priceOnly) totalPriceNumber = parseInt(priceOnly, 10);
             }
           }
         }
@@ -192,8 +207,28 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
     totalPriceNumber = parsedVariants.reduce((acc, v) => acc + v.subtotal, 0);
   }
 
-  // Calculate DP
-  const dpNominal = Math.round((totalPriceNumber * dpPercent) / 100);
+  // Calculate DP & Payment Details
+  const isLunas = order.paymentStatus === "lunas";
+  const isDp = order.paymentStatus === "dp" || (order.dpAmount !== undefined && order.dpAmount > 0);
+
+  let dpNominal = 0;
+  if (isLunas) {
+    dpNominal = totalPriceNumber > 0 ? totalPriceNumber : (order.dpAmount || 0);
+  } else if (isDp) {
+    dpNominal = order.dpAmount && order.dpAmount > 0 ? order.dpAmount : Math.round((totalPriceNumber * dpPercent) / 100);
+  } else {
+    dpNominal = order.dpAmount || 0;
+  }
+
+  const sisaKekurangan = Math.max(0, totalPriceNumber - dpNominal);
+
+  const statusPembayaranStr = isLunas || (totalPriceNumber > 0 && sisaKekurangan === 0)
+    ? "✓ LUNAS"
+    : isDp
+    ? `DP (${formatRupiah(dpNominal)})`
+    : "Belum Bayar";
+
+  const kekuranganStr = isLunas || sisaKekurangan === 0 ? "LUNAS (Rp 0)" : formatRupiah(sisaKekurangan);
 
   // Build the message parts
   const rincianText = parsedVariants
@@ -220,6 +255,8 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
     .replace(/{total_harga}/g, formatRupiah(totalPriceNumber))
     .replace(/{dp_persen}/g, String(dpPercent))
     .replace(/{nominal_dp}/g, formatRupiah(dpNominal))
+    .replace(/{kekurangan}/g, kekuranganStr)
+    .replace(/{status_pembayaran}/g, statusPembayaranStr)
     .replace(/{info_pembayaran}/g, paymentInfo)
     .replace(/{lokasi_pengambilan}/g, lokasiPengambilan);
 
@@ -316,7 +353,7 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
                     onChange={(e) => setTemplateSelesai(e.target.value)}
                   />
                   <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: 4 }}>
-                    Variabel: {"{nama}, {jenis_pesanan}, {rincian_pesanan}, {jumlah_pesanan}, {lokasi_pengambilan}"}
+                    Variabel: {"{nama}, {jenis_pesanan}, {rincian_pesanan}, {jumlah_pesanan}, {total_harga}, {nominal_dp}, {kekurangan}, {status_pembayaran}, {lokasi_pengambilan}"}
                   </p>
                 </div>
                 <div>
@@ -334,13 +371,23 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
               </>
             )}
 
-            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 10 }}>
-              <button type="button" className="btn btn-outline" onClick={() => setShowSettings(false)}>
-                Batal
+            <div style={{ display: "flex", gap: 12, justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={resetToDefault}
+                style={{ fontSize: 12, color: "#dc2626", borderColor: "#fca5a5" }}
+              >
+                Reset ke Template Bawaan
               </button>
-              <button type="button" className="btn btn-primary" onClick={saveSettings}>
-                Simpan Pengaturan
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowSettings(false)}>
+                  Batal
+                </button>
+                <button type="button" className="btn btn-primary btn-sm" onClick={saveSettings}>
+                  Simpan Pengaturan
+                </button>
+              </div>
             </div>
           </>
         ) : (

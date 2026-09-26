@@ -1792,8 +1792,10 @@ export async function submitCustomerOrderApi(payload: {
 
 export async function updateOrderStatusApi(
   id: string,
-  status: OrderStatus,
-  adminNote?: string
+  status?: OrderStatus,
+  adminNote?: string,
+  dpAmount?: number,
+  paymentStatus?: "belum_bayar" | "dp" | "lunas"
 ): Promise<ApiResult<OrderWithAnswers>> {
   const orders = getLocalOrders();
   const now = new Date().toISOString();
@@ -1803,8 +1805,10 @@ export async function updateOrderStatusApi(
     if (o.id === id) {
       updatedOrder = {
         ...o,
-        status,
+        status: status !== undefined ? status : o.status,
         adminNote: adminNote !== undefined ? adminNote : o.adminNote,
+        dpAmount: dpAmount !== undefined ? dpAmount : o.dpAmount,
+        paymentStatus: paymentStatus !== undefined ? paymentStatus : o.paymentStatus,
         updatedAt: now,
       };
       return updatedOrder;
@@ -1821,7 +1825,7 @@ export async function updateOrderStatusApi(
   cacheClear(CACHE_KEYS.ORDER_STATS);
 
   try {
-    await request("updateOrderStatus", { id, status, adminNote });
+    await request("updateOrderStatus", { id, status, adminNote, dpAmount, paymentStatus });
   } catch {}
 
   return { success: true, data: updatedOrder };
