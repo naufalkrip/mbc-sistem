@@ -27,6 +27,7 @@ import {
   ChevronDown,
   Plus,
   QrCode,
+  Settings,
 } from "lucide-react";
 import type {
   RekrutmenSubmissionWithAnswers,
@@ -40,9 +41,13 @@ import {
   formatRentangTanggal,
   formatNomorHp,
   buatLinkWhatsAppCalon,
-  buatPesanWhatsAppLolos,
   buatLinkWhatsAppLolos,
 } from "../../utils/format";
+import {
+  buildRekrutmenWaMessage,
+  buildRekrutmenWaLink,
+} from "../../utils/rekrutmenWaTemplate";
+import { RekrutmenWhatsAppBroadcastModal } from "./RekrutmenWhatsAppBroadcastModal";
 import { DataTable } from "../ui/DataTable";
 import type { Column } from "../ui/DataTable";
 import { SearchBar } from "../ui/SearchBar";
@@ -594,6 +599,13 @@ export function SubmissionList({
   const [pdfSampai, setPdfSampai] = useState("");
   const [pdfGenerating, setPdfGenerating] = useState(false);
 
+  // WhatsApp Broadcast Modal State
+  const [waBroadcastModalData, setWaBroadcastModalData] = useState<{
+    sub?: RekrutmenSubmissionWithAnswers | null;
+    mode?: "skrining" | "lolos" | "general";
+    tab?: "broadcast" | "settings";
+  } | null>(null);
+
   // Helper untuk mengambil nama & kontak calon
   const getCandidateInfo = (s: RekrutmenSubmissionWithAnswers) => {
     const namaField = s.answers.find((a) => (a.field?.label || "").toLowerCase().includes("nama"));
@@ -644,9 +656,9 @@ export function SubmissionList({
     const pilihan = pilihanField?.value?.trim() || "-";
 
     const noteForMsg = s.adminNote || (statusModalSub?.id === s.id ? adminNote : undefined);
-    const waUrl = buatLinkWhatsAppCalon(rawHp, nama, form.title);
-    const waLolosUrl = buatLinkWhatsAppLolos(rawHp, nama, form.title, noteForMsg);
-    const pesanLolos = buatPesanWhatsAppLolos(nama, form.title, noteForMsg);
+    const waUrl = buildRekrutmenWaLink(rawHp, "skrining", { nama, judulForm: form.title, posisi: pilihan }) || buatLinkWhatsAppCalon(rawHp, nama, form.title);
+    const waLolosUrl = buildRekrutmenWaLink(rawHp, "lolos", { nama, judulForm: form.title, posisi: pilihan, catatan: noteForMsg }) || buatLinkWhatsAppLolos(rawHp, nama, form.title, noteForMsg);
+    const pesanLolos = buildRekrutmenWaMessage("lolos", { nama, judulForm: form.title, posisi: pilihan, catatan: noteForMsg });
 
     return { nama, namaPanggilan, rawHp, hp, pilihan, waUrl, waLolosUrl, pesanLolos };
   };
@@ -1096,6 +1108,11 @@ export function SubmissionList({
                 label: "Ubah Status",
                 icon: <Check size={14} />,
                 onClick: () => openStatusChange(s),
+              },
+              {
+                label: "Kirim WA (Custom)",
+                icon: <MessageCircle size={14} style={{ color: "#25D366" }} />,
+                onClick: () => setWaBroadcastModalData({ sub: s, mode: s.status === "lolos" ? "lolos" : "skrining", tab: "broadcast" }),
               },
               ...(s.status === "lolos" && waLolosUrl ? [{
                 label: "Kirim WA Lolos",
@@ -1658,6 +1675,25 @@ export function SubmissionList({
             >
               <FileText size={13} />
               <span>PDF</span>
+            </button>
+            <button
+              type="button"
+              className="btn-red btn-box-badge"
+              onClick={() => setWaBroadcastModalData({ sub: null, mode: "skrining", tab: "broadcast" })}
+              title="Broadcast Pesan WhatsApp Rekrutmen"
+              style={{ background: "#25D366", borderColor: "#25D366", color: "#ffffff" }}
+            >
+              <MessageCircle size={14} />
+              <span>Broadcast WA</span>
+            </button>
+            <button
+              type="button"
+              className="btn-red btn-box-badge"
+              onClick={() => setWaBroadcastModalData({ sub: null, mode: "skrining", tab: "settings" })}
+              title="Pengaturan Template WhatsApp & Lokasi Rekrutmen"
+            >
+              <Settings size={14} />
+              <span>Template WA</span>
             </button>
             {onAddForm && (
               <button
@@ -2888,6 +2924,17 @@ export function SubmissionList({
           </div>,
           document.body
         )}
+
+      {/* WhatsApp Broadcast & Template Settings Modal */}
+      <RekrutmenWhatsAppBroadcastModal
+        open={Boolean(waBroadcastModalData)}
+        onClose={() => setWaBroadcastModalData(null)}
+        formTitle={form.title}
+        submissions={safeSubmissions}
+        initialSubmission={waBroadcastModalData?.sub || null}
+        initialMode={waBroadcastModalData?.mode || "skrining"}
+        initialTab={waBroadcastModalData?.tab || "broadcast"}
+      />
     </>
   );
 }
