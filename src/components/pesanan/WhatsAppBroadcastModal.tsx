@@ -166,69 +166,100 @@ export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isCont
   safeAnswers.forEach((ans) => {
     if (!ans) return;
     const ansValStr = typeof ans.value === "string" ? ans.value : String(ans.value || "");
-    if (ansValStr.includes("•")) {
-      const lines = ansValStr.split("\n");
-      lines.forEach((line) => {
-        if (line.trim().startsWith("•")) {
-          const match = line.match(/•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\](?:\s*@\s*(.*?)=\s*(.*?))?$/i);
-          if (match) {
-            const qty = parseInt(match[1], 10) || 0;
-            const unitPriceStr = match[4] ? match[4].replace(/[^0-9]/g, "") : "";
-            const subtotalStr = match[5] ? match[5].replace(/[^0-9]/g, "") : "";
-            const unitPrice = unitPriceStr ? parseInt(unitPriceStr, 10) : 0;
-            const subtotal = subtotalStr ? parseInt(subtotalStr, 10) : 0;
-            parsedVariants.push({
-              qty,
-              size: match[2].trim(),
-              sleeve: match[3].trim(),
-              unitPrice,
-              subtotal,
-            });
-          }
-        } else if (line.includes("Total:")) {
-          const matchTotal = line.match(/Total:\s*(\d+)\s*pcs(?:\s*\|\s*(.*?))?$/i);
-          if (matchTotal) {
-            totalQty = parseInt(matchTotal[1], 10);
-            if (matchTotal[2]) {
-              const priceOnly = matchTotal[2].replace(/[^0-9]/g, "");
-              if (priceOnly) totalPriceNumber = parseInt(priceOnly, 10);
-            }
+    const lines = ansValStr.split("\n");
+
+    lines.forEach((line) => {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith("•")) {
+        const match = trimmedLine.match(/•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\](?:\s*@\s*(.*?)=\s*(.*?))?$/i);
+        if (match) {
+          const qty = parseInt(match[1], 10) || 0;
+          const unitPriceStr = match[4] ? match[4].replace(/[^0-9]/g, "") : "";
+          const subtotalStr = match[5] ? match[5].replace(/[^0-9]/g, "") : "";
+          const unitPrice = unitPriceStr ? parseInt(unitPriceStr, 10) : 0;
+          const subtotal = subtotalStr ? parseInt(subtotalStr, 10) : 0;
+          parsedVariants.push({
+            qty,
+            size: match[2].trim(),
+            sleeve: match[3].trim(),
+            unitPrice,
+            subtotal,
+          });
+        }
+      }
+
+      if (trimmedLine.includes("Total:")) {
+        const matchTotal = trimmedLine.match(/Total:\s*(\d+)\s*pcs(?:\s*\|\s*(.*?))?/i);
+        if (matchTotal) {
+          if (!totalQty) totalQty = parseInt(matchTotal[1], 10);
+          if (matchTotal[2]) {
+            const priceOnly = matchTotal[2].replace(/[^0-9]/g, "");
+            if (priceOnly) totalPriceNumber = parseInt(priceOnly, 10);
           }
         }
-      });
-    }
+      }
+    });
   });
 
-  // Fallback calculation if Regex didn't catch total
-  if (totalQty === 0) {
+  // Fallback calculation if totalQty or totalPriceNumber wasn't parsed from summary string
+  if (totalQty === 0 && parsedVariants.length > 0) {
     totalQty = parsedVariants.reduce((acc, v) => acc + v.qty, 0);
   }
-  if (totalPriceNumber === 0) {
+  if (totalPriceNumber === 0 && parsedVariants.length > 0) {
     totalPriceNumber = parsedVariants.reduce((acc, v) => acc + v.subtotal, 0);
+  }
+
+  // Second fallback: scan all answers for any price amount if totalPriceNumber is still 0
+  if (totalPriceNumber === 0) {
+    safeAnswers.forEach((ans) => {
+      const lbl = String(ans?.label || "").toLowerCase();
+      const val = String(ans?.value || "");
+      if (lbl.includes("total") || lbl.includes("harga") || lbl.includes("tagihan") || val.includes("Total:") || val.includes("Rp")) {
+        const numOnly = val.replace(/[^0-9]/g, "");
+        if (numOnly) {
+          const parsedNum = parseInt(numOnly, 10);
+          if (parsedNum > totalPriceNumber) totalPriceNumber = parsedNum;
+        }
+      }
+    });
   }
 
   // Calculate DP & Payment Details
   const isLunas = order.paymentStatus === "lunas";
-  const isDp = order.paymentStatus === "dp" || (order.dpAmount !== undefined && order.dpAmount > 0);
+  const isDpRecorded = order.paymentStatus === "dp" && Boolean(order.dpAmount && order.dpAmount > 0);
 
   let dpNominal = 0;
   if (isLunas) {
     dpNominal = totalPriceNumber > 0 ? totalPriceNumber : (order.dpAmount || 0);
-  } else if (isDp) {
-    dpNominal = order.dpAmount && order.dpAmount > 0 ? order.dpAmount : Math.round((totalPriceNumber * dpPercent) / 100);
+  } else if (activeMode === "diproses") {
+    // Mode Konfirmasi DP: Hitung DP otomatis berdasarkan persentase dpPercent (misal 10%) dari totalPriceNumber
+    if (totalPriceNumber > 0 && dpPercent > 0) {
+      dpNominal = Math.round((totalPriceNumber * dpPercent) / 100);
+    } else if (order.dpAmount && order.dpAmount > 0) {
+      dpNominal = order.dpAmount;
+    } else {
+      dpNominal = 0;
+    }
   } else {
-    dpNominal = order.dpAmount || 0;
+    // Mode Selesai / Pengambilan
+    if (isDpRecorded && order.dpAmount) {
+      dpNominal = order.dpAmount;
+    } else if (totalPriceNumber > 0 && dpPercent > 0) {
+      dpNominal = Math.round((totalPriceNumber * dpPercent) / 100);
+    } else {
+      dpNominal = order.dpAmount || 0;
+    }
   }
 
   const sisaKekurangan = Math.max(0, totalPriceNumber - dpNominal);
 
   const statusPembayaranStr = isLunas || (totalPriceNumber > 0 && sisaKekurangan === 0)
     ? "✓ LUNAS"
-    : isDp
+    : dpNominal > 0
     ? `DP (${formatRupiah(dpNominal)})`
     : "Belum Bayar";
 
-  const kekuranganStr = isLunas || sisaKekurangan === 0 ? "LUNAS (Rp 0)" : formatRupiah(sisaKekurangan);
+  const kekuranganStr = isLunas || (totalPriceNumber > 0 && sisaKekurangan === 0) ? "LUNAS (Rp 0)" : formatRupiah(sisaKekurangan);
 
   // Build the message parts
   const rincianText = parsedVariants
