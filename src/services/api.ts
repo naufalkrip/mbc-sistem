@@ -27,8 +27,8 @@ import type {
   OrderStats,
   OrderStatus,
 } from "../types";
-import { normAbsensi, normAnggota, normTransaksi, normalizeStatusAnggota, isValidPhotoUrl } from "../utils/format";
-import { CACHE_KEYS, cacheSet, cacheMutate, cacheClear } from "./cache";
+import { normAbsensi, normAnggota, normTransaksi, normalizeStatusAnggota, isValidPhotoUrl, formatNomorHp } from "../utils/format";
+import { CACHE_KEYS, cacheGet, cacheSet, cacheMutate, cacheClear } from "./cache";
 import { saveMemberPhoto, deleteMemberPhoto } from "./photoStorage";
 
 // ============================================================
@@ -169,10 +169,19 @@ async function request<T>(action: ActionName, data?: Record<string, unknown>): P
 // ---------------- ANGGOTA ----------------
 
 export async function getAnggota(): Promise<Anggota[]> {
-  const raw = await request<unknown[]>("getAnggota");
-  const list = (raw ?? []).map((item) => normAnggota(item as Record<string, unknown>));
-  cacheSet(CACHE_KEYS.ANGGOTA, list);
-  return list;
+  const cached = cacheGet<Anggota[]>(CACHE_KEYS.ANGGOTA);
+  const remotePromise = request<unknown[]>("getAnggota")
+    .then((raw) => {
+      const list = (raw ?? []).map((item) => normAnggota(item as Record<string, unknown>));
+      cacheSet(CACHE_KEYS.ANGGOTA, list);
+      return list;
+    })
+    .catch(() => cached ?? []);
+
+  if (cached && cached.length > 0) {
+    return cached;
+  }
+  return await remotePromise;
 }
 
 export async function addAnggota(data: Omit<Anggota, "id">): Promise<ApiResult<Anggota>> {
@@ -229,24 +238,31 @@ export async function updateAnggota(id: string, data: Omit<Anggota, "id">): Prom
 }
 
 export async function deleteAnggota(id: string): Promise<ApiResult<null>> {
-  try {
-    await request<unknown>("deleteAnggota", { id });
-    deleteMemberPhoto(id);
-    cacheMutate<Anggota[]>(CACHE_KEYS.ANGGOTA, (prev) => (prev ?? []).filter((a) => a.id !== id));
-    cacheClear(CACHE_KEYS.DASHBOARD);
-    return { success: true, data: null };
-  } catch (e) {
-    return { success: false, message: e instanceof Error ? e.message : "Gagal menghapus data." };
-  }
+  deleteMemberPhoto(id);
+  cacheMutate<Anggota[]>(CACHE_KEYS.ANGGOTA, (prev) => (prev ?? []).filter((a) => a.id !== id));
+  cacheClear(CACHE_KEYS.DASHBOARD);
+  void request<unknown>("deleteAnggota", { id }).catch((e) => {
+    console.warn("Latar belakang deleteAnggota gagal:", e);
+  });
+  return { success: true, data: null };
 }
 
 // ---------------- ABSENSI ----------------
 
 export async function getAbsensi(): Promise<Absensi[]> {
-  const raw = await request<unknown[]>("getAbsensi");
-  const list = (raw ?? []).map((item) => normAbsensi(item as Record<string, unknown>));
-  cacheSet(CACHE_KEYS.ABSENSI, list);
-  return list;
+  const cached = cacheGet<Absensi[]>(CACHE_KEYS.ABSENSI);
+  const remotePromise = request<unknown[]>("getAbsensi")
+    .then((raw) => {
+      const list = (raw ?? []).map((item) => normAbsensi(item as Record<string, unknown>));
+      cacheSet(CACHE_KEYS.ABSENSI, list);
+      return list;
+    })
+    .catch(() => cached ?? []);
+
+  if (cached && cached.length > 0) {
+    return cached;
+  }
+  return await remotePromise;
 }
 
 export async function addAbsensi(data: Omit<Absensi, "id" | "nama">): Promise<ApiResult<Absensi>> {
@@ -289,14 +305,12 @@ export async function updateAbsensi(id: string, data: Omit<Absensi, "id" | "nama
 }
 
 export async function deleteAbsensi(id: string): Promise<ApiResult<null>> {
-  try {
-    await request<unknown>("deleteAbsensi", { id });
-    cacheMutate<Absensi[]>(CACHE_KEYS.ABSENSI, (prev) => (prev ?? []).filter((a) => a.id !== id));
-    cacheClear(CACHE_KEYS.DASHBOARD);
-    return { success: true, data: null };
-  } catch (e) {
-    return { success: false, message: e instanceof Error ? e.message : "Gagal menghapus data." };
-  }
+  cacheMutate<Absensi[]>(CACHE_KEYS.ABSENSI, (prev) => (prev ?? []).filter((a) => a.id !== id));
+  cacheClear(CACHE_KEYS.DASHBOARD);
+  void request<unknown>("deleteAbsensi", { id }).catch((e) => {
+    console.warn("Latar belakang deleteAbsensi gagal:", e);
+  });
+  return { success: true, data: null };
 }
 
 // ---------- Absensi BATCH (satu request untuk banyak baris → cepat/realtime) ----------
@@ -359,15 +373,13 @@ export async function updateAbsensiBatch(
 }
 
 export async function deleteAbsensiBatch(ids: string[]): Promise<ApiResult<null>> {
-  try {
-    await request<unknown>("deleteAbsensiBatch", { ids });
-    const idSet = new Set(ids);
-    cacheMutate<Absensi[]>(CACHE_KEYS.ABSENSI, (prev) => (prev ?? []).filter((a) => !idSet.has(a.id)));
-    cacheClear(CACHE_KEYS.DASHBOARD);
-    return { success: true, data: null };
-  } catch (e) {
-    return { success: false, message: e instanceof Error ? e.message : "Gagal menghapus data." };
-  }
+  const idSet = new Set(ids);
+  cacheMutate<Absensi[]>(CACHE_KEYS.ABSENSI, (prev) => (prev ?? []).filter((a) => !idSet.has(a.id)));
+  cacheClear(CACHE_KEYS.DASHBOARD);
+  void request<unknown>("deleteAbsensiBatch", { ids }).catch((e) => {
+    console.warn("Latar belakang deleteAbsensiBatch gagal:", e);
+  });
+  return { success: true, data: null };
 }
 
 // ---------------- KEUANGAN ----------------
@@ -377,10 +389,19 @@ type KeuanganSheet = "KEUANGAN_CHONDRO" | "KEUANGAN_MEDIA";
 async function getKeuangan(sheet: KeuanganSheet): Promise<Transaksi[]> {
   const action = sheet === "KEUANGAN_CHONDRO" ? "getKeuanganChondro" : "getKeuanganMedia";
   const cacheKey = sheet === "KEUANGAN_CHONDRO" ? CACHE_KEYS.KEUANGAN_CHONDRO : CACHE_KEYS.KEUANGAN_MEDIA;
-  const raw = await request<unknown[]>(action);
-  const list = (raw ?? []).map((item) => normTransaksi(item as Record<string, unknown>));
-  cacheSet(cacheKey, list);
-  return list;
+  const cached = cacheGet<Transaksi[]>(cacheKey);
+  const remotePromise = request<unknown[]>(action)
+    .then((raw) => {
+      const list = (raw ?? []).map((item) => normTransaksi(item as Record<string, unknown>));
+      cacheSet(cacheKey, list);
+      return list;
+    })
+    .catch(() => cached ?? []);
+
+  if (cached && cached.length > 0) {
+    return cached;
+  }
+  return await remotePromise;
 }
 
 async function addKeuangan(sheet: KeuanganSheet, data: Omit<Transaksi, "id">): Promise<ApiResult<Transaksi>> {
@@ -427,16 +448,14 @@ async function updateKeuangan(sheet: KeuanganSheet, id: string, data: Omit<Trans
 }
 
 async function deleteKeuangan(sheet: KeuanganSheet, id: string): Promise<ApiResult<null>> {
-  try {
-    const action = (sheet === "KEUANGAN_CHONDRO" ? "deleteKeuanganChondro" : "deleteKeuanganMedia") as ActionName;
-    const cacheKey = sheet === "KEUANGAN_CHONDRO" ? CACHE_KEYS.KEUANGAN_CHONDRO : CACHE_KEYS.KEUANGAN_MEDIA;
-    await request<unknown>(action, { id });
-    cacheMutate<Transaksi[]>(cacheKey, (prev) => (prev ?? []).filter((t) => t.id !== id));
-    cacheClear(CACHE_KEYS.DASHBOARD);
-    return { success: true, data: null };
-  } catch (e) {
-    return { success: false, message: e instanceof Error ? e.message : "Gagal menghapus data." };
-  }
+  const action = (sheet === "KEUANGAN_CHONDRO" ? "deleteKeuanganChondro" : "deleteKeuanganMedia") as ActionName;
+  const cacheKey = sheet === "KEUANGAN_CHONDRO" ? CACHE_KEYS.KEUANGAN_CHONDRO : CACHE_KEYS.KEUANGAN_MEDIA;
+  cacheMutate<Transaksi[]>(cacheKey, (prev) => (prev ?? []).filter((t) => t.id !== id));
+  cacheClear(CACHE_KEYS.DASHBOARD);
+  void request<unknown>(action, { id }).catch((e) => {
+    console.warn("Latar belakang deleteKeuangan gagal:", e);
+  });
+  return { success: true, data: null };
 }
 
 export const getKeuanganChondro = () => getKeuangan("KEUANGAN_CHONDRO");
@@ -452,10 +471,19 @@ export const deleteKeuanganMedia = (id: string) => deleteKeuangan("KEUANGAN_MEDI
 // ---------------- TRANSAKSI (Kelompok Transaksi Temporer) ----------------
 
 async function getTransaksiGroup(): Promise<TransaksiGroupWithStats[]> {
-  const raw = await request<unknown[]>("getTransaksiGroup");
-  const list = (raw ?? []).map((item) => normTransaksiGroup(item as Record<string, unknown>));
-  cacheSet(CACHE_KEYS.TRANSAKSI, list);
-  return list;
+  const cached = cacheGet<TransaksiGroupWithStats[]>(CACHE_KEYS.TRANSAKSI);
+  const remotePromise = request<unknown[]>("getTransaksiGroup")
+    .then((raw) => {
+      const list = (raw ?? []).map((item) => normTransaksiGroup(item as Record<string, unknown>));
+      cacheSet(CACHE_KEYS.TRANSAKSI, list);
+      return list;
+    })
+    .catch(() => cached ?? []);
+
+  if (cached && cached.length > 0) {
+    return cached;
+  }
+  return await remotePromise;
 }
 
 async function addTransaksiGroup(data: Omit<TransaksiGroup, "id" | "createdAt" | "updatedAt">): Promise<ApiResult<TransaksiGroup>> {
@@ -490,13 +518,11 @@ async function updateTransaksiGroup(id: string, data: Omit<TransaksiGroup, "id" 
 }
 
 async function deleteTransaksiGroup(id: string): Promise<ApiResult<null>> {
-  try {
-    await request<unknown>("deleteTransaksiGroup", { id });
-    cacheMutate<TransaksiGroupWithStats[]>(CACHE_KEYS.TRANSAKSI, (prev) => (prev ?? []).filter((g) => g.id !== id));
-    return { success: true, data: null };
-  } catch (e) {
-    return { success: false, message: e instanceof Error ? e.message : "Gagal menghapus data." };
-  }
+  cacheMutate<TransaksiGroupWithStats[]>(CACHE_KEYS.TRANSAKSI, (prev) => (prev ?? []).filter((g) => g.id !== id));
+  void request<unknown>("deleteTransaksiGroup", { id }).catch((e) => {
+    console.warn("Latar belakang deleteTransaksiGroup gagal:", e);
+  });
+  return { success: true, data: null };
 }
 
 function normTransaksiGroup(item: Record<string, unknown>): TransaksiGroupWithStats {
@@ -561,12 +587,10 @@ async function updateTransaksiDetail(id: string, data: Omit<TransaksiDetail, "id
 }
 
 async function deleteTransaksiDetail(id: string): Promise<ApiResult<null>> {
-  try {
-    await request<unknown>("deleteTransaksiDetail", { id });
-    return { success: true, data: null };
-  } catch (e) {
-    return { success: false, message: e instanceof Error ? e.message : "Gagal menghapus data." };
-  }
+  void request<unknown>("deleteTransaksiDetail", { id }).catch((e) => {
+    console.warn("Latar belakang deleteTransaksiDetail gagal:", e);
+  });
+  return { success: true, data: null };
 }
 
 function normTransaksiDetail(item: Record<string, unknown>): TransaksiDetail {
@@ -596,16 +620,22 @@ export const deleteTransaksiDetailItem = deleteTransaksiDetail;
 // ---------------- REKRUITMEN ----------------
 
 async function getRekrutmenForm(): Promise<RekrutmenFormWithFields | null> {
-  const raw = await request<unknown>("getRekrutmenForm");
-  if (!raw || typeof raw !== "object" || !(raw as Record<string, unknown>).id) {
-    return null;
-  }
-  const form = normRekrutmenForm(raw as Record<string, unknown>);
-  const fieldsRaw = await request<unknown[]>("getRekrutmenFields", { formId: form.id });
-  const fields = (fieldsRaw ?? []).map((item) => normRekrutmenField(item as Record<string, unknown>));
-  const full = { ...form, fields };
-  cacheSet(CACHE_KEYS.REKRUITMEN_FORM, full);
-  return full;
+  const cached = cacheGet<RekrutmenFormWithFields>(CACHE_KEYS.REKRUITMEN_FORM);
+  const remotePromise = (async () => {
+    const raw = await request<unknown>("getRekrutmenForm");
+    if (!raw || typeof raw !== "object" || !(raw as Record<string, unknown>).id) {
+      return null;
+    }
+    const form = normRekrutmenForm(raw as Record<string, unknown>);
+    const fieldsRaw = await request<unknown[]>("getRekrutmenFields", { formId: form.id });
+    const fields = (fieldsRaw ?? []).map((item) => normRekrutmenField(item as Record<string, unknown>));
+    const full = { ...form, fields };
+    cacheSet(CACHE_KEYS.REKRUITMEN_FORM, full);
+    return full;
+  })().catch(() => cached ?? null);
+
+  if (cached) return cached;
+  return await remotePromise;
 }
 
 async function addRekrutmenForm(data: Omit<RekrutmenForm, "id" | "createdAt" | "updatedAt">): Promise<ApiResult<RekrutmenForm>> {
@@ -646,13 +676,9 @@ async function updateRekrutmenForm(id: string, data: Omit<RekrutmenForm, "id" | 
 }
 
 async function deleteRekrutmenForm(id: string): Promise<ApiResult<null>> {
-  try {
-    await request<unknown>("deleteRekrutmenForm", { id });
-    cacheClear(CACHE_KEYS.REKRUITMEN_FORM);
-    return { success: true, data: null };
-  } catch (e) {
-    return { success: false, message: e instanceof Error ? e.message : "Gagal menghapus data." };
-  }
+  cacheClear(CACHE_KEYS.REKRUITMEN_FORM);
+  void request<unknown>("deleteRekrutmenForm", { id }).catch(() => {});
+  return { success: true, data: null };
 }
 
 function normRekrutmenForm(item: Record<string, unknown>): RekrutmenForm {
@@ -727,16 +753,12 @@ async function updateRekrutmenField(id: string, data: Omit<RekrutmenField, "id" 
 }
 
 async function deleteRekrutmenField(id: string): Promise<ApiResult<null>> {
-  try {
-    await request<unknown>("deleteRekrutmenField", { id });
-    cacheMutate<RekrutmenFormWithFields | null>(CACHE_KEYS.REKRUITMEN_FORM, (prev) => {
-      if (!prev) return null;
-      return { ...prev, fields: prev.fields.filter((f) => f.id !== id) };
-    });
-    return { success: true, data: null };
-  } catch (e) {
-    return { success: false, message: e instanceof Error ? e.message : "Gagal menghapus data." };
-  }
+  cacheMutate<RekrutmenFormWithFields | null>(CACHE_KEYS.REKRUITMEN_FORM, (prev) => {
+    if (!prev) return null;
+    return { ...prev, fields: prev.fields.filter((f) => f.id !== id) };
+  });
+  void request<unknown>("deleteRekrutmenField", { id }).catch(() => {});
+  return { success: true, data: null };
 }
 
 async function reorderRekrutmenFields(formId: string, fieldOrders: { id: string; sortOrder: number }[]): Promise<ApiResult<null>> {
@@ -818,20 +840,27 @@ function normRekrutmenField(item: Record<string, unknown>): RekrutmenField {
 }
 
 async function getRekrutmenSubmissions(formId: string): Promise<RekrutmenSubmissionWithAnswers[]> {
-  const raw = await request<unknown[]>("getRekrutmenSubmissions", { formId });
-  const list = Array.isArray(raw) ? raw : [];
-  const submissions = list.map((item) => {
-    const submission = normRekrutmenSubmission(item as Record<string, unknown>);
-    return {
-      ...submission,
-      answers: Array.isArray((item as { answers?: unknown[] })?.answers)
-        ? (item as { answers: unknown[] }).answers.map((a) => normRekrutmenAnswer(a as Record<string, unknown>))
-        : [],
-      form: { id: "", title: "", description: "", status: "ditutup" as const, createdAt: "", updatedAt: "" },
-    };
-  });
-  cacheSet(CACHE_KEYS.REKRUITMEN_SUBMISSIONS, submissions);
-  return submissions;
+  const cached = cacheGet<RekrutmenSubmissionWithAnswers[]>(CACHE_KEYS.REKRUITMEN_SUBMISSIONS);
+  const remotePromise = request<unknown[]>("getRekrutmenSubmissions", { formId })
+    .then((raw) => {
+      const list = Array.isArray(raw) ? raw : [];
+      const submissions = list.map((item) => {
+        const submission = normRekrutmenSubmission(item as Record<string, unknown>);
+        return {
+          ...submission,
+          answers: Array.isArray((item as { answers?: unknown[] })?.answers)
+            ? (item as { answers: unknown[] }).answers.map((a) => normRekrutmenAnswer(a as Record<string, unknown>))
+            : [],
+          form: { id: "", title: "", description: "", status: "ditutup" as const, createdAt: "", updatedAt: "" },
+        };
+      });
+      cacheSet(CACHE_KEYS.REKRUITMEN_SUBMISSIONS, submissions);
+      return submissions;
+    })
+    .catch(() => cached ?? []);
+
+  if (cached && cached.length > 0) return cached;
+  return await remotePromise;
 }
 
 export interface NewRekrutmenSubmissionPayload {
@@ -880,15 +909,11 @@ async function updateRekrutmenSubmission(id: string, data: Partial<RekrutmenSubm
 }
 
 async function deleteRekrutmenSubmission(id: string): Promise<ApiResult<null>> {
-  try {
-    await request<unknown>("deleteRekrutmenSubmission", { id });
-    cacheMutate<RekrutmenSubmissionWithAnswers[]>(CACHE_KEYS.REKRUITMEN_SUBMISSIONS, (prev) => (prev ?? []).filter((s) => s.id !== id));
-    cacheClear(CACHE_KEYS.REKRUITMEN_STATS);
-    cacheClear(CACHE_KEYS.DASHBOARD);
-    return { success: true, data: null };
-  } catch (e) {
-    return { success: false, message: e instanceof Error ? e.message : "Gagal menghapus data." };
-  }
+  cacheMutate<RekrutmenSubmissionWithAnswers[]>(CACHE_KEYS.REKRUITMEN_SUBMISSIONS, (prev) => (prev ?? []).filter((s) => s.id !== id));
+  cacheClear(CACHE_KEYS.REKRUITMEN_STATS);
+  cacheClear(CACHE_KEYS.DASHBOARD);
+  void request<unknown>("deleteRekrutmenSubmission", { id }).catch(() => {});
+  return { success: true, data: null };
 }
 
 async function getRekrutmenSubmissionDetail(submissionId: string): Promise<RekrutmenSubmissionWithAnswers> {
@@ -1339,15 +1364,29 @@ export async function uploadOrderImageItem(
 // ---------------- DASHBOARD ----------------
 
 export async function getDashboard(): Promise<DashboardData> {
-  const raw = await request<Record<string, unknown>>("getDashboard");
-  const dashboard = {
-    anggota: (raw?.anggota ?? {}) as DashboardData["anggota"],
-    absensi: (raw?.absensi ?? {}) as DashboardData["absensi"],
-    keuanganChondro: (raw?.keuanganChondro ?? {}) as DashboardData["keuanganChondro"],
-    keuanganMedia: (raw?.keuanganMedia ?? {}) as DashboardData["keuanganMedia"],
-  };
-  cacheSet(CACHE_KEYS.DASHBOARD, dashboard);
-  return dashboard;
+  const cached = cacheGet<DashboardData>(CACHE_KEYS.DASHBOARD);
+  const remotePromise = request<Record<string, unknown>>("getDashboard")
+    .then((raw) => {
+      const dashboard = {
+        anggota: (raw?.anggota ?? {}) as DashboardData["anggota"],
+        absensi: (raw?.absensi ?? {}) as DashboardData["absensi"],
+        keuanganChondro: (raw?.keuanganChondro ?? {}) as DashboardData["keuanganChondro"],
+        keuanganMedia: (raw?.keuanganMedia ?? {}) as DashboardData["keuanganMedia"],
+      };
+      cacheSet(CACHE_KEYS.DASHBOARD, dashboard);
+      return dashboard;
+    })
+    .catch(() => cached ?? {
+      anggota: { total: 0, aktif: 0, cuti: 0, tidakAktif: 0 },
+      absensi: { hadir: 0, izin: 0, sakit: 0, cuti: 0, alpa: 0, total: 0, persentase: 0 },
+      keuanganChondro: { saldo: 0, pemasukan: 0, pengeluaran: 0 },
+      keuanganMedia: { saldo: 0, pemasukan: 0, pengeluaran: 0 },
+    });
+
+  if (cached) {
+    return cached;
+  }
+  return await remotePromise;
 }
 
 // ---------------- AUTENTIKASI & USERS ----------------
@@ -1594,19 +1633,23 @@ function saveLocalOrders(orders: OrderWithAnswers[]) {
 // ---------------- API FUNCTIONS ----------------
 
 export async function getOrderFormsApi(): Promise<OrderFormWithFields[]> {
-  try {
-    const remote = await request<OrderFormWithFields[]>("getOrderForms");
-    if (Array.isArray(remote) && remote.length > 0) {
-      cacheSet(CACHE_KEYS.ORDER_FORMS, remote);
-      saveLocalOrderForms(remote);
-      return remote;
-    }
-  } catch {
-    // fallback local storage
+  const cached = cacheGet<OrderFormWithFields[]>(CACHE_KEYS.ORDER_FORMS) || getLocalOrderForms();
+  const remotePromise = request<OrderFormWithFields[]>("getOrderForms")
+    .then((remote) => {
+      if (Array.isArray(remote) && remote.length > 0) {
+        cacheSet(CACHE_KEYS.ORDER_FORMS, remote);
+        saveLocalOrderForms(remote);
+        return remote;
+      }
+      return cached;
+    })
+    .catch(() => cached);
+
+  if (cached && cached.length > 0) {
+    cacheSet(CACHE_KEYS.ORDER_FORMS, cached);
+    return cached;
   }
-  const local = getLocalOrderForms();
-  cacheSet(CACHE_KEYS.ORDER_FORMS, local);
-  return local;
+  return await remotePromise;
 }
 
 export async function getOrderFormDetailApi(id: string): Promise<OrderFormWithFields | null> {
@@ -1622,11 +1665,9 @@ export async function saveOrderFormApi(
   const now = new Date().toISOString();
   let updatedForm: OrderFormWithFields;
 
-  // Tentukan apakah ini update atau create SEBELUM forms di-mutate
   const isUpdate = Boolean(formData.id && forms.some((f) => f.id === formData.id));
 
   if (isUpdate) {
-    // Update
     updatedForm = {
       ...formData,
       publicLink: formData.publicLink || `/order/form/${formData.id}`,
@@ -1637,7 +1678,6 @@ export async function saveOrderFormApi(
     const newForms = forms.map((f) => (f.id === formData.id ? updatedForm : f));
     saveLocalOrderForms(newForms);
   } else {
-    // Create new
     const newId = formData.id || "of-" + Math.random().toString(36).substring(2, 9);
     updatedForm = {
       ...formData,
@@ -1656,17 +1696,11 @@ export async function saveOrderFormApi(
     saveLocalOrderForms(forms);
   }
 
-  // Sinkronisasi ke server Google Apps Script
-  try {
-    if (isUpdate) {
-      await request("updateOrderForm", updatedForm as unknown as Record<string, unknown>);
-    } else {
-      await request("addOrderForm", updatedForm as unknown as Record<string, unknown>);
-    }
-  } catch {}
-
   cacheSet(CACHE_KEYS.ORDER_FORMS, getLocalOrderForms());
   cacheClear(CACHE_KEYS.ORDER_ACTIVE_FORM);
+
+  void request(isUpdate ? "updateOrderForm" : "addOrderForm", updatedForm as unknown as Record<string, unknown>).catch(() => {});
+
   return { success: true, data: updatedForm };
 }
 
@@ -1674,30 +1708,34 @@ export async function deleteOrderFormApi(id: string): Promise<ApiResult<null>> {
   const forms = getLocalOrderForms().filter((f) => f.id !== id);
   saveLocalOrderForms(forms);
   cacheSet(CACHE_KEYS.ORDER_FORMS, forms);
+  cacheClear(CACHE_KEYS.ORDER_ACTIVE_FORM);
 
-  try {
-    await request("deleteOrderForm", { id });
-  } catch {}
-
+  void request("deleteOrderForm", { id }).catch(() => {});
   return { success: true, data: null };
 }
 
 export async function getOrdersApi(formId?: string): Promise<OrderWithAnswers[]> {
-  try {
-    const remote = await request<OrderWithAnswers[]>("getOrders", { formId });
-    if (Array.isArray(remote) && remote.length > 0) {
-      cacheSet(CACHE_KEYS.ORDERS, remote);
-      saveLocalOrders(remote);
-      return remote;
-    }
-  } catch {}
-
-  let orders = getLocalOrders();
+  let localOrders = cacheGet<OrderWithAnswers[]>(CACHE_KEYS.ORDERS) || getLocalOrders();
   if (formId) {
-    orders = orders.filter((o) => o.formId === formId);
+    localOrders = localOrders.filter((o) => o.formId === formId);
   }
-  cacheSet(CACHE_KEYS.ORDERS, orders);
-  return orders;
+
+  const remotePromise = request<OrderWithAnswers[]>("getOrders", { formId })
+    .then((remote) => {
+      if (Array.isArray(remote) && remote.length > 0) {
+        cacheSet(CACHE_KEYS.ORDERS, remote);
+        saveLocalOrders(remote);
+        return formId ? remote.filter((o) => o.formId === formId) : remote;
+      }
+      return localOrders;
+    })
+    .catch(() => localOrders);
+
+  if (localOrders && localOrders.length > 0) {
+    cacheSet(CACHE_KEYS.ORDERS, localOrders);
+    return localOrders;
+  }
+  return await remotePromise;
 }
 
 export async function submitCustomerOrderApi(payload: {
@@ -1719,51 +1757,35 @@ export async function submitCustomerOrderApi(payload: {
   const clientOrderId = "ORD-" + ("000" + nextNum).slice(-4) + "-" + randomStr;
   const now = new Date().toISOString();
 
-  let customerName = payload.customerName || "";
-  let whatsapp = payload.whatsapp || "";
+  let customerName = (payload.customerName || "").trim();
+  let rawWa = (payload.whatsapp || "").trim();
 
-  if (!customerName || !whatsapp) {
+  if (!customerName || !rawWa) {
     for (const ans of payload.answers) {
       const lbl = ans.label.toLowerCase();
-      if (!customerName && (lbl.includes("nama") || lbl.includes("customer") || lbl.includes("lengkap"))) {
+      if (!customerName && (lbl.includes("nama") || lbl.includes("customer") || lbl.includes("lengkap") || lbl.includes("pemesan"))) {
         customerName = ans.value.trim();
       }
-      if (!whatsapp && (lbl.includes("wa") || lbl.includes("whatsapp") || lbl.includes("hp") || lbl.includes("telepon") || lbl.includes("phone"))) {
-        whatsapp = ans.value.trim();
+      if (!rawWa && (lbl.includes("wa") || lbl.includes("whatsapp") || lbl.includes("hp") || lbl.includes("telepon") || lbl.includes("phone") || lbl.includes("kontak"))) {
+        rawWa = ans.value.trim();
       }
     }
   }
 
-  let finalOrderId = clientOrderId;
-
-  // Sync dengan server Google Apps Script (kirim clientOrderId agar ID konsisten)
-  try {
-    const remoteRes = await request<{ id?: string; orderId?: string }>("addOrder", {
-      ...payload,
-      id: clientOrderId,
-      customerName,
-      whatsapp,
-    } as unknown as Record<string, unknown>);
-
-    if (remoteRes && (remoteRes.id || remoteRes.orderId)) {
-      finalOrderId = String(remoteRes.id || remoteRes.orderId);
-    }
-  } catch (err) {
-    console.warn("Sinkronisasi ke Google Apps Script backend dilewati/gagal:", err);
-  }
+  const cleanWa = formatNomorHp(rawWa);
 
   const newOrder: OrderWithAnswers = {
-    id: finalOrderId,
+    id: clientOrderId,
     formId: payload.formId,
     customerName: customerName || "Customer",
-    whatsapp: whatsapp || "-",
+    whatsapp: cleanWa || "-",
     status: "masuk",
     adminNote: "",
     createdAt: now,
     updatedAt: now,
     answers: payload.answers.map((a, idx) => ({
       id: "ans-" + idx + "-" + Math.random().toString(36).slice(2, 6),
-      orderId: finalOrderId,
+      orderId: clientOrderId,
       fieldId: a.fieldId,
       label: a.label,
       value: a.value,
@@ -1779,10 +1801,19 @@ export async function submitCustomerOrderApi(payload: {
   cacheSet(CACHE_KEYS.ORDERS, orders);
   cacheClear(CACHE_KEYS.ORDER_STATS);
 
+  void request<{ id?: string; orderId?: string }>("addOrder", {
+    ...payload,
+    id: clientOrderId,
+    customerName: newOrder.customerName,
+    whatsapp: newOrder.whatsapp,
+  } as unknown as Record<string, unknown>).catch((err) => {
+    console.warn("Sinkronisasi addOrder ke Google Apps Script:", err);
+  });
+
   return {
     success: true,
     data: {
-      id: finalOrderId,
+      id: clientOrderId,
       customerName: newOrder.customerName,
       whatsapp: newOrder.whatsapp,
       createdAt: now,
@@ -1824,9 +1855,7 @@ export async function updateOrderStatusApi(
   cacheSet(CACHE_KEYS.ORDERS, newOrders);
   cacheClear(CACHE_KEYS.ORDER_STATS);
 
-  try {
-    await request("updateOrderStatus", { id, status, adminNote, dpAmount, paymentStatus });
-  } catch {}
+  void request("updateOrderStatus", { id, status, adminNote, dpAmount, paymentStatus }).catch(() => {});
 
   return { success: true, data: updatedOrder };
 }
@@ -1837,10 +1866,7 @@ export async function deleteOrderApi(id: string): Promise<ApiResult<null>> {
   cacheSet(CACHE_KEYS.ORDERS, orders);
   cacheClear(CACHE_KEYS.ORDER_STATS);
 
-  try {
-    await request("deleteOrder", { id });
-  } catch {}
-
+  void request("deleteOrder", { id }).catch(() => {});
   return { success: true, data: null };
 }
 
@@ -1893,10 +1919,19 @@ function normCouponLocation(raw: Record<string, unknown>): CouponLocation {
 }
 
 export async function getCouponLocationsApi(activeOnly = false): Promise<CouponLocation[]> {
-  const raw = await request<unknown[]>("getCouponLocations", { activeOnly });
-  const list = (raw ?? []).map((item) => normCouponLocation(item as Record<string, unknown>));
-  cacheSet(CACHE_KEYS.KUPON, list);
-  return list;
+  const cached = cacheGet<CouponLocation[]>(CACHE_KEYS.KUPON);
+  const remotePromise = request<unknown[]>("getCouponLocations", { activeOnly })
+    .then((raw) => {
+      const list = (raw ?? []).map((item) => normCouponLocation(item as Record<string, unknown>));
+      cacheSet(CACHE_KEYS.KUPON, list);
+      return list;
+    })
+    .catch(() => cached ?? []);
+
+  if (cached && cached.length > 0) {
+    return cached;
+  }
+  return await remotePromise;
 }
 
 export async function addCouponLocationApi(
@@ -1951,15 +1986,11 @@ export async function updateCouponLocationApi(
 }
 
 export async function deleteCouponLocationApi(id: string): Promise<ApiResult<null>> {
-  try {
-    await request("deleteCouponLocation", { id });
-    cacheMutate<CouponLocation[]>(CACHE_KEYS.KUPON, (prev) =>
-      (prev ?? []).filter((l) => l.id !== id)
-    );
-    return { success: true, data: null };
-  } catch (e) {
-    return { success: false, message: e instanceof Error ? e.message : "Gagal menghapus lokasi." };
-  }
+  cacheMutate<CouponLocation[]>(CACHE_KEYS.KUPON, (prev) =>
+    (prev ?? []).filter((l) => l.id !== id)
+  );
+  void request("deleteCouponLocation", { id }).catch(() => {});
+  return { success: true, data: null };
 }
 
 export function getCouponStatsFromList(list: CouponLocation[]): CouponStats {

@@ -718,8 +718,8 @@ function buildRowArray(sheet, cfg, dataObj) {
     var val = dataObj[key];
     if (val === undefined || val === null) val = "";
 
-    // Jaga agar angka '0' di awal nomor HP tidak hilang di Google Sheets
-    if (key === "noHp" || String(header).toLowerCase().indexOf("hp") !== -1) {
+    // Jaga agar angka '0' di awal nomor HP/WhatsApp tidak hilang di Google Sheets
+    if (key === "noHp" || key === "whatsapp" || String(header).toLowerCase().indexOf("hp") !== -1 || String(header).toLowerCase().indexOf("whatsapp") !== -1 || String(header).toLowerCase().indexOf("wa") !== -1) {
       if (val !== "") {
         var cleanHp = String(val).trim();
         if (cleanHp.startsWith("'")) cleanHp = cleanHp.slice(1);
@@ -2823,13 +2823,23 @@ function addOrder(data) {
     for (var a = 0; a < data.answers.length; a++) {
       var ansItem = data.answers[a];
       var lbl = String(ansItem.label || "").toLowerCase();
-      if (!customerName && (lbl.includes("nama") || lbl.includes("customer") || lbl.includes("lengkap"))) {
+      if (!customerName && (lbl.includes("nama") || lbl.includes("customer") || lbl.includes("lengkap") || lbl.includes("pemesan"))) {
         customerName = String(ansItem.value || "").trim();
       }
-      if (!whatsapp && (lbl.includes("wa") || lbl.includes("whatsapp") || lbl.includes("hp") || lbl.includes("telepon") || lbl.includes("phone"))) {
+      if (!whatsapp && (lbl.includes("wa") || lbl.includes("whatsapp") || lbl.includes("hp") || lbl.includes("telepon") || lbl.includes("phone") || lbl.includes("kontak"))) {
         whatsapp = String(ansItem.value || "").trim();
       }
     }
+  }
+
+  // Format & normalisasi nomor WhatsApp agar selalu valid (08...)
+  if (whatsapp) {
+    if (whatsapp.startsWith("'")) whatsapp = whatsapp.slice(1).trim();
+    var waDigits = whatsapp.replace(/[^0-9+]/g, "");
+    if (waDigits.indexOf("+62") === 0) waDigits = "0" + waDigits.slice(3);
+    else if (waDigits.indexOf("62") === 0) waDigits = "0" + waDigits.slice(2);
+    else if (waDigits.indexOf("8") === 0) waDigits = "0" + waDigits;
+    whatsapp = waDigits || whatsapp;
   }
 
   var item = {

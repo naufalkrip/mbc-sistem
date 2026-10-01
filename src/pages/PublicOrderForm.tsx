@@ -486,8 +486,8 @@ export function PublicOrderForm() {
           errors[fld.id] = `${fld.label}: Minimal harus memesan 1 pcs kaos.`;
         }
       }
-      // Khusus WhatsApp field
-      if (fld.fieldType === "whatsapp" && val.trim()) {
+      // Khusus WhatsApp / Kontak HP field
+      if ((fld.fieldType === "whatsapp" || fld.label.toLowerCase().includes("wa") || fld.label.toLowerCase().includes("whatsapp")) && val.trim()) {
         const cleanWa = formatNomorWhatsAppUrl(val);
         if (!cleanWa || cleanWa.length < 9) {
           errors[fld.id] = "Nomor WhatsApp tidak valid (contoh: 081234567890).";
@@ -519,6 +519,20 @@ export function PublicOrderForm() {
 
     setSubmitting(true);
 
+    let customerName = "";
+    let whatsapp = "";
+
+    sortedFields.forEach((fld) => {
+      const val = (answers[fld.id] || "").trim();
+      const lbl = (fld.label || "").toLowerCase();
+      if (!customerName && (lbl.includes("nama") || lbl.includes("customer") || lbl.includes("pemesan"))) {
+        customerName = val;
+      }
+      if (!whatsapp && (fld.fieldType === "whatsapp" || lbl.includes("wa") || lbl.includes("whatsapp") || lbl.includes("hp") || lbl.includes("telepon") || lbl.includes("phone") || lbl.includes("kontak"))) {
+        whatsapp = val;
+      }
+    });
+
     const formattedAnswers: CustomerAnswerState[] = sortedFields
       .filter((fld) => fld.fieldType !== "info_text")
       .map((fld) => {
@@ -537,6 +551,8 @@ export function PublicOrderForm() {
 
     const res = await submitCustomerOrderApi({
       formId: form.id,
+      customerName,
+      whatsapp,
       answers: formattedAnswers,
     });
 
