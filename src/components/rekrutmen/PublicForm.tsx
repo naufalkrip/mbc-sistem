@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { useParams } from "react-router-dom";
 import {
   CheckCircle2,
   AlertCircle,
@@ -20,7 +21,6 @@ import type { RekrutmenFormWithFields, RekrutmenField } from "../../types";
 import { useApi } from "../../hooks/useApi";
 import { useToast } from "../../contexts/ToastContext";
 import { getRekrutmenFormData, addRekrutmenSubmissionItem, compressImageToSafeHd, fileToBase64 } from "../../services/api";
-import { CACHE_KEYS } from "../../services/cache";
 import logo from "../../aset/logo.png";
 import { formatDirectImageUrl } from "../../utils/format";
 
@@ -35,12 +35,13 @@ interface FormAnswer {
 }
 
 export function PublicForm() {
+  const { id } = useParams<{ id?: string }>();
   const { error: toastError } = useToast();
 
   const { data: form, loading, error, refresh } = useApi<RekrutmenFormWithFields | null>(
-    () => getRekrutmenFormData(),
+    () => getRekrutmenFormData(id),
     "Gagal memuat formulir pendaftaran.",
-    CACHE_KEYS.REKRUITMEN_FORM,
+    `rekrutmen-form-${id || "default"}`,
     { pollingInterval: 0, revalidateOnFocus: false }
   );
 

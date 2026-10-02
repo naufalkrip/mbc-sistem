@@ -619,22 +619,32 @@ export const deleteTransaksiDetailItem = deleteTransaksiDetail;
 
 // ---------------- REKRUITMEN ----------------
 
-async function getRekrutmenForm(): Promise<RekrutmenFormWithFields | null> {
-  const cached = cacheGet<RekrutmenFormWithFields>(CACHE_KEYS.REKRUITMEN_FORM);
+async function getRekrutmenForm(id?: string): Promise<RekrutmenFormWithFields | null> {
+  const targetId = id?.trim();
+  const cacheKey = targetId ? `rekrutmen-form-${targetId}` : CACHE_KEYS.REKRUITMEN_FORM;
+  const cached = cacheGet<RekrutmenFormWithFields>(cacheKey) || cacheGet<RekrutmenFormWithFields>(CACHE_KEYS.REKRUITMEN_FORM);
+
+  if (cached && targetId && cached.id === targetId) {
+    return cached;
+  }
+
   const remotePromise = (async () => {
-    const raw = await request<unknown>("getRekrutmenForm");
+    const raw = await request<unknown>("getRekrutmenForm", targetId ? { id: targetId } : {});
     if (!raw || typeof raw !== "object" || !(raw as Record<string, unknown>).id) {
       return null;
     }
     const form = normRekrutmenForm(raw as Record<string, unknown>);
+    if (targetId && form.id !== targetId) {
+      return null;
+    }
     const fieldsRaw = await request<unknown[]>("getRekrutmenFields", { formId: form.id });
     const fields = (fieldsRaw ?? []).map((item) => normRekrutmenField(item as Record<string, unknown>));
     const full = { ...form, fields };
-    cacheSet(CACHE_KEYS.REKRUITMEN_FORM, full);
+    cacheSet(cacheKey, full);
     return full;
-  })().catch(() => cached ?? null);
+  })().catch(() => (cached && (!targetId || cached.id === targetId) ? cached : null));
 
-  if (cached) return cached;
+  if (cached && (!targetId || cached.id === targetId)) return cached;
   return await remotePromise;
 }
 
@@ -1652,10 +1662,29 @@ export async function getOrderFormsApi(): Promise<OrderFormWithFields[]> {
   return await remotePromise;
 }
 
-export async function getOrderFormDetailApi(id: string): Promise<OrderFormWithFields | null> {
+export async function getOrderFormDetailApi(id?: string): Promise<OrderFormWithFields | null> {
   const forms = await getOrderFormsApi();
-  if (!id) return forms[0] || null;
-  return forms.find((f) => f.id === id) || forms[0] || null;
+  const targetId = id?.trim();
+
+  if (targetId) {
+    let matched = forms.find((f) => f.id === targetId);
+
+    if (!matched) {
+      try {
+        const remoteForms = await request<OrderFormWithFields[]>("getOrderForms");
+        if (Array.isArray(remoteForms) && remoteForms.length > 0) {
+          cacheSet(CACHE_KEYS.ORDER_FORMS, remoteForms);
+          saveLocalOrderForms(remoteForms);
+          matched = remoteForms.find((f) => f.id === targetId);
+        }
+      } catch {}
+    }
+
+    return matched || null;
+  }
+
+  const activeForm = forms.find((f) => f.status === "aktif");
+  return activeForm || forms[0] || null;
 }
 
 export async function saveOrderFormApi(
