@@ -23,6 +23,8 @@ interface DataTableProps<T> {
   sortDirection?: "asc" | "desc" | null;
   onSort?: (key: string) => void;
   fullHeight?: boolean;
+  renderMobileCard?: (row: T, index: number) => ReactNode;
+  className?: string;
 }
 
 export function DataTable<T>({
@@ -37,9 +39,11 @@ export function DataTable<T>({
   sortDirection,
   onSort,
   fullHeight = false,
+  renderMobileCard,
+  className,
 }: DataTableProps<T>) {
   return (
-    <div className="table-wrapper">
+    <div className={`table-wrapper ${className ?? ""}`}>
       {loading ? (
         <Loading label="Memuat data..." />
       ) : data.length === 0 ? (
@@ -48,8 +52,8 @@ export function DataTable<T>({
         <>
           {/* Desktop & Tablet Table Scroll */}
           <div
-            className="table-scroll table-desktop-view"
-            style={fullHeight ? { maxHeight: "none", overflowY: "visible" } : undefined}
+            className={`table-scroll table-desktop-view ${fullHeight ? "table-scroll-fullheight" : ""}`}
+            style={fullHeight ? { maxHeight: "none", overflowY: "visible", height: "auto" } : undefined}
           >
             <table className="data-table">
               <thead>
@@ -103,6 +107,14 @@ export function DataTable<T>({
           {/* Mobile Card List View (< 640px) */}
           <div className="table-mobile-cards">
             {data.map((row, index) => {
+              if (renderMobileCard) {
+                return (
+                  <div key={rowKey(row)} className="mobile-custom-card-wrapper">
+                    {renderMobileCard(row, index)}
+                  </div>
+                );
+              }
+
               const actionCol = columns.find(
                 (c) => c.key.toLowerCase().includes("aksi") || c.key.toLowerCase().includes("action")
               );

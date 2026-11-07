@@ -1,5 +1,4 @@
 import { useMemo, useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import {
   Eye,
   Download,
@@ -11,10 +10,7 @@ import {
   FileText,
   ZoomIn,
   Check,
-  LayoutGrid,
-  List,
   Camera,
-  Calendar,
   Sparkles,
   MessageCircle,
   RotateCw,
@@ -28,7 +24,9 @@ import {
   Plus,
   QrCode,
   Settings,
+  Maximize2,
 } from "lucide-react";
+import { PhotoLightboxModal, LightboxItem } from "../ui/PhotoLightboxModal";
 import type {
   RekrutmenSubmissionWithAnswers,
   RekrutmenForm,
@@ -48,13 +46,13 @@ import {
   buildRekrutmenWaLink,
 } from "../../utils/rekrutmenWaTemplate";
 import { RekrutmenWhatsAppBroadcastModal } from "./RekrutmenWhatsAppBroadcastModal";
-import { DataTable } from "../ui/DataTable";
-import type { Column } from "../ui/DataTable";
 import { SearchBar } from "../ui/SearchBar";
 import { Filter as FilterComp } from "../ui/Filter";
 import { Modal } from "../ui/Modal";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ActionDropdown } from "../ui/ActionDropdown";
+import { Loading } from "../ui/Loading";
+import { EmptyState } from "../ui/EmptyState";
 import { laporanRekrutmen, laporanRekrutmenDetail } from "../../services/pdf";
 import {
   getRekrutmenImageBase64Item,
@@ -462,7 +460,7 @@ function CandidateAvatarCell({
   const hasPhoto = Boolean(currentSrc && !loadError);
 
   return (
-    <div className="member-name-cell">
+    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
       {hasPhoto ? (
         <img
           src={currentSrc!}
@@ -478,16 +476,42 @@ function CandidateAvatarCell({
             }
           }}
           title={onAvatarClick ? `Klik untuk memperbesar foto ${nama}` : undefined}
-          style={{ cursor: onAvatarClick ? "pointer" : "default" }}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            objectFit: "cover",
+            flexShrink: 0,
+            border: "1.5px solid var(--border, #e2e8f0)",
+            cursor: onAvatarClick ? "pointer" : "default",
+          }}
         />
-      ) : null}
-      <div
-        className="member-avatar-placeholder"
-        style={{ display: hasPhoto ? "none" : "inline-flex" }}
-      >
-        {initial}
+      ) : (
+        <div
+          className="member-avatar-placeholder"
+          style={{
+            width: 28,
+            height: 28,
+            minWidth: 28,
+            borderRadius: "50%",
+            background: "#f1f5f9",
+            color: "#475569",
+            fontWeight: 700,
+            fontSize: "11px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "1.5px solid var(--border, #e2e8f0)",
+            flexShrink: 0,
+            userSelect: "none",
+          }}
+        >
+          {initial}
+        </div>
+      )}
+      <div className="order-customer-name" title={nama}>
+        {nama}
       </div>
-      <span className="member-name-text">{nama}</span>
     </div>
   );
 }
@@ -520,18 +544,16 @@ export function SubmissionList({
   const [filterStatus, setFilterStatus] = useState<RekrutmenSubmissionStatus | "">(initialStatusFilter || "");
   const [filterPosisi, setFilterPosisi] = useState<string>("");
   const [filterPeriode, setFilterPeriode] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
-
-  const [sortField, setSortField] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const [detailOpen, setDetailOpen] = useState<RekrutmenSubmissionWithAnswers | null>(null);
   const [deleteOpen, setDeleteOpen] = useState<RekrutmenSubmissionWithAnswers | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handleOutsideClick = () => setOpenActionId(null);
+    const handleOutsideClick = () => {
+      setIsActionMenuOpen(false);
+    };
     window.addEventListener("click", handleOutsideClick);
     return () => window.removeEventListener("click", handleOutsideClick);
   }, []);
@@ -549,25 +571,14 @@ export function SubmissionList({
     }
   };
 
-  const handleSort = (key: string) => {
-    if (sortField === key) {
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(key);
-      setSortDirection("asc");
-    }
-  };
-
   const handleResetFilters = () => {
     setSearch("");
     handleStatusFilterChange("");
     setFilterPosisi("");
     setFilterPeriode("");
-    setSortField(null);
-    setSortDirection("asc");
   };
 
-  const hasActiveFilters = Boolean(search.trim() || filterStatus || filterPosisi || filterPeriode || sortField);
+  const hasActiveFilters = Boolean(search.trim() || filterStatus || filterPosisi || filterPeriode);
 
   // Quick / Detail Status Change State
   const [statusModalSub, setStatusModalSub] = useState<RekrutmenSubmissionWithAnswers | null>(null);
@@ -576,16 +587,9 @@ export function SubmissionList({
   const [savingStatus, setSavingStatus] = useState(false);
   const [sendWaOnLolosSave, setSendWaOnLolosSave] = useState(true);
 
-  // Lightbox Image
-  const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string; fileName?: string } | null>(null);
-  const [lightboxImgError, setLightboxImgError] = useState(false);
-  const [lightboxFetching, setLightboxFetching] = useState(false);
-
-  const openPhotoLightbox = (url: string, title: string, fileName?: string) => {
-    setLightboxImage({ url, title, fileName });
-    setLightboxImgError(false);
-    setLightboxFetching(false);
-  };
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [customLightboxItems, setCustomLightboxItems] = useState<LightboxItem[] | null>(null);
 
   // PDF Export Modal State
   const [pdfOpen, setPdfOpen] = useState(false);
@@ -668,6 +672,66 @@ export function SubmissionList({
     [submissions]
   );
 
+  // List semua foto calon anggota yang tersedia untuk Lightbox / Galeri Full Photo
+  const candidatePhotoItems = useMemo<LightboxItem[]>(() => {
+    const list: LightboxItem[] = [];
+    for (const s of safeSubmissions) {
+      const { nama, pilihan } = getCandidateInfo(s);
+      const photoInfo = extractCandidatePhotoInfo(s.answers);
+      if (photoInfo.url) {
+        list.push({
+          id: s.id,
+          url: photoInfo.url,
+          title: `Pas Foto: ${nama}`,
+          subtitle: pilihan && pilihan !== "-" ? `Posisi / Instrument: ${pilihan}` : undefined,
+          status: s.status,
+          fileName: photoInfo.fileName || `${nama.replace(/[^a-zA-Z0-9_-]/g, "_")}.jpg`,
+          driveFileId: photoInfo.driveFileId,
+        });
+      }
+    }
+    return list;
+  }, [safeSubmissions]);
+
+  const activeLightboxItems = customLightboxItems || candidatePhotoItems;
+
+  const openPhotoLightbox = (url: string, title: string, fileName?: string, submissionId?: string) => {
+    const idx = candidatePhotoItems.findIndex(
+      (item) => (submissionId && item.id === submissionId) || item.url === url
+    );
+
+    if (idx !== -1) {
+      setCustomLightboxItems(null);
+      setLightboxIndex(idx);
+      setLightboxOpen(true);
+    } else {
+      const singleItem: LightboxItem = {
+        url,
+        title,
+        fileName,
+      };
+      setCustomLightboxItems([singleItem]);
+      setLightboxIndex(0);
+      setLightboxOpen(true);
+    }
+  };
+
+  const handleResolveDrivePhoto = async (item: LightboxItem): Promise<string | null> => {
+    const match = item.url ? item.url.match(/[\/|=]([a-zA-Z0-9_-]{25,})/) : null;
+    const fileId = item.driveFileId || (match ? match[1] : undefined);
+    const res = await getRekrutmenImageBase64Item({
+      fileId,
+      fileName: item.fileName || item.title,
+    });
+    if (res.success && res.base64) {
+      if (fileId) {
+        setCachedResolvedPhoto(fileId, res.base64);
+      }
+      return res.base64;
+    }
+    return null;
+  };
+
   // Posisi Options untuk Dropdown Filter
   const posisiOptions = useMemo(() => {
     return [
@@ -727,26 +791,7 @@ export function SubmissionList({
     return baseFilteredList.filter((s) => s.status === filterStatus);
   }, [baseFilteredList, filterStatus]);
 
-  // List yang telah diurutkan berdasarkan sortField & sortDirection
-  const sorted = useMemo(() => {
-    if (!sortField) return filtered;
-    return [...filtered].sort((a, b) => {
-      let valA = "";
-      let valB = "";
-      if (sortField === "nama") {
-        valA = getCandidateInfo(a).nama;
-        valB = getCandidateInfo(b).nama;
-      } else if (sortField === "pilihan") {
-        valA = getCandidateInfo(a).pilihan;
-        valB = getCandidateInfo(b).pilihan;
-      } else if (sortField === "submittedAt") {
-        valA = a.submittedAt || "";
-        valB = b.submittedAt || "";
-      }
-      const cmp = valA.localeCompare(valB, "id", { sensitivity: "base" });
-      return sortDirection === "asc" ? cmp : -cmp;
-    });
-  }, [filtered, sortField, sortDirection]);
+  const sorted = filtered;
 
   const pdfRange = useMemo(() => {
     if (pdfMode === "bulan" && pdfSelectedBulan && pdfSelectedTahun) {
@@ -989,9 +1034,9 @@ export function SubmissionList({
             };
           });
         }
-        if (lightboxImage) {
-          setLightboxImage({ url: safeHdBase64, title: "Foto Calon Anggota", fileName: file.name });
-          setLightboxImgError(false);
+        if (lightboxOpen) {
+          setCustomLightboxItems([{ url: safeHdBase64, title: "Foto Calon Anggota", fileName: file.name }]);
+          setLightboxIndex(0);
         }
       } else {
         toastError(res.message || "Gagal memperbarui foto.");
@@ -1001,753 +1046,363 @@ export function SubmissionList({
     }
   };
 
-  // Definisi Kolom Tabel (Diselaraskan persis dengan format halaman Anggota)
-  const columns: Column<RekrutmenSubmissionWithAnswers>[] = [
-    {
-      key: "no",
-      header: "No",
-      render: (_r, idx) => <>{idx + 1}</>,
-    },
-    {
-      key: "nama",
-      header: "Nama Lengkap",
-      sortable: true,
-      render: (s) => {
-        const { nama } = getCandidateInfo(s);
-        return (
-          <CandidateAvatarCell
-            submission={s}
-            nama={nama}
-            onAvatarClick={(url, title, fileName) => openPhotoLightbox(url, title, fileName)}
-          />
-        );
-      },
-    },
-    {
-      key: "pilihan",
-      header: "Pilihan / Posisi",
-      sortable: true,
-      render: (s) => {
-        const { pilihan } = getCandidateInfo(s);
-        return pilihan || "-";
-      },
-    },
-    {
-      key: "hp",
-      header: "No. HP",
-      render: (s) => {
-        const { hp, waUrl, waLolosUrl, rawHp, nama } = getCandidateInfo(s);
-        if (!rawHp && (!hp || hp === "-")) return "-";
-        const isLolos = s.status === "lolos";
-        const targetUrl = isLolos ? (waLolosUrl || waUrl) : waUrl;
-        if (!targetUrl) return <span>{hp}</span>;
-        return (
-          <a
-            href={targetUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="wa-table-link"
-            onClick={(e) => e.stopPropagation()}
-            title={
-              isLolos
-                ? `Hubungi ${nama} via WhatsApp (Pengumuman Lolos)`
-                : `Hubungi ${nama} via WhatsApp (${hp})`
-            }
-          >
-            <MessageCircle size={14} className="wa-icon" />
-            <span>{hp}</span>
-          </a>
-        );
-      },
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (s) => {
-        const variant = STATUS_BADGE_MAP[s.status] || { label: s.status, className: "status-menunggu" };
-        return (
-          <span
-            className={`status-pill status-${s.status}`}
-            style={{
-              textTransform: "uppercase",
-              fontSize: 11,
-              fontWeight: 700,
-              padding: "3px 10px",
-              borderRadius: 20,
-            }}
-          >
-            {variant.label}
-          </span>
-        );
-      },
-    },
-    {
-      key: "submittedAt",
-      header: "Tanggal Mendaftar",
-      sortable: true,
-      render: (s) => (
-        <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-          {formatTanggalPanjang(s.submittedAt).split(", ")[1] || formatTanggalPanjang(s.submittedAt)}
-        </span>
-      ),
-    },
-    {
-      key: "aksi",
-      header: "Aksi",
-      render: (s) => {
-        const { waLolosUrl } = getCandidateInfo(s);
-        return (
-          <div onClick={(e) => e.stopPropagation()}>
-            <ActionDropdown items={[
-              {
-                label: "Lihat Detail",
-                icon: <Eye size={14} />,
-                onClick: () => setDetailOpen(s),
-              },
-              {
-                label: "Ubah Status",
-                icon: <Check size={14} />,
-                onClick: () => openStatusChange(s),
-              },
-              {
-                label: "Kirim WA (Custom)",
-                icon: <MessageCircle size={14} style={{ color: "#25D366" }} />,
-                onClick: () => setWaBroadcastModalData({ sub: s, mode: s.status === "lolos" ? "lolos" : "skrining", tab: "broadcast" }),
-              },
-              ...(s.status === "lolos" && waLolosUrl ? [{
-                label: "Kirim WA Lolos",
-                icon: <MessageCircle size={14} />,
-                onClick: () => window.open(waLolosUrl, "_blank"),
-              }] : []),
-              {
-                label: "Unduh PDF",
-                icon: <Download size={14} />,
-                onClick: () => handleDownloadDetailPdf(s),
-              },
-              {
-                label: "Hapus",
-                icon: <Trash2 size={14} />,
-                onClick: () => setDeleteOpen(s),
-                danger: true,
-              },
-            ]} />
-          </div>
-        );
-      },
-    },
-  ];
 
-  const renderCards = (
-    data: RekrutmenSubmissionWithAnswers[],
-    emptyTitle = "Tidak Ada Data Calon Anggota",
-    emptyMsg = "Coba sesuaikan kata kunci pencarian atau filter yang Anda pilih."
-  ) => {
-    if (data.length === 0) {
-      return (
-        <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-muted)" }}>
-          <Sparkles size={32} style={{ color: "var(--primary-700, #b91c1c)", margin: "0 auto 12px" }} />
-          <h4 style={{ margin: "0 0 6px", color: "var(--navy-900)" }}>{emptyTitle}</h4>
-          <p style={{ margin: 0, fontSize: "13px" }}>{emptyMsg}</p>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 1fr))",
-          gap: 16,
-          padding: "4px 2px",
-        }}
-      >
-        {data.map((s) => {
-          const { nama, hp, pilihan, waUrl, waLolosUrl } = getCandidateInfo(s);
-          const conf = STATUS_CONFIG[s.status] || STATUS_CONFIG.menunggu;
-          const Icon = conf.icon;
-
-          return (
-            <div
-              key={s.id}
-              onClick={() => setDetailOpen(s)}
-              style={{
-                background: "#ffffff",
-                borderRadius: "var(--radius-md, 12px)",
-                border: "1px solid var(--border, #e2e8f0)",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
-                cursor: "pointer",
-                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-3px)";
-                e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.08)";
-                e.currentTarget.style.borderColor = "#cbd5e1";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.04)";
-                e.currentTarget.style.borderColor = "var(--border, #e2e8f0)";
-              }}
-            >
-              {/* Card Header Profile Banner */}
-              <div
-                style={{
-                  padding: "14px 16px",
-                  background: "linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)",
-                  borderBottom: "1px solid #f1f5f9",
-                  display: "flex",
-                  gap: 14,
-                  alignItems: "center",
-                }}
-              >
-                {/* Big Card Avatar Photo */}
-                <CandidatePhotoBadge
-                  answers={s.answers}
-                  candidateName={nama}
-                  size="lg"
-                  onClick={(url, title, fileName) => openPhotoLightbox(url, title, fileName)}
-                />
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
-                    <span
-                      className={`status-pill status-${s.status}`}
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        padding: "2px 8px",
-                        borderRadius: 20,
-                      }}
-                    >
-                      <Icon size={11} /> {conf.label}
-                    </span>
-                    {pilihan && pilihan !== "-" && (
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          background: "rgba(185, 28, 28, 0.08)",
-                          color: "var(--primary-700, #b91c1c)",
-                          fontWeight: 600,
-                          border: "1px solid rgba(185, 28, 28, 0.15)",
-                          maxWidth: "130px",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                        title={pilihan}
-                      >
-                        🎺 {pilihan}
-                      </span>
-                    )}
-                  </div>
-                  <strong
-                    style={{
-                      fontSize: "14px",
-                      color: "var(--navy-900)",
-                      display: "block",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={nama}
-                  >
-                    {nama}
-                  </strong>
-                  <span style={{ fontSize: "11.5px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
-                    <Calendar size={11} /> {formatTanggalPanjang(s.submittedAt).split(", ")[1] || formatTanggalPanjang(s.submittedAt)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Card Body Information */}
-              <div style={{ padding: "12px 16px", flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12.5px" }}>
-                  <span style={{ color: "var(--text-muted)" }}>Kontak HP/WA:</span>
-                  {(() => {
-                    const isLolos = s.status === "lolos";
-                    const targetWa = isLolos ? (waLolosUrl || waUrl) : waUrl;
-                    if (targetWa) {
-                      return (
-                        <a
-                          href={targetWa}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          style={{
-                            color: isLolos ? "#065f46" : "#047857",
-                            fontWeight: 700,
-                            textDecoration: "none",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            padding: "2px 7px",
-                            borderRadius: 5,
-                            background: isLolos ? "rgba(16, 185, 129, 0.18)" : "rgba(16, 185, 129, 0.1)",
-                            border: isLolos ? "1px solid rgba(16, 185, 129, 0.45)" : "1px solid rgba(16, 185, 129, 0.25)",
-                          }}
-                          title={isLolos ? "Klik untuk kirim pengumuman lolos (Training 3x Penampilan)" : "Klik untuk membuka WhatsApp & kirim pesan skrining"}
-                        >
-                          <MessageCircle size={13} /> {hp}
-                          {isLolos && (
-                            <span style={{ fontSize: "9.5px", background: "#059669", color: "#fff", padding: "0 4px", borderRadius: 3, marginLeft: 2 }}>
-                              Lolos WA
-                            </span>
-                          )}
-                        </a>
-                      );
-                    }
-                    return <span style={{ fontWeight: 600, color: "#475569" }}>{hp}</span>;
-                  })()}
-                </div>
-
-                {s.adminNote && (
-                  <div
-                    style={{
-                      padding: "6px 10px",
-                      background: "#eff6ff",
-                      borderRadius: 6,
-                      fontSize: "11.5px",
-                      color: "#1e40af",
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    <strong>Catatan:</strong> {s.adminNote}
-                  </div>
-                )}
-              </div>
-
-              {/* Card Footer Actions */}
-              <div
-                style={{
-                  padding: "10px 16px",
-                  background: "#fafafa",
-                  borderTop: "1px solid #f1f5f9",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  onClick={() => setDetailOpen(s)}
-                  style={{ fontSize: "12px", padding: "4px 10px", display: "inline-flex", alignItems: "center", gap: 4 }}
-                >
-                  <Eye size={13} /> Detail
-                </button>
-
-                <div style={{ position: "relative" }}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenActionId(openActionId === `card-${s.id}` ? null : `card-${s.id}`);
-                    }}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                      padding: "4px 10px",
-                      fontSize: "12px",
-                      borderRadius: "6px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      background: openActionId === `card-${s.id}` ? "var(--primary-700, #b91c1c)" : "var(--primary-600, #dc2626)",
-                      border: "none",
-                      color: "#ffffff",
-                      boxShadow: "0 1px 3px rgba(220, 38, 38, 0.3)",
-                      transition: "all 0.15s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (openActionId !== `card-${s.id}`) e.currentTarget.style.background = "var(--primary-700, #b91c1c)";
-                    }}
-                    onMouseLeave={(e) => {
-                      if (openActionId !== `card-${s.id}`) e.currentTarget.style.background = "var(--primary-600, #dc2626)";
-                    }}
-                  >
-                    <span>Aksi</span>
-                    <ChevronDown
-                      size={12}
-                      style={{
-                        transform: openActionId === `card-${s.id}` ? "rotate(180deg)" : "rotate(0deg)",
-                        transition: "transform 0.15s ease",
-                      }}
-                    />
-                  </button>
-
-                  {openActionId === `card-${s.id}` && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        right: 0,
-                        bottom: "calc(100% + 4px)",
-                        zIndex: 100,
-                        minWidth: "165px",
-                        background: "#ffffff",
-                        borderRadius: "10px",
-                        border: "1px solid var(--border, #e2e8f0)",
-                        boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.08)",
-                        padding: "4px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "2px",
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenActionId(null);
-                          openStatusChange(s);
-                        }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          width: "100%",
-                          padding: "7px 10px",
-                          fontSize: "12px",
-                          fontWeight: 500,
-                          color: "var(--text, #1e293b)",
-                          background: "transparent",
-                          border: "none",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                      >
-                        <Check size={14} style={{ color: "#16a34a" }} />
-                        <span>Ubah Status</span>
-                      </button>
-
-                      {s.status === "lolos" && waLolosUrl && (
-                        <a
-                          href={waLolosUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setOpenActionId(null)}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            width: "100%",
-                            padding: "7px 10px",
-                            fontSize: "12px",
-                            fontWeight: 500,
-                            color: "#16a34a",
-                            background: "transparent",
-                            border: "none",
-                            borderRadius: "6px",
-                            cursor: "pointer",
-                            textAlign: "left",
-                            textDecoration: "none",
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                        >
-                          <MessageCircle size={14} style={{ color: "#16a34a" }} />
-                          <span>Kirim WA Lolos</span>
-                        </a>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenActionId(null);
-                          handleDownloadDetailPdf(s);
-                        }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          width: "100%",
-                          padding: "7px 10px",
-                          fontSize: "12px",
-                          fontWeight: 500,
-                          color: "var(--text, #1e293b)",
-                          background: "transparent",
-                          border: "none",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-soft, #f1f5f9)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                      >
-                        <Download size={14} style={{ color: "#0284c7" }} />
-                        <span>Unduh PDF</span>
-                      </button>
-
-                      <div style={{ height: "1px", background: "var(--border-soft, #f1f5f9)", margin: "2px 0" }} />
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenActionId(null);
-                          setDeleteOpen(s);
-                        }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          width: "100%",
-                          padding: "7px 10px",
-                          fontSize: "12px",
-                          fontWeight: 500,
-                          color: "var(--danger, #dc2626)",
-                          background: "transparent",
-                          border: "none",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--primary-50, #fef2f2)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                      >
-                        <Trash2 size={14} style={{ color: "var(--danger, #dc2626)" }} />
-                        <span>Hapus</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
 
   return (
     <>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {/* 1. KOTAK FILTER & SEARCH BAR (TERPISAH SEPERTI KELOLA PESANAN) */}
-      <div
-        style={{
-          background: "#ffffff",
-          padding: "14px 16px",
-          borderRadius: "var(--radius-md)",
-          border: "1px solid var(--border)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        {/* Top row: Status Tabs, View Mode, & Export */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 10,
-          }}
-        >
-          {/* Segmented Status Filter */}
-          <div
-            style={{
-              display: "inline-flex",
-              background: "var(--bg-soft)",
-              padding: 4,
-              borderRadius: "var(--radius-sm)",
-              gap: 4,
-            }}
-          >
-            {[
-              { key: "", label: "Semua", count: safeSubmissions.length },
-              { key: "menunggu", label: "Menunggu", count: safeSubmissions.filter((s) => s.status === "menunggu").length },
-              { key: "lolos", label: "Lolos", count: safeSubmissions.filter((s) => s.status === "lolos").length },
-              { key: "cadangan", label: "Cadangan", count: safeSubmissions.filter((s) => s.status === "cadangan").length },
-              { key: "tidak_lolos", label: "Tidak Lolos", count: safeSubmissions.filter((s) => s.status === "tidak_lolos").length },
-            ].map((tab) => {
-              const active = filterStatus === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => handleStatusFilterChange(tab.key as any)}
-                  style={{
-                    background: active ? "#ffffff" : "transparent",
-                    color: active ? "var(--primary-700)" : "var(--text-secondary)",
-                    fontWeight: active ? 700 : 500,
-                    border: "none",
-                    borderRadius: 6,
-                    padding: "5px 12px",
-                    fontSize: 12,
-                    cursor: "pointer",
-                    boxShadow: active ? "var(--shadow-sm)" : "none",
-                  }}
-                >
-                  {tab.label} ({tab.count})
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Action Export Buttons & View Mode */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* View Mode Toggle */}
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                background: "var(--bg-soft)",
-                padding: 3,
-                borderRadius: 8,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setViewMode("table")}
-                title="Tampilan Tabel"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "5px 9px",
-                  borderRadius: 6,
-                  border: "none",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  background: viewMode === "table" ? "#ffffff" : "transparent",
-                  color: viewMode === "table" ? "var(--primary-700, #b91c1c)" : "#64748b",
-                  boxShadow: viewMode === "table" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                }}
-              >
-                <List size={14} /> Tabel
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("cards")}
-                title="Tampilan Kartu"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "5px 9px",
-                  borderRadius: 6,
-                  border: "none",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  background: viewMode === "cards" ? "#ffffff" : "transparent",
-                  color: viewMode === "cards" ? "var(--primary-700, #b91c1c)" : "#64748b",
-                  boxShadow: viewMode === "cards" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                }}
-              >
-                <LayoutGrid size={14} /> Kartu
-              </button>
+        {/* 1. SATU PANEL FILTER & TOOLBAR TERPADU (SAMA SEPERTI KELOLA PESANAN) */}
+        <div className="pesanan-filter-panel">
+          {/* Baris 1 (Desktop): Pencarian, Periode, Status, Posisi, Aksi */}
+          <div className="pesanan-filter-row-desktop">
+            <div className="pesanan-filter-search">
+              <SearchBar
+                value={search}
+                onChange={setSearch}
+                placeholder="Cari nama calon / pilihan / no. WhatsApp..."
+              />
             </div>
 
-            {onOpenQr && (
+            <div className="pesanan-filter-select">
+              <FilterComp
+                label="Periode"
+                value={filterPeriode}
+                onChange={setFilterPeriode}
+                options={[
+                  { value: "", label: "Semua Periode" },
+                  { value: "hariIni", label: "Hari Ini" },
+                  { value: "mingguIni", label: "7 Hari Terakhir" },
+                  { value: "bulanIni", label: "Bulan Ini" },
+                ]}
+              />
+            </div>
+
+            <div className="pesanan-filter-select">
+              <FilterComp
+                label="Status"
+                value={filterStatus}
+                onChange={(val) => handleStatusFilterChange(val as RekrutmenSubmissionStatus | "")}
+                options={[
+                  { value: "", label: "Semua Status" },
+                  { value: "menunggu", label: "Menunggu" },
+                  { value: "lolos", label: "Lolos" },
+                  { value: "cadangan", label: "Cadangan" },
+                  { value: "tidak_lolos", label: "Tidak Lolos" },
+                ]}
+              />
+            </div>
+
+            {posisiOptions.length > 0 && (
+              <div className="pesanan-filter-select">
+                <FilterComp
+                  label="Pilihan / Posisi"
+                  value={filterPosisi}
+                  onChange={setFilterPosisi}
+                  options={[
+                    { value: "", label: "Semua Pilihan" },
+                    ...posisiOptions,
+                  ]}
+                />
+              </div>
+            )}
+
+            <div className="pesanan-filter-actions">
               <button
                 type="button"
-                className="btn-red btn-square-icon"
-                onClick={onOpenQr}
-                title="QR Code"
+                className="btn-tambah-pesanan"
+                onClick={() => {
+                  if (form) {
+                    window.open(`/rekrutmen/form/${form.id}`, "_blank");
+                  } else if (onAddForm) {
+                    onAddForm();
+                  }
+                }}
+                title="Buka Formulir Pendaftaran Publik"
               >
-                <QrCode size={16} />
+                <Plus size={16} strokeWidth={2.5} />
+                <span>Buka Formulir</span>
               </button>
-            )}
-            <button
-              type="button"
-              className="btn-red btn-box-badge"
-              onClick={handleExportCSV}
-              title="Ekspor CSV"
-            >
-              <FileSpreadsheet size={13} />
-              <span>CSV</span>
-            </button>
-            <button
-              type="button"
-              className="btn-red btn-box-badge"
-              onClick={() => setPdfOpen(true)}
-              title="Ekspor PDF"
-            >
-              <FileText size={13} />
-              <span>PDF</span>
-            </button>
-            <button
-              type="button"
-              className="btn-red btn-box-badge"
-              onClick={() => setWaBroadcastModalData({ sub: null, mode: "skrining", tab: "broadcast" })}
-              title="Broadcast Pesan WhatsApp Rekrutmen"
-              style={{ background: "#25D366", borderColor: "#25D366", color: "#ffffff" }}
-            >
-              <MessageCircle size={14} />
-              <span>Broadcast WA</span>
-            </button>
-            <button
-              type="button"
-              className="btn-red btn-box-badge"
-              onClick={() => setWaBroadcastModalData({ sub: null, mode: "skrining", tab: "settings" })}
-              title="Pengaturan Template WhatsApp & Lokasi Rekrutmen"
-            >
-              <Settings size={14} />
-              <span>Template WA</span>
-            </button>
-            {onAddForm && (
+
+              <div className="pesanan-more-dropdown-container">
+                <button
+                  type="button"
+                  className="btn-ekspor-dropdown"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsActionMenuOpen((prev) => !prev);
+                  }}
+                  title="Menu Opsi & Ekspor"
+                >
+                  <span>Opsi / Ekspor</span>
+                  <ChevronDown
+                    size={14}
+                    style={{
+                      transform: isActionMenuOpen ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform 0.15s ease",
+                    }}
+                  />
+                </button>
+
+                {isActionMenuOpen && (
+                  <div
+                    className="pesanan-more-menu"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ zIndex: 9999, minWidth: 210 }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        handleExportCSV();
+                      }}
+                    >
+                      <FileSpreadsheet size={15} color="#16A34A" />
+                      <span>Ekspor ke CSV</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        setPdfOpen(true);
+                      }}
+                    >
+                      <FileText size={15} color="#DC2626" />
+                      <span>Ekspor Laporan PDF</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        if (candidatePhotoItems.length > 0) {
+                          setCustomLightboxItems(null);
+                          setLightboxIndex(0);
+                          setLightboxOpen(true);
+                        } else {
+                          toastError("Belum ada calon anggota yang mengunggah pas foto.");
+                        }
+                      }}
+                    >
+                      <Camera size={15} color="#7C3AED" />
+                      <span>Galeri Pas Foto ({candidatePhotoItems.length})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        setWaBroadcastModalData({ sub: null, mode: "skrining", tab: "broadcast" });
+                      }}
+                    >
+                      <MessageCircle size={15} color="#25D366" />
+                      <span>Broadcast WhatsApp</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        setWaBroadcastModalData({ sub: null, mode: "skrining", tab: "settings" });
+                      }}
+                    >
+                      <Settings size={15} color="#2563EB" />
+                      <span>Pengaturan Template WA</span>
+                    </button>
+                    {onOpenQr && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsActionMenuOpen(false);
+                          onOpenQr();
+                        }}
+                      >
+                        <QrCode size={15} color="#D97706" />
+                        <span>QR Code & Tautan Publik</span>
+                      </button>
+                    )}
+                    {onAddForm && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsActionMenuOpen(false);
+                          onAddForm();
+                        }}
+                      >
+                        <Plus size={15} color="#C71920" />
+                        <span>Kelola Formulir Baru</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Baris 1 (Mobile): Layout Vertikal Responsif */}
+          <div className="pesanan-filter-row-mobile">
+            <div className="pesanan-mobile-search-row">
+              <SearchBar
+                value={search}
+                onChange={setSearch}
+                placeholder="Cari nama calon / posisi / no. WhatsApp..."
+              />
+            </div>
+
+            <div className="pesanan-mobile-filters-row">
+              <FilterComp
+                label="Periode"
+                value={filterPeriode}
+                onChange={setFilterPeriode}
+                options={[
+                  { value: "", label: "Semua Periode" },
+                  { value: "hariIni", label: "Hari Ini" },
+                  { value: "mingguIni", label: "7 Hari Terakhir" },
+                  { value: "bulanIni", label: "Bulan Ini" },
+                ]}
+              />
+              <FilterComp
+                label="Status"
+                value={filterStatus}
+                onChange={(val) => handleStatusFilterChange(val as RekrutmenSubmissionStatus | "")}
+                options={[
+                  { value: "", label: "Semua Status" },
+                  { value: "menunggu", label: "Menunggu" },
+                  { value: "lolos", label: "Lolos" },
+                  { value: "cadangan", label: "Cadangan" },
+                  { value: "tidak_lolos", label: "Tidak Lolos" },
+                ]}
+              />
+            </div>
+
+            <div className="pesanan-mobile-actions-row">
               <button
                 type="button"
-                className="btn-red btn-box-badge"
-                onClick={onAddForm}
-                title="Tambah Formulir"
+                className="btn-tambah-pesanan full-width"
+                onClick={() => {
+                  if (form) {
+                    window.open(`/rekrutmen/form/${form.id}`, "_blank");
+                  } else if (onAddForm) {
+                    onAddForm();
+                  }
+                }}
               >
-                <Plus size={15} />
-                <span>Tambah Formulir</span>
+                <Plus size={16} strokeWidth={2.5} />
+                <span>Buka Formulir</span>
               </button>
-            )}
+
+              <div className="pesanan-more-dropdown-container">
+                <button
+                  type="button"
+                  className="btn-ekspor-dropdown"
+                  style={{ height: 42, padding: "0 12px" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsActionMenuOpen((prev) => !prev);
+                  }}
+                  title="Menu Opsi & Ekspor"
+                >
+                  <ChevronDown
+                    size={16}
+                    style={{
+                      transform: isActionMenuOpen ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform 0.15s ease",
+                    }}
+                  />
+                </button>
+
+                {isActionMenuOpen && (
+                  <div
+                    className="pesanan-more-menu"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ zIndex: 9999, minWidth: 210 }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        handleExportCSV();
+                      }}
+                    >
+                      <FileSpreadsheet size={15} color="#16A34A" />
+                      <span>Ekspor ke CSV</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        setPdfOpen(true);
+                      }}
+                    >
+                      <FileText size={15} color="#DC2626" />
+                      <span>Ekspor Laporan PDF</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        if (candidatePhotoItems.length > 0) {
+                          setCustomLightboxItems(null);
+                          setLightboxIndex(0);
+                          setLightboxOpen(true);
+                        } else {
+                          toastError("Belum ada calon anggota yang mengunggah pas foto.");
+                        }
+                      }}
+                    >
+                      <Camera size={15} color="#7C3AED" />
+                      <span>Galeri Pas Foto ({candidatePhotoItems.length})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        setWaBroadcastModalData({ sub: null, mode: "skrining", tab: "broadcast" });
+                      }}
+                    >
+                      <MessageCircle size={15} color="#25D366" />
+                      <span>Broadcast WhatsApp</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionMenuOpen(false);
+                        setWaBroadcastModalData({ sub: null, mode: "skrining", tab: "settings" });
+                      }}
+                    >
+                      <Settings size={15} color="#2563EB" />
+                      <span>Pengaturan Template WA</span>
+                    </button>
+                    {onOpenQr && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsActionMenuOpen(false);
+                          onOpenQr();
+                        }}
+                      >
+                        <QrCode size={15} color="#D97706" />
+                        <span>QR Code & Tautan Publik</span>
+                      </button>
+                    )}
+                    {onAddForm && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsActionMenuOpen(false);
+                          onAddForm();
+                        }}
+                      >
+                        <Plus size={15} color="#C71920" />
+                        <span>Kelola Formulir Baru</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Toolbar row: SearchBar, Filter Posisi, Filter Status, Filter Periode, & Reset Filter */}
-        <div className="toolbar" style={{ marginTop: 4 }}>
-          <SearchBar
-            value={search}
-            onChange={setSearch}
-            placeholder="Cari nama / posisi / No. HP..."
-          />
-          {posisiOptions.length > 0 && (
-            <FilterComp
-              label="Pilihan / Posisi"
-              value={filterPosisi}
-              onChange={setFilterPosisi}
-              options={posisiOptions}
-            />
-          )}
-          <FilterComp
-            label="Status"
-            value={filterStatus}
-            onChange={(val) => handleStatusFilterChange(val as RekrutmenSubmissionStatus | "")}
-            options={[
-              { value: "", label: "Semua Status" },
-              { value: "menunggu", label: "Menunggu" },
-              { value: "lolos", label: "Lolos" },
-              { value: "cadangan", label: "Cadangan" },
-              { value: "tidak_lolos", label: "Tidak Lolos" },
-            ]}
-          />
-          <FilterComp
-            label="Periode"
-            value={filterPeriode}
-            onChange={setFilterPeriode}
-            options={[
-              { value: "", label: "Semua Periode" },
-              { value: "hariIni", label: "Hari Ini" },
-              { value: "mingguIni", label: "7 Hari Terakhir" },
-              { value: "bulanIni", label: "Bulan Ini" },
-            ]}
-          />
-          {hasActiveFilters && (
+        {/* Reset Filter Button jika ada filter aktif */}
+        {hasActiveFilters && (
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <button
               type="button"
               onClick={handleResetFilters}
@@ -1763,29 +1418,275 @@ export function SubmissionList({
             >
               <X size={13} /> Reset Filter
             </button>
-          )}
+          </div>
+        )}
+
+        {/* 2. TABEL DAFTAR CALON ANGGOTA (DESKTOP 6 KOLOM & MOBILE 4 KOLOM TANPA OVERFLOW-X) */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "2px 4px",
+            }}
+          >
+            <span style={{ fontSize: "12.5px", color: "var(--text-muted, #64748b)" }}>
+              Menampilkan <strong style={{ color: "var(--navy-900, #0f172a)" }}>{sorted.length}</strong> dari{" "}
+              <strong>{safeSubmissions.length}</strong> total pendaftar
+              {filterStatus && (
+                <span style={{ marginLeft: 6, fontWeight: 600, color: "#C71920" }}>
+                  • Status: {STATUS_CONFIG[filterStatus]?.label.toUpperCase()}
+                </span>
+              )}
+            </span>
+          </div>
+
+          <div className="orders-table-container">
+            {loading ? (
+              <div className="orders-table-wrapper-box">
+                <Loading label="Memuat data calon anggota..." />
+              </div>
+            ) : sorted.length === 0 ? (
+              <div className="orders-table-wrapper-box">
+                <EmptyState
+                  title="Belum Ada Calon Anggota"
+                  message="Belum ada pendaftar yang memenuhi kriteria pencarian atau filter saat ini."
+                />
+              </div>
+            ) : (
+              <>
+                {/* DESKTOP TABLE (>= 768px, 6 KOLOM LENGKAP DENGAN STICKY HEADER) */}
+                <div className="orders-table-desktop-view" style={{ maxHeight: "none", overflowY: "visible" }}>
+                  <table className="orders-table-minimal">
+                    <colgroup>
+                      <col style={{ width: "5%" }} />
+                      <col style={{ width: "32%" }} />
+                      <col style={{ width: "20%" }} />
+                      <col style={{ width: "17%" }} />
+                      <col style={{ width: "14%" }} />
+                      <col style={{ width: "12%" }} />
+                    </colgroup>
+
+                    <thead>
+                      <tr>
+                        <th className="th-center">No.</th>
+                        <th className="th-left">Nama Calon Anggota</th>
+                        <th className="th-left">Pilihan / Posisi</th>
+                        <th className="th-center">No. WhatsApp</th>
+                        <th className="th-center">Status</th>
+                        <th className="th-center">Aksi</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {sorted.map((s, idx) => {
+                        const { nama, hp, pilihan, waUrl, waLolosUrl, rawHp } = getCandidateInfo(s);
+                        const isLolos = s.status === "lolos";
+                        const targetWa = isLolos ? (waLolosUrl || waUrl) : waUrl;
+
+                        return (
+                          <tr
+                            key={s.id}
+                            className="orders-row-clickable"
+                            onClick={() => setDetailOpen(s)}
+                          >
+                            <td className="td-center order-no-col">
+                              <span className="order-no-text">{idx + 1}</span>
+                            </td>
+
+                            <td className="td-left">
+                              <CandidateAvatarCell
+                                submission={s}
+                                nama={nama}
+                                onAvatarClick={(url, title, fileName) =>
+                                  openPhotoLightbox(url, title, fileName, s.id)
+                                }
+                              />
+                            </td>
+
+                            <td className="td-left">
+                              <div
+                                style={{
+                                  fontSize: "13px",
+                                  color: "#334155",
+                                  fontWeight: 500,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                                title={pilihan || "-"}
+                              >
+                                {pilihan || "-"}
+                              </div>
+                            </td>
+
+                            <td className="td-center">
+                              {rawHp ? (
+                                <a
+                                  href={targetWa || "#"}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="wa-table-link"
+                                  onClick={(e) => e.stopPropagation()}
+                                  title={`Hubungi ${nama} via WhatsApp (${hp})`}
+                                >
+                                  <MessageCircle size={13} className="wa-icon" />
+                                  <span>{hp}</span>
+                                </a>
+                              ) : (
+                                <span style={{ fontSize: "12px", color: "#94a3b8" }}>-</span>
+                              )}
+                            </td>
+
+                            <td className="td-center">
+                              <span className={`order-status-badge status-${s.status}`}>
+                                {STATUS_CONFIG[s.status]?.label || s.status}
+                              </span>
+                            </td>
+
+                            <td className="td-center">
+                              <div
+                                className="orders-action-center"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ActionDropdown
+                                  variant="minimal"
+                                  style={{ width: 68, height: 30 }}
+                                  items={[
+                                    {
+                                      label: "Lihat Detail",
+                                      icon: <Eye size={13} />,
+                                      onClick: () => setDetailOpen(s),
+                                    },
+                                    {
+                                      label: "Lihat Foto Full",
+                                      icon: <Camera size={13} style={{ color: "#7C3AED" }} />,
+                                      onClick: () => {
+                                        const photoInfo = extractCandidatePhotoInfo(s.answers);
+                                        if (photoInfo.url) {
+                                          openPhotoLightbox(
+                                            photoInfo.url,
+                                            `Pas Foto: ${nama}`,
+                                            photoInfo.fileName || undefined,
+                                            s.id
+                                          );
+                                        } else {
+                                          toastError(`Calon anggota ${nama} belum memiliki pas foto.`);
+                                        }
+                                      },
+                                    },
+                                    {
+                                      label: "Ubah Status",
+                                      icon: <Check size={13} style={{ color: "#16A34A" }} />,
+                                      onClick: () => openStatusChange(s),
+                                    },
+                                    {
+                                      label: "Kirim WhatsApp",
+                                      icon: <MessageCircle size={13} style={{ color: "#25D366" }} />,
+                                      onClick: () =>
+                                        setWaBroadcastModalData({
+                                          sub: s,
+                                          mode: s.status === "lolos" ? "lolos" : "skrining",
+                                          tab: "broadcast",
+                                        }),
+                                    },
+                                    {
+                                      label: "Unduh PDF",
+                                      icon: <Download size={13} />,
+                                      onClick: () => handleDownloadDetailPdf(s),
+                                    },
+                                    {
+                                      label: "Hapus",
+                                      icon: <Trash2 size={13} />,
+                                      onClick: () => setDeleteOpen(s),
+                                      danger: true,
+                                    },
+                                  ]}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* MOBILE TABLE (< 768px, 4 KOLOM PRIORITAS TANPA SCROLLBAR HORIZONTAL) */}
+                <div className="orders-table-mobile-view" style={{ maxHeight: "none", overflowY: "visible" }}>
+                  <table className="orders-table-mobile-compact">
+                    <colgroup>
+                      <col style={{ width: "32px" }} />
+                      <col style={{ width: "auto" }} />
+                      <col style={{ width: "85px" }} />
+                      <col style={{ width: "80px" }} />
+                    </colgroup>
+
+                    <thead>
+                      <tr>
+                        <th className="th-mobile-no">No.</th>
+                        <th className="th-mobile-cust">Calon Anggota</th>
+                        <th style={{ textAlign: "left", fontSize: 11, fontWeight: 600, padding: "8px 6px" }}>Pilihan</th>
+                        <th className="th-mobile-status">Status</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {sorted.map((s, idx) => {
+                        const { nama, pilihan } = getCandidateInfo(s);
+
+                        return (
+                          <tr
+                            key={s.id}
+                            className="orders-mobile-row"
+                            onClick={() => setDetailOpen(s)}
+                          >
+                            <td className="td-mobile-no">
+                              <span>{idx + 1}</span>
+                            </td>
+
+                            <td className="td-mobile-cust">
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                                <span
+                                  className="mobile-customer-name"
+                                  title={nama}
+                                >
+                                  {nama}
+                                </span>
+                              </div>
+                            </td>
+
+                            <td
+                              style={{
+                                padding: "6px 6px",
+                                fontSize: 11,
+                                color: "#475569",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                              title={pilihan}
+                            >
+                              {pilihan || "-"}
+                            </td>
+
+                            <td className="td-mobile-status">
+                              <span className={`order-status-badge compact status-${s.status}`}>
+                                {STATUS_CONFIG[s.status]?.label || s.status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* 2. KOTAK DAFTAR CALON ANGGOTA (TERPISAH SEPERTI KELOLA PESANAN) */}
-      {viewMode === "table" ? (
-        <DataTable
-          columns={columns}
-          data={sorted}
-          loading={loading}
-          rowKey={(r) => r.id}
-          onRowClick={(r) => setDetailOpen(r)}
-          emptyTitle="Belum Ada Calon Anggota"
-          emptyMessage="Belum ada pendaftar yang memenuhi kriteria filter saat ini."
-          sortKey={sortField ?? undefined}
-          sortDirection={sortDirection}
-          onSort={handleSort}
-          fullHeight
-        />
-      ) : (
-        renderCards(sorted)
-      )}
-    </div>
 
       {/* DETAIL MODAL CALON ANGGOTA & BERKAS LENGKAP */}
       <Modal
@@ -1846,10 +1747,10 @@ export function SubmissionList({
                       <button
                         type="button"
                         className="btn btn-outline btn-sm"
-                        onClick={() => openPhotoLightbox(photoInfo.url!, `Pas Foto: ${nama}`, photoInfo.fileName || undefined)}
-                        style={{ fontSize: "11px", padding: "2px 8px", display: "inline-flex", alignItems: "center", gap: 4 }}
+                        onClick={() => openPhotoLightbox(photoInfo.url!, `Pas Foto: ${nama}`, photoInfo.fileName || undefined, detailOpen.id)}
+                        style={{ fontSize: "11px", padding: "3px 10px", display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 600 }}
                       >
-                        <ZoomIn size={12} /> Perbesar
+                        <Maximize2 size={12} /> Lihat Foto Full
                       </button>
                       {photoInfo.answerId && (
                         <label
@@ -2787,143 +2688,15 @@ export function SubmissionList({
         onCancel={() => setDeleteOpen(null)}
       />
 
-      {/* IMAGE LIGHTBOX MODAL (PORTAL TO BODY) */}
-      {lightboxImage &&
-        createPortal(
-          <div
-            onClick={() => setLightboxImage(null)}
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: "rgba(0, 0, 0, 0.88)",
-              backdropFilter: "blur(6px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 9999999,
-              padding: 20,
-            }}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                maxWidth: 640,
-                width: "100%",
-                background: "#ffffff",
-                borderRadius: 14,
-                overflow: "hidden",
-                boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
-                display: "flex",
-                flexDirection: "column",
-                animation: "modalFadeIn 0.2s ease",
-              }}
-            >
-              <div
-                style={{
-                  padding: "14px 18px",
-                  borderBottom: "1px solid #e2e8f0",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  background: "#ffffff",
-                }}
-              >
-                <strong style={{ fontSize: "14px", fontWeight: 700, color: "var(--navy-900)" }}>
-                  📸 {lightboxImage.title}
-                </strong>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    onClick={() => handleDownloadImage(lightboxImage.url, lightboxImage.title)}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: "12px", padding: "5px 12px", fontWeight: 600 }}
-                  >
-                    <Download size={14} /> Unduh Foto
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => setLightboxImage(null)}
-                    style={{ padding: "4px 8px", fontSize: "16px", lineHeight: 1 }}
-                    title="Tutup Pratinjau"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-              <div style={{ padding: 24, textAlign: "center", background: "rgba(15, 23, 42, 0.95)", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 320 }}>
-                {lightboxFetching ? (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: "#f8fafc" }}>
-                    <div style={{ width: 36, height: 36, border: "3px solid rgba(255,255,255,0.2)", borderTopColor: "#38bdf8", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                    <span style={{ fontSize: "13px", color: "#94a3b8" }}>Memulihkan dan memuat foto...</span>
-                  </div>
-                ) : lightboxImgError ? (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: "#f8fafc", padding: "10px" }}>
-                    <Camera size={44} style={{ color: "#94a3b8" }} />
-                    <strong style={{ fontSize: "14.5px", color: "#f8fafc" }}>Foto Dalam Proses Resolusi</strong>
-                    <p style={{ fontSize: "12.5px", color: "#94a3b8", maxWidth: 380, margin: 0, lineHeight: 1.5 }}>
-                      Foto ini tersimpan di Google Drive. Klik tombol muat ulang di bawah untuk memproses foto ke resolusi HD instan.
-                    </p>
-                    <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap", justifyContent: "center" }}>
-                      <button
-                        type="button"
-                        className="btn btn-outline btn-sm"
-                        style={{ color: "#ffffff", borderColor: "rgba(255,255,255,0.4)" }}
-                        onClick={async () => {
-                          setLightboxFetching(true);
-                          setLightboxImgError(false);
-                          const match = lightboxImage.url.match(/[\/|=]([a-zA-Z0-9_-]{25,})/);
-                          const res = await getRekrutmenImageBase64Item({
-                            fileId: match ? match[1] : undefined,
-                            fileName: lightboxImage.fileName || lightboxImage.title,
-                          });
-                          setLightboxFetching(false);
-                          if (res.success && res.base64) {
-                            setLightboxImage((prev) => prev ? { ...prev, url: res.base64! } : null);
-                          } else {
-                            setLightboxImgError(true);
-                          }
-                        }}
-                      >
-                        🔄 Muat Ulang Foto HD
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <img
-                    src={lightboxImage.url}
-                    alt={lightboxImage.title}
-                    referrerPolicy="no-referrer"
-                    onError={async (e) => {
-                      const current = e.currentTarget.src;
-                      const match = current.match(/[\/|=]([a-zA-Z0-9_-]{25,})/);
-                      const fileId = match ? match[1] : undefined;
-
-                      setLightboxFetching(true);
-                      const res = await getRekrutmenImageBase64Item({
-                        fileId,
-                        fileName: lightboxImage.fileName || lightboxImage.title,
-                      });
-                      setLightboxFetching(false);
-
-                      if (res.success && res.base64) {
-                        setLightboxImage((prev) => prev ? { ...prev, url: res.base64! } : null);
-                        setLightboxImgError(false);
-                      } else {
-                        setLightboxImgError(true);
-                      }
-                    }}
-                    style={{ maxWidth: "100%", maxHeight: "75vh", objectFit: "contain", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}
-                  />
-                )}
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+      {/* FULL PHOTO LIGHTBOX MODAL */}
+      <PhotoLightboxModal
+        isOpen={lightboxOpen}
+        items={activeLightboxItems}
+        currentIndex={lightboxIndex}
+        onClose={() => setLightboxOpen(false)}
+        onIndexChange={(idx) => setLightboxIndex(idx)}
+        onResolveDrivePhoto={handleResolveDrivePhoto}
+      />
 
       {/* WhatsApp Broadcast & Template Settings Modal */}
       <RekrutmenWhatsAppBroadcastModal

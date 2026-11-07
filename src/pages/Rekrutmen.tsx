@@ -40,6 +40,7 @@ import { CACHE_KEYS } from "../services/cache";
 import { SubmissionList } from "../components/rekrutmen/SubmissionList";
 import { RekrutmenFormBuilderModal } from "../components/rekrutmen/RekrutmenFormBuilderModal";
 import { Modal } from "../components/ui/Modal";
+import { SummaryCard, SummaryGrid, SummarySection } from "../components/ui/SummaryCard";
 
 export function Rekrutmen() {
   const { success: toastSuccess, error: toastError } = useToast();
@@ -243,122 +244,82 @@ export function Rekrutmen() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* 1. Header Ringkasan Merah Standout mbc sistem */}
-      <div className="summary-panel animate-fade-slide-up">
-        <div className="summary-panel-header">
-          <div>
-            <h3>Ringkasan Rekruitmen</h3>
-            <p>Pilih status pada kartu di bawah untuk menyaring data pendaftar secara cepat</p>
-          </div>
-          {statsCalculated.menunggu > 0 && (
-            <div
+    <div className="orders-page-container animate-fade-slide-up" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* 1. PANEL RINGKASAN REKRUTMEN MB CHONDRO (STANDAR MINIMALIST SAAS) */}
+      <SummarySection
+        title="Ringkasan Rekrutmen MB CHONDRO"
+        subtitle="Pilih status pada kartu di bawah untuk menyaring data pendaftar secara cepat"
+        badge={
+          statsCalculated.menunggu > 0 ? (
+            <span
               style={{
-                padding: "6px 14px",
-                background: "rgba(255, 255, 255, 0.18)",
-                backdropFilter: "blur(8px)",
-                borderRadius: "20px",
-                fontSize: "12px",
+                fontSize: 11.5,
                 fontWeight: 600,
-                color: "#ffffff",
-                border: "1px solid rgba(255, 255, 255, 0.25)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
+                color: "#B45309",
+                background: "#FEF3C7",
+                border: "1px solid #FDE68A",
+                padding: "3px 10px",
+                borderRadius: 20,
               }}
             >
-              <span>🟡</span>
-              <span>{statsCalculated.menunggu} Pendaftar Belum Direview</span>
-            </div>
-          )}
-        </div>
-
-        {/* 5 Stat Cards Grid - Clickable for Fast Filtering */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-            gap: 12,
-          }}
-        >
-          {/* Card 1: Total */}
-          <div
-            onClick={() => handleCardStatusClick("")}
-            className={`rekrutmen-stat-card ${activeTab === "submissions" && selectedStatusFilter === "" ? "active" : ""}`}
-            title="Klik untuk melihat semua calon pendaftar"
-          >
-            <div className="rekrutmen-stat-head">
-              <Users size={15} /> Total Pendaftar
-            </div>
-            <div className="rekrutmen-stat-value">
-              {statsCalculated.total}
-            </div>
-            <span className="rekrutmen-stat-sub">Semua pendaftar ↗</span>
-          </div>
-
-          {/* Card 2: Menunggu */}
-          <div
-            onClick={() => handleCardStatusClick("menunggu")}
-            className={`rekrutmen-stat-card ${activeTab === "submissions" && selectedStatusFilter === "menunggu" ? "active" : ""}`}
-            title="Klik untuk menyaring pendaftar yang menunggu review"
-          >
-            <div className="rekrutmen-stat-head">
-              <Clock size={15} /> Menunggu Seleksi
-            </div>
-            <div className="rekrutmen-stat-value">
-              {statsCalculated.menunggu}
-            </div>
-            <span className="rekrutmen-stat-sub">
-              {statsCalculated.menunggu > 0 ? "🟡 Belum direview ↗" : "Semua telah direview ↗"}
+              ● {statsCalculated.menunggu} Pendaftar Baru Belum Direview
             </span>
-          </div>
-
-          {/* Card 3: Lolos */}
-          <div
+          ) : null
+        }
+      >
+        <SummaryGrid columns={5}>
+          <SummaryCard
+            label="Total Pendaftar"
+            value={statsCalculated.total}
+            icon={<Users size={16} />}
+            sub="Semua pendaftar"
+            accent="slate"
+            active={selectedStatusFilter === ""}
+            onClick={() => handleCardStatusClick("")}
+            title="Klik untuk melihat semua calon pendaftar"
+          />
+          <SummaryCard
+            label="Menunggu"
+            value={statsCalculated.menunggu}
+            icon={<Clock size={16} />}
+            sub="Belum direview"
+            accent="amber"
+            active={selectedStatusFilter === "menunggu"}
+            onClick={() => handleCardStatusClick("menunggu")}
+            title="Klik untuk menyaring pendaftar yang menunggu review"
+          />
+          <SummaryCard
+            label="Lolos Seleksi"
+            value={statsCalculated.lolos}
+            icon={<CheckCircle2 size={16} />}
+            sub="Diterima lolos"
+            accent="green"
+            active={selectedStatusFilter === "lolos"}
             onClick={() => handleCardStatusClick("lolos")}
-            className={`rekrutmen-stat-card ${activeTab === "submissions" && selectedStatusFilter === "lolos" ? "active" : ""}`}
             title="Klik untuk menyaring calon yang lolos seleksi"
-          >
-            <div className="rekrutmen-stat-head">
-              <CheckCircle2 size={15} /> Lolos Seleksi
-            </div>
-            <div className="rekrutmen-stat-value">
-              {statsCalculated.lolos}
-            </div>
-            <span className="rekrutmen-stat-sub">🟢 Diterima ↗</span>
-          </div>
-
-          {/* Card 4: Cadangan */}
-          <div
+          />
+          <SummaryCard
+            label="Cadangan"
+            value={statsCalculated.cadangan}
+            icon={<Bookmark size={16} />}
+            sub="Status cadangan"
+            accent="blue"
+            active={selectedStatusFilter === "cadangan"}
             onClick={() => handleCardStatusClick("cadangan")}
-            className={`rekrutmen-stat-card ${activeTab === "submissions" && selectedStatusFilter === "cadangan" ? "active" : ""}`}
             title="Klik untuk menyaring calon cadangan"
-          >
-            <div className="rekrutmen-stat-head">
-              <Bookmark size={15} /> Cadangan
-            </div>
-            <div className="rekrutmen-stat-value">
-              {statsCalculated.cadangan}
-            </div>
-            <span className="rekrutmen-stat-sub">🔵 Waiting list ↗</span>
-          </div>
-
-          {/* Card 5: Tidak Lolos */}
-          <div
+          />
+          <SummaryCard
+            label="Tidak Lolos"
+            value={statsCalculated.tidakLolos}
+            icon={<XCircle size={16} />}
+            sub="Belum memenuhi"
+            accent="red"
+            active={selectedStatusFilter === "tidak_lolos"}
             onClick={() => handleCardStatusClick("tidak_lolos")}
-            className={`rekrutmen-stat-card ${activeTab === "submissions" && selectedStatusFilter === "tidak_lolos" ? "active" : ""}`}
             title="Klik untuk menyaring calon yang belum lolos"
-          >
-            <div className="rekrutmen-stat-head">
-              <XCircle size={15} /> Gagal
-            </div>
-            <div className="rekrutmen-stat-value">
-              {statsCalculated.tidakLolos}
-            </div>
-            <span className="rekrutmen-stat-sub">🔴 Belum memenuhi ↗</span>
-          </div>
-        </div>
-      </div>
+          />
+        </SummaryGrid>
+      </SummarySection>
 
       {/* TAB CONTENT 1: DAFTAR CALON ANGGOTA */}
       {activeTab === "submissions" && (

@@ -5,13 +5,10 @@ import {
   Plus,
   Copy,
   ExternalLink,
-  MessageCircle,
-  Eye,
   CheckCircle2,
   XCircle,
   Clock,
   Layers,
-  FileSpreadsheet,
   FileText,
   Edit,
   Trash2,
@@ -19,6 +16,8 @@ import {
   X,
   QrCode,
   Download,
+  Wallet,
+  ChartBar,
 } from "lucide-react";
 import type {
   OrderWithAnswers,
@@ -39,24 +38,25 @@ import {
 } from "../services/api";
 import { CACHE_KEYS } from "../services/cache";
 import { formatRupiah } from "../utils/format";
-import { DataTable, type Column } from "../components/ui/DataTable";
+import { OrdersTable } from "../components/pesanan/OrdersTable";
+import { SummaryCard, SummaryGrid, SummarySection } from "../components/ui/SummaryCard";
 import { SearchBar } from "../components/ui/SearchBar";
 import { Filter as FilterComp } from "../components/ui/Filter";
 import { OrderDetailModal } from "../components/pesanan/OrderDetailModal";
 import { OrderFormBuilderModal } from "../components/pesanan/OrderFormBuilderModal";
 import { OrderRecap } from "../components/pesanan/OrderRecap";
 import { WhatsAppBroadcastModal } from "../components/pesanan/WhatsAppBroadcastModal";
-import { exportOrdersToCSV, exportOrdersToPDF } from "../services/pesananExport";
+import { exportOrdersToCSV, exportOrdersToPDF, parseCustomerOrder } from "../services/pesananExport";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { Modal } from "../components/ui/Modal";
-import { ActionDropdown } from "../components/ui/ActionDropdown";
+import { DownloadDropdown } from "../components/ui/DownloadDropdown";
 
 
 export function KelolaPesanan() {
   const { success: toastSuccess, error: toastError } = useToast();
 
   // Tab State — dikendalikan via URL search param ?tab=formulir
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const activeTab = (searchParams.get("tab") === "formulir" ? "formulir" : "pesanan") as "pesanan" | "formulir";
 
   // Fetch Forms
@@ -103,20 +103,45 @@ export function KelolaPesanan() {
 
   // Summary Cards Data
   const orderList = useMemo(() => orders || [], [orders]);
-  const stats: OrderStats = useMemo(() => {
+  const stats: OrderStats & { totalDpMasuk: number; totalKeseluruhan: number } = useMemo(() => {
     let masuk = 0;
     let diproses = 0;
     let selesai = 0;
+    let totalDpMasuk = 0;
+    let totalKeseluruhan = 0;
+
     orderList.forEach((o) => {
+      // Status counts
       if (o.status === "masuk") masuk++;
       else if (o.status === "diproses") diproses++;
       else if (o.status === "selesai") selesai++;
+
+      // Total Tagihan Order
+      const parsed = parseCustomerOrder(o);
+      const orderTotal = parsed.totalPrice;
+      totalKeseluruhan += orderTotal;
+
+      // Total DP Masuk: menjumlahkan total DP + LUNAS
+      if (o.paymentStatus === "lunas") {
+        // Jika status Lunas, seluruh tagihan dianggap sudah dibayar penuh
+        const paidAmount = orderTotal > 0 ? orderTotal : (o.dpAmount || 0);
+        totalDpMasuk += paidAmount;
+      } else if (o.paymentStatus === "dp") {
+        // Jika status DP, jumlahkan nominal DP aktual yang diterima
+        totalDpMasuk += o.dpAmount || 0;
+      } else if (o.dpAmount && o.dpAmount > 0) {
+        // Fallback jika paymentStatus belum diset tapi sudah ada nominal DP
+        totalDpMasuk += o.dpAmount;
+      }
     });
+
     return {
       total: orderList.length,
       masuk,
       diproses,
       selesai,
+      totalDpMasuk,
+      totalKeseluruhan,
     };
   }, [orderList]);
 
@@ -270,435 +295,203 @@ export function KelolaPesanan() {
     toastSuccess("Laporan PDF pesanan berhasil diunduh!");
   };
 
-  // Columns for DataTable (Desktop)
-  const columns: Column<OrderWithAnswers>[] = [
-    {
-      key: "customerName",
-      header: "Customer",
-      render: (row) => (
-        <strong style={{ display: "block", color: "var(--navy-900)", fontSize: 13.5 }}>
-          {row.customerName || "-"}
-        </strong>
-      ),
-    },
-    {
-      key: "jenis",
-      header: "Jenis Pesanan",
-      render: (row) => {
-        const jenisAnswer = row.answers.find(
-          (a) => String(a?.label || "").toLowerCase().includes("jenis") || String(a?.label || "").toLowerCase().includes("produk") || String(a?.label || "").toLowerCase().includes("model")
-        );
-        const variantAnswer = row.answers.find(
-          (a) => String(a?.value || "").includes("•") || String(a?.label || "").toLowerCase().includes("varian") || String(a?.label || "").toLowerCase().includes("ukuran")
-        );
-        const qtyAnswer = row.answers.find(
-          (a) => String(a?.label || "").toLowerCase().includes("jumlah") || String(a?.label || "").toLowerCase().includes("qty")
-        );
-
-        let totalPcs = qtyAnswer ? `${qtyAnswer.value} pcs` : "";
-        let totalPriceStr = "";
-        if (variantAnswer) {
-          const match = variantAnswer.value.match(/Total:\s*(\d+)\s*pcs/i);
-          if (match) {
-            totalPcs = `${match[1]} pcs (Varian)`;
-          } else if (!totalPcs) {
-            totalPcs = "Multi-Varian";
-          }
-          const matchPrice = variantAnswer.value.match(/\|\s*(Rp\s*[\d.]+)/i);
-          if (matchPrice) {
-            totalPriceStr = matchPrice[1];
-          }
-        }
-
-        return (
-          <div>
-            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>
-              {jenisAnswer ? jenisAnswer.value : "Pesanan Kaos"}
-            </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
-              {totalPcs && (
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                  Jumlah: {totalPcs}
-                </span>
-              )}
-              {totalPriceStr && (
-                <span
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    color: "var(--primary-700, #b91c1c)",
-                    background: "rgba(185, 28, 28, 0.08)",
-                    padding: "1px 6px",
-                    borderRadius: 4,
-                  }}
-                >
-                  {totalPriceStr}
-                </span>
-              )}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (row) => {
-        return (
-          <span
-            className={`status-pill status-${row.status}`}
-            style={{
-              textTransform: "uppercase",
-              fontSize: 11,
-              fontWeight: 700,
-              padding: "3px 10px",
-              borderRadius: 20,
-            }}
-          >
-            {row.status}
-          </span>
-        );
-      },
-    },
-    {
-      key: "pembayaran",
-      header: "Pembayaran",
-      render: (row) => {
-        const isLunas = row.paymentStatus === "lunas";
-        const isDp = row.paymentStatus === "dp" || (row.dpAmount && row.dpAmount > 0);
-
-        if (isLunas) {
-          return (
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "#166534",
-                background: "#dcfce7",
-                border: "1px solid #86efac",
-                padding: "2px 8px",
-                borderRadius: 12,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              ✓ LUNAS
-            </span>
-          );
-        }
-        if (isDp) {
-          return (
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "#1e40af",
-                background: "#dbeafe",
-                border: "1px solid #93c5fd",
-                padding: "2px 8px",
-                borderRadius: 12,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              DP {row.dpAmount ? formatRupiah(row.dpAmount) : ""}
-            </span>
-          );
-        }
-        return (
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#991b1b",
-              background: "#fee2e2",
-              border: "1px solid #fca5a5",
-              padding: "2px 8px",
-              borderRadius: 12,
-            }}
-          >
-            Belum Bayar
-          </span>
-        );
-      },
-    },
-    {
-      key: "aksi",
-      header: "Aksi",
-      render: (row) => (
-        <ActionDropdown items={[
-          {
-            label: "Kirim WA",
-            icon: <MessageCircle size={14} />,
-            onClick: () => setBroadcastOrder(row),
-          },
-          {
-            label: "Detail",
-            icon: <Eye size={14} />,
-            onClick: () => setSelectedOrder(row),
-          },
-          {
-            label: "Hapus",
-            icon: <Trash2 size={14} />,
-            onClick: () => handleDeleteOrder(row.id),
-            danger: true,
-          },
-        ]} />
-      ),
-    },
-  ];
-
   return (
     <div className="orders-page-container" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* SUMMARY PANEL (RED BRAND GRADIENT PANEL KHAS MBC SISTEM) */}
-      <div className="summary-panel animate-fade-slide-up">
-        <div className="summary-panel-header">
-          <div>
-            <h3>Ringkasan Pesanan</h3>
-            <p>Pilih status pada kartu di bawah untuk menyaring data pesanan secara cepat</p>
-          </div>
-          {stats.masuk > 0 && (
-            <div
+      {/* 6 Indikator Ringkasan Pesanan MB CHONDRO (STANDAR MINIMALIST SAAS) */}
+      <SummarySection
+        title="Ringkasan Pesanan MB CHONDRO"
+        subtitle="Pilih status pada kartu di bawah untuk menyaring data pesanan secara cepat"
+        badge={
+          stats.total > 0 ? (
+            <span
               style={{
-                padding: "6px 14px",
-                background: "rgba(255, 255, 255, 0.18)",
-                backdropFilter: "blur(8px)",
-                borderRadius: "20px",
-                fontSize: "12px",
+                fontSize: 11.5,
                 fontWeight: 600,
-                color: "#ffffff",
-                border: "1px solid rgba(255, 255, 255, 0.25)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
+                color: "#DC2626",
+                background: "#FEF2F2",
+                border: "1px solid #FECACA",
+                padding: "3px 10px",
+                borderRadius: 20,
               }}
             >
-              <span>🔴</span>
-              <span>{stats.masuk} Pesanan Baru Belum Diproses</span>
-            </div>
-          )}
-        </div>
-
-        {/* 4 Stat Cards Grid (Clickable for fast filtering) */}
-        <div className="rekrutmen-stats-grid summary-cards-container">
-          {/* Card 1: Total Pesanan */}
-          <div
-            onClick={() => {
-              setStatusFilter("semua");
-              setSearchParams({});
-            }}
-            className={`rekrutmen-stat-card ${activeTab === "pesanan" && statusFilter === "semua" ? "active" : ""}`}
-            title="Klik untuk melihat semua pesanan"
-          >
-            <div className="rekrutmen-stat-head">
-              <Package size={15} /> Total Pesanan
-            </div>
-            <div className="rekrutmen-stat-value">
-              {stats.total}
-            </div>
-            <span className="rekrutmen-stat-sub">Semua riwayat pesanan ↗</span>
-          </div>
-
-          {/* Card 2: Pesanan Masuk */}
-          <div
-            onClick={() => {
-              setStatusFilter("masuk");
-              setSearchParams({});
-            }}
-            className={`rekrutmen-stat-card ${activeTab === "pesanan" && statusFilter === "masuk" ? "active" : ""}`}
-            title="Klik untuk menyaring pesanan masuk"
-          >
-            <div className="rekrutmen-stat-head">
-              <Clock size={15} /> Pesanan Masuk
-            </div>
-            <div className="rekrutmen-stat-value">
-              {stats.masuk}
-            </div>
-            <span className="rekrutmen-stat-sub">
-              {stats.masuk > 0 ? "🔴 Menunggu diproses ↗" : "Belum ada antrean baru ↗"}
+              ● {stats.total} Pesanan Terdaftar
             </span>
-          </div>
-
-          {/* Card 3: Sedang Diproses */}
-          <div
-            onClick={() => {
-              setStatusFilter("diproses");
-              setSearchParams({});
-            }}
-            className={`rekrutmen-stat-card ${activeTab === "pesanan" && statusFilter === "diproses" ? "active" : ""}`}
-            title="Klik untuk menyaring pesanan yang sedang diproses"
-          >
-            <div className="rekrutmen-stat-head">
-              <Layers size={15} /> Sedang Diproses
-            </div>
-            <div className="rekrutmen-stat-value">
-              {stats.diproses}
-            </div>
-            <span className="rekrutmen-stat-sub">🔵 Dalam pengerjaan tim ↗</span>
-          </div>
-
-          {/* Card 4: Pesanan Selesai */}
-          <div
-            onClick={() => {
-              setStatusFilter("selesai");
-              setSearchParams({});
-            }}
-            className={`rekrutmen-stat-card ${activeTab === "pesanan" && statusFilter === "selesai" ? "active" : ""}`}
-            title="Klik untuk menyaring pesanan selesai"
-          >
-            <div className="rekrutmen-stat-head">
-              <CheckCircle2 size={15} /> Pesanan Selesai
-            </div>
-            <div className="rekrutmen-stat-value">
-              {stats.selesai}
-            </div>
-            <span className="rekrutmen-stat-sub">🟢 Selesai dikerjakan ↗</span>
-          </div>
-        </div>
-      </div>
-
-
+          ) : null
+        }
+      >
+        <SummaryGrid columns={6}>
+          <SummaryCard
+            label="Total Pesanan"
+            value={stats.total}
+            icon={<Package size={16} />}
+            sub="Semua pesanan"
+            accent="red"
+            active={statusFilter === "semua"}
+            onClick={() => setStatusFilter("semua")}
+            title="Tampilkan semua pesanan"
+          />
+          <SummaryCard
+            label="Menunggu Diproses"
+            value={stats.masuk}
+            icon={<Clock size={16} />}
+            sub="Pesanan baru"
+            accent="amber"
+            active={statusFilter === "masuk"}
+            onClick={() => setStatusFilter("masuk")}
+            title="Filter pesanan menunggu diproses"
+          />
+          <SummaryCard
+            label="Diproses"
+            value={stats.diproses}
+            icon={<Layers size={16} />}
+            sub="Sedang dikerjakan"
+            accent="blue"
+            active={statusFilter === "diproses"}
+            onClick={() => setStatusFilter("diproses")}
+            title="Filter pesanan sedang diproses"
+          />
+          <SummaryCard
+            label="Selesai"
+            value={stats.selesai}
+            icon={<CheckCircle2 size={16} />}
+            sub="Pesanan selesai"
+            accent="green"
+            active={statusFilter === "selesai"}
+            onClick={() => setStatusFilter("selesai")}
+            title="Filter pesanan selesai"
+          />
+          <SummaryCard
+            label="Total DP Masuk"
+            value={stats.totalDpMasuk > 0 ? formatRupiah(stats.totalDpMasuk) : "Rp 0"}
+            icon={<Wallet size={16} />}
+            sub="Uang muka diterima"
+            accent="gold"
+            title="Akumulasi uang muka yang sudah diterima"
+          />
+          <SummaryCard
+            label="Total Keseluruhan"
+            value={stats.totalKeseluruhan > 0 ? formatRupiah(stats.totalKeseluruhan) : "Rp 0"}
+            icon={<ChartBar size={16} />}
+            sub="Akumulasi tagihan"
+            accent="red"
+            title="Akumulasi nilai seluruh tagihan pesanan"
+          />
+        </SummaryGrid>
+      </SummarySection>
 
       {/* TAB CONTENT 1: DAFTAR PESANAN */}
       {activeTab === "pesanan" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* FILTER & SEARCH BAR */}
-          <div
-            style={{
-              background: "#ffffff",
-              padding: "14px 16px",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--border)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-            }}
-          >
-            {/* Top row: Status Tabs & Export */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: 10,
-              }}
-            >
-              {/* Segmented Status Filter */}
-              <div
-                style={{
-                  display: "inline-flex",
-                  background: "var(--bg-soft)",
-                  padding: 4,
-                  borderRadius: "var(--radius-sm)",
-                  gap: 4,
-                }}
-              >
-                {[
-                  { key: "semua", label: "Semua", count: stats.total },
-                  { key: "masuk", label: "Masuk", count: stats.masuk },
-                  { key: "diproses", label: "Diproses", count: stats.diproses },
-                  { key: "selesai", label: "Selesai", count: stats.selesai },
-                ].map((tab) => {
-                  const active = statusFilter === tab.key;
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setStatusFilter(tab.key as any)}
-                      style={{
-                        background: active ? "#ffffff" : "transparent",
-                        color: active ? "var(--primary-700)" : "var(--text-secondary)",
-                        fontWeight: active ? 700 : 500,
-                        border: "none",
-                        borderRadius: 6,
-                        padding: "5px 12px",
-                        fontSize: 12,
-                        cursor: "pointer",
-                        boxShadow: active ? "var(--shadow-sm)" : "none",
-                      }}
-                    >
-                      {tab.label} ({tab.count})
-                    </button>
-                  );
-                })}
+          {/* PANEL FILTER DAN DOWNLOAD */}
+          <div className="orders-filter-panel">
+            {/* Desktop View: Search di kiri, [Status, Periode, Download] sejajar di kanan */}
+            <div className="orders-filter-row-desktop">
+              <div className="orders-filter-search-col">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Cari nama customer / ID / no. WhatsApp..."
+                />
               </div>
 
-              {/* Action Export Buttons */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <button
-                  type="button"
-                  className="btn-red btn-box-badge"
-                  onClick={handleExportCSV}
-                  title="Ekspor CSV"
-                >
-                  <FileSpreadsheet size={13} />
-                  <span>CSV</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn-red btn-box-badge"
-                  onClick={handleExportPDF}
-                  title="Ekspor PDF"
-                >
-                  <FileText size={13} />
-                  <span>PDF</span>
-                </button>
+              <div className="orders-filter-controls-group">
+                <FilterComp
+                  value={statusFilter === "semua" ? "" : statusFilter}
+                  onChange={(val) => setStatusFilter((val || "semua") as any)}
+                  allLabel="Semua Status"
+                  options={[
+                    { value: "masuk", label: "Masuk" },
+                    { value: "diproses", label: "Diproses" },
+                    { value: "selesai", label: "Selesai" },
+                  ]}
+                />
+                <FilterComp
+                  value={dateFilter === "semua" ? "" : dateFilter}
+                  onChange={(val) => setDateFilter((val || "semua") as any)}
+                  allLabel="Semua Periode"
+                  options={[
+                    { value: "hari_ini", label: "Hari Ini" },
+                    { value: "7_hari", label: "7 Hari Terakhir" },
+                    { value: "30_hari", label: "30 Hari Terakhir" },
+                  ]}
+                />
+                <DownloadDropdown
+                  onExportCsv={handleExportCSV}
+                  onExportPdf={handleExportPDF}
+                />
+                {(Boolean(searchQuery.trim()) || statusFilter !== "semua" || dateFilter !== "semua") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setStatusFilter("semua");
+                      setDateFilter("semua");
+                    }}
+                    className="btn btn-ghost btn-sm btn-filter-reset"
+                    title="Reset semua filter pencarian"
+                  >
+                    <X size={13} /> Reset
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Toolbar row: SearchBar, Filter Status, Filter Periode, & Reset Filter matching Rekrutmen */}
-            <div className="toolbar" style={{ marginTop: 4 }}>
-              <SearchBar
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder="Cari nama customer / ID / no. WhatsApp..."
-              />
-              <FilterComp
-                label="Status"
-                value={statusFilter === "semua" ? "" : statusFilter}
-                onChange={(val) => setStatusFilter((val || "semua") as any)}
-                options={[
-                  { value: "", label: "Semua Status" },
-                  { value: "masuk", label: "Masuk" },
-                  { value: "diproses", label: "Diproses" },
-                  { value: "selesai", label: "Selesai" },
-                ]}
-              />
-              <FilterComp
-                label="Periode"
-                value={dateFilter === "semua" ? "" : dateFilter}
-                onChange={(val) => setDateFilter((val || "semua") as any)}
-                options={[
-                  { value: "", label: "Semua Periode" },
-                  { value: "hari_ini", label: "Hari Ini" },
-                  { value: "7_hari", label: "7 Hari Terakhir" },
-                  { value: "30_hari", label: "30 Hari Terakhir" },
-                ]}
-              />
-              {(Boolean(searchQuery.trim()) || statusFilter !== "semua" || dateFilter !== "semua") && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setStatusFilter("semua");
-                    setDateFilter("semua");
-                  }}
-                  className="btn btn-ghost btn-sm"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
-                    fontSize: "12px",
-                    color: "#dc2626",
-                  }}
-                  title="Reset semua filter pencarian"
-                >
-                  <X size={13} /> Reset Filter
-                </button>
-              )}
+            {/* Mobile View: Search di baris 1, [Status, Periode, Download] sejajar di baris 2 */}
+            <div className="orders-filter-row-mobile">
+              <div className="orders-mobile-search-row">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Cari customer, ID, WA..."
+                />
+              </div>
+
+              <div className="orders-mobile-controls-row">
+                <div className="orders-mobile-control-item">
+                  <FilterComp
+                    value={statusFilter === "semua" ? "" : statusFilter}
+                    onChange={(val) => setStatusFilter((val || "semua") as any)}
+                    allLabel="Semua Status"
+                    options={[
+                      { value: "masuk", label: "Masuk" },
+                      { value: "diproses", label: "Diproses" },
+                      { value: "selesai", label: "Selesai" },
+                    ]}
+                  />
+                </div>
+                <div className="orders-mobile-control-item">
+                  <FilterComp
+                    value={dateFilter === "semua" ? "" : dateFilter}
+                    onChange={(val) => setDateFilter((val || "semua") as any)}
+                    allLabel="Semua Periode"
+                    options={[
+                      { value: "hari_ini", label: "Hari Ini" },
+                      { value: "7_hari", label: "7 Hari Terakhir" },
+                      { value: "30_hari", label: "30 Hari Terakhir" },
+                    ]}
+                  />
+                </div>
+                <div className="orders-mobile-control-item download-item">
+                  <DownloadDropdown
+                    onExportCsv={handleExportCSV}
+                    onExportPdf={handleExportPDF}
+                  />
+                </div>
+                {(Boolean(searchQuery.trim()) || statusFilter !== "semua" || dateFilter !== "semua") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setStatusFilter("semua");
+                      setDateFilter("semua");
+                    }}
+                    className="btn btn-ghost btn-sm btn-mobile-filter-reset"
+                    title="Reset filter"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -711,13 +504,13 @@ export function KelolaPesanan() {
             }}
           />
 
-          {/* TABLE OF ORDERS */}
-          <DataTable
-            columns={columns}
-            data={filteredOrders}
+          {/* TABLE OF ORDERS (DESKTOP 6 KOLOM & MOBILE 5 KOLOM HORIZONTAL) */}
+          <OrdersTable
+            orders={filteredOrders}
             loading={loadingOrders}
-            rowKey={(r) => r.id}
-            onRowClick={(row) => setSelectedOrder(row)}
+            onOrderClick={(order) => setSelectedOrder(order)}
+            onOpenBroadcast={(order) => setBroadcastOrder(order)}
+            onDeleteOrder={handleDeleteOrder}
             emptyTitle="Belum Ada Pesanan"
             emptyMessage={
               searchQuery || statusFilter !== "semua" || dateFilter !== "semua"

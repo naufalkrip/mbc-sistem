@@ -8,6 +8,9 @@ import {
   FolderPlus,
   Calendar,
   Layers,
+  TrendingUp,
+  TrendingDown,
+  Wallet,
 } from "lucide-react";
 import type { TransaksiGroupWithStats } from "../../types";
 import { formatRupiah, formatTanggal } from "../../utils/format";
@@ -18,6 +21,7 @@ import { DatePicker } from "../ui/DatePicker";
 import { Modal } from "../ui/Modal";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ActionDropdown } from "../ui/ActionDropdown";
+import { SummaryCard, SummaryGrid, SummarySection } from "../ui/SummaryCard";
 
 
 interface TransaksiListProps {
@@ -87,6 +91,22 @@ export function TransaksiList({
   const totalMutasi = useMemo(() => {
     return filtered.reduce((acc, g) => acc + (Number(g.totalTransaksi) || 0), 0);
   }, [filtered]);
+
+  const totalStats = useMemo(() => {
+    let totalPemasukan = 0;
+    let totalPengeluaran = 0;
+    filtered.forEach((g) => {
+      totalPemasukan += Number(g.totalPemasukan) || 0;
+      totalPengeluaran += Number(g.totalPengeluaran) || 0;
+    });
+    return {
+      totalGroups: filtered.length,
+      totalPemasukan,
+      totalPengeluaran,
+      saldo: totalPemasukan - totalPengeluaran,
+      totalTrx: totalMutasi,
+    };
+  }, [filtered, totalMutasi]);
 
   const validate = (f: FormGroup): Record<string, string> => {
     const err: Record<string, string> = {};
@@ -282,61 +302,42 @@ export function TransaksiList({
 
   return (
     <div className="page-grid">
-      {/* 1. TOP SUMMARY PANEL (HANYA JUMLAH TRANSAKSI) */}
-      <div className="summary-panel animate-fade-slide-up">
-        <div className="summary-panel-header" style={{ marginBottom: 0 }}>
-          <div>
-            <h3>Ringkasan Transaksi Temporer</h3>
-            <p>Manajemen pencatatan transaksi pos kegiatan & proyek mbc sistem</p>
-          </div>
-
-          <div
-            style={{
-              background: "rgba(255, 255, 255, 0.16)",
-              backdropFilter: "blur(4px)",
-              borderRadius: 10,
-              padding: "10px 18px",
-              border: "1px solid rgba(255, 255, 255, 0.25)",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: "rgba(255, 255, 255, 0.2)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#ffffff",
-                flexShrink: 0,
-              }}
-            >
-              <FolderPlus size={18} />
-            </div>
-            <div>
-              <div
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  color: "rgba(255, 255, 255, 0.85)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                }}
-              >
-                Jumlah Transaksi
-              </div>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: "#ffffff", lineHeight: 1.2 }}>
-                {filtered.length.toLocaleString("id-ID")}{" "}
-                <span style={{ fontSize: "13px", fontWeight: 500, opacity: 0.9 }}>Transaksi</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* 1. TOP SUMMARY PANEL (STANDAR MINIMALIST SAAS) */}
+      <SummarySection
+        title="Ringkasan Transaksi Temporer"
+        subtitle="Manajemen pencatatan transaksi pos kegiatan & proyek mbc sistem"
+      >
+        <SummaryGrid columns={4}>
+          <SummaryCard
+            label="Pos Transaksi"
+            value={totalStats.totalGroups.toLocaleString("id-ID")}
+            icon={<FolderPlus size={16} />}
+            sub={`${totalStats.totalTrx} rincian mutasi`}
+            accent="slate"
+          />
+          <SummaryCard
+            label="Total Uang Masuk"
+            value={formatRupiah(totalStats.totalPemasukan)}
+            icon={<TrendingUp size={16} />}
+            sub="Pemasukan pos kegiatan"
+            accent="green"
+          />
+          <SummaryCard
+            label="Total Uang Keluar"
+            value={formatRupiah(totalStats.totalPengeluaran)}
+            icon={<TrendingDown size={16} />}
+            sub="Pengeluaran pos kegiatan"
+            accent="red"
+          />
+          <SummaryCard
+            label="Sisa Saldo Kas"
+            value={formatRupiah(totalStats.saldo)}
+            icon={<Wallet size={16} />}
+            sub="Saldo bersih pos kegiatan"
+            accent="gold"
+          />
+        </SummaryGrid>
+      </SummarySection>
 
       {/* 2. CARD TABEL TRANSAKSI TEMPORER */}
       <div className="card">

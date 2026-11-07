@@ -47,6 +47,7 @@ import { Pagination } from "../components/ui/Pagination";
 import { DownloadPdfButton } from "../components/ui/DownloadPdfButton";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ActionDropdown } from "../components/ui/ActionDropdown";
+import { SummaryCard, SummaryGrid, SummarySection } from "../components/ui/SummaryCard";
 
 
 const KEGIATAN_SUGGEST = [
@@ -704,105 +705,69 @@ export function Absensi() {
     <div className="page-grid">
       {activeTab === "riwayat" ? (
         <>
-          {/* RINGKASAN KEHADIRAN - SATU PANEL MERAH */}
-          <div className="summary-panel">
-            <div className="summary-panel-header">
-              <div>
-                <h3>Ringkasan Kehadiran</h3>
-                <p>Pilih rentang waktu untuk melihat ringkasan data</p>
-              </div>
+          {/* RINGKASAN KEHADIRAN (STANDAR MINIMALIST SAAS) */}
+          <SummarySection
+            title="Ringkasan Kehadiran"
+            subtitle="Pilih rentang waktu untuk melihat ringkasan data kehadiran"
+            extra={
               <DateRangePicker
                 value={summaryRange}
                 onChange={setSummaryRange}
               />
-            </div>
-            <div className="absensi-summary-grid">
-              {/* Hadir */}
-              <div className="absensi-stat-card">
-                <div className="absensi-stat-head">
-                  <div className="absensi-stat-icon">
-                    <CheckCircle2 size={15} />
-                  </div>
-                  <span>Hadir</span>
-                </div>
-                <div className="absensi-stat-value">
-                  {summaryStat.hadir.toLocaleString("id-ID")}
-                </div>
-              </div>
-
-              {/* Izin */}
-              <div className="absensi-stat-card">
-                <div className="absensi-stat-head">
-                  <div className="absensi-stat-icon">
-                    <FileText size={15} />
-                  </div>
-                  <span>Izin</span>
-                </div>
-                <div className="absensi-stat-value">
-                  {summaryStat.izin.toLocaleString("id-ID")}
-                </div>
-              </div>
-
-              {/* Sakit */}
-              <div className="absensi-stat-card">
-                <div className="absensi-stat-head">
-                  <div className="absensi-stat-icon">
-                    <Thermometer size={15} />
-                  </div>
-                  <span>Sakit</span>
-                </div>
-                <div className="absensi-stat-value">
-                  {summaryStat.sakit.toLocaleString("id-ID")}
-                </div>
-              </div>
-
-              {/* Cuti */}
-              <div className="absensi-stat-card">
-                <div className="absensi-stat-head">
-                  <div className="absensi-stat-icon">
-                    <CalendarOff size={15} />
-                  </div>
-                  <span>Cuti</span>
-                </div>
-                <div className="absensi-stat-value">
-                  {summaryStat.cuti.toLocaleString("id-ID")}
-                </div>
-              </div>
-
-              {/* Alpa */}
-              <div className="absensi-stat-card">
-                <div className="absensi-stat-head">
-                  <div className="absensi-stat-icon">
-                    <XCircle size={15} />
-                  </div>
-                  <span>Alpa</span>
-                </div>
-                <div className="absensi-stat-value">
-                  {summaryStat.alpa.toLocaleString("id-ID")}
-                </div>
-              </div>
-
-              {/* Persentase Kehadiran */}
-              <div className="absensi-stat-card highlight">
-                <div className="absensi-stat-head">
-                  <div className="absensi-stat-icon">
-                    <Percent size={15} />
-                  </div>
-                  <span>Kehadiran</span>
-                </div>
-                <div className="absensi-stat-value">
-                  {summaryStat.persentase}%
-                </div>
-              </div>
-            </div>
-          </div>
+            }
+          >
+            <SummaryGrid columns={6}>
+              <SummaryCard
+                label="Hadir"
+                value={summaryStat.hadir.toLocaleString("id-ID")}
+                icon={<CheckCircle2 size={16} />}
+                sub="Kehadiran tercatat"
+                accent="green"
+              />
+              <SummaryCard
+                label="Izin"
+                value={summaryStat.izin.toLocaleString("id-ID")}
+                icon={<FileText size={16} />}
+                sub="Izin berhalangan"
+                accent="amber"
+              />
+              <SummaryCard
+                label="Sakit"
+                value={summaryStat.sakit.toLocaleString("id-ID")}
+                icon={<Thermometer size={16} />}
+                sub="Keterangan sakit"
+                accent="blue"
+              />
+              <SummaryCard
+                label="Cuti"
+                value={summaryStat.cuti.toLocaleString("id-ID")}
+                icon={<CalendarOff size={16} />}
+                sub="Izin cuti dinas"
+                accent="purple"
+              />
+              <SummaryCard
+                label="Alpha"
+                value={summaryStat.alpa.toLocaleString("id-ID")}
+                icon={<XCircle size={16} />}
+                sub="Tanpa keterangan"
+                accent="red"
+              />
+              <SummaryCard
+                label="Kehadiran"
+                value={`${summaryStat.persentase}%`}
+                icon={<Percent size={16} />}
+                sub={`${summaryStat.total.toLocaleString("id-ID")} total data`}
+                accent="gold"
+              />
+            </SummaryGrid>
+          </SummarySection>
 
           {/* RIWAYAT ABSENSI */}
           <div className="card">
             <div className="card-header">
               <div>
-                <h2>Riwayat Absensi</h2>
-                <p>Daftar absensi yang telah dibuat</p>
+                <h2>Rekap Absensi</h2>
+                <p>Ringkasan dan riwayat kehadiran anggota</p>
               </div>
               <div className="header-actions">
                 <DownloadPdfButton onGenerate={handleDownloadPdf} />
@@ -837,6 +802,66 @@ export function Absensi() {
               rowKey={(r) => r.key}
               emptyMessage="Belum ada riwayat absensi."
               fullHeight={true}
+              renderMobileCard={(sesi) => (
+                <div
+                  className="absensi-mobile-card"
+                  onClick={() => setDetailSesi(sesi)}
+                  style={{
+                    background: "#FFFFFF",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: 10,
+                    padding: "12px 14px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <strong style={{ fontSize: 13.5, color: "#0F172A" }}>{sesi.kegiatan}</strong>
+                    <span style={{ fontSize: 11.5, color: "#64748B", fontWeight: 500 }}>{formatTanggal(sesi.tanggal)}</span>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: "#64748B" }}>
+                    <span>⏰ {sesi.waktu}</span>
+                    <span>👥 {sesi.jumlahAnggota} Anggota</span>
+                  </div>
+
+                  <div style={{ fontSize: 12, color: "#475569", background: "#F8FAFC", padding: "6px 10px", borderRadius: 6, border: "1px solid #F1F5F9" }}>
+                    {buatRingkasanSesi(sesi.daftar)}
+                  </div>
+
+                  <div
+                    style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 2 }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      className="btn-minimal-sm"
+                      onClick={() => setDetailSesi(sesi)}
+                      style={{ padding: "4px 10px", fontSize: 12 }}
+                    >
+                      <Eye size={13} /> Detail
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-minimal-sm"
+                      onClick={() => openEdit(sesi)}
+                      style={{ padding: "4px 10px", fontSize: 12 }}
+                    >
+                      <Pencil size={13} /> Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-minimal-sm text-danger"
+                      onClick={() => setToDelete(sesi)}
+                      style={{ padding: "4px 8px", fontSize: 12 }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              )}
             />
             <Pagination
               page={sesiPagination.page}

@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { ArrowUp, ArrowDown, Wallet, Calendar, ChevronDown, X, TrendingUp } from "lucide-react";
 import { formatRupiah, hitungSaldo } from "../../utils/format";
 import type { Transaksi } from "../../types";
+import { SummaryCard, SummaryGrid } from "../ui/SummaryCard";
 
 const PRESET_OPTIONS = [
   { value: "hariIni", label: "Hari Ini" },
@@ -216,61 +217,36 @@ export function FinancialSummary(props: FinancialSummaryProps) {
         </div>
       </div>
 
-      <div
-        className="financial-cards-grid"
-      >
-        {/* Total Pemasukan */}
-        <div className="financial-stat-card-custom">
-          <div className="financial-stat-head">
-            <div className="financial-stat-icon-wrap">
-              <ArrowUp size={15} />
-            </div>
-            <span>Total Pemasukan</span>
-          </div>
-          <div className="financial-stat-value-custom positive">
-            {formatRupiah(saldo.pemasukan)}
-          </div>
-        </div>
-
-        {/* Total Pengeluaran */}
-        <div className="financial-stat-card-custom">
-          <div className="financial-stat-head">
-            <div className="financial-stat-icon-wrap">
-              <ArrowDown size={15} />
-            </div>
-            <span>Total Pengeluaran</span>
-          </div>
-          <div className="financial-stat-value-custom negative">
-            {formatRupiah(saldo.pengeluaran)}
-          </div>
-        </div>
-
-        {/* Saldo Kas */}
-        <div className="financial-stat-card-custom highlight">
-          <div className="financial-stat-head">
-            <div className="financial-stat-icon-wrap">
-              <Wallet size={15} />
-            </div>
-            <span>Sisa Saldo Kas</span>
-          </div>
-          <div className="financial-stat-value-custom highlight-text">
-            {formatRupiah(saldo.saldo)}
-          </div>
-        </div>
-
-        {/* Persentase Penggunaan */}
-        <div className="financial-stat-card-custom">
-          <div className="financial-stat-head">
-            <div className="financial-stat-icon-wrap">
-              <TrendingUp size={15} />
-            </div>
-            <span>Pengeluaran ({filteredCount} trx)</span>
-          </div>
-          <div className="financial-stat-value-custom">
-            {percentage}%
-          </div>
-        </div>
-      </div>
+      <SummaryGrid columns={4}>
+        <SummaryCard
+          label="Total Pemasukan"
+          value={formatRupiah(saldo.pemasukan)}
+          icon={<ArrowUp size={16} />}
+          sub="Akumulasi dana masuk"
+          accent="green"
+        />
+        <SummaryCard
+          label="Total Pengeluaran"
+          value={formatRupiah(saldo.pengeluaran)}
+          icon={<ArrowDown size={16} />}
+          sub="Akumulasi dana keluar"
+          accent="red"
+        />
+        <SummaryCard
+          label="Sisa Saldo Kas"
+          value={formatRupiah(saldo.saldo)}
+          icon={<Wallet size={16} />}
+          sub="Kas bersih tersedia"
+          accent="gold"
+        />
+        <SummaryCard
+          label="Rasio Pengeluaran"
+          value={`${percentage}%`}
+          icon={<TrendingUp size={16} />}
+          sub={`${filteredCount} transaksi tercatat`}
+          accent="blue"
+        />
+      </SummaryGrid>
     </div>
   );
 }

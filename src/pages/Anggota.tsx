@@ -8,6 +8,12 @@ import {
   Trash2,
   Upload,
   User,
+  Users,
+  UserCheck,
+  UserX,
+  CalendarOff,
+  Camera,
+  Maximize2,
 } from "lucide-react";
 import { addAnggota, deleteAnggota, getAnggota, updateAnggota } from "../services/api";
 import { CACHE_KEYS, cacheMutate } from "../services/cache";
@@ -22,11 +28,14 @@ import { DataTable } from "../components/ui/DataTable";
 import type { Column } from "../components/ui/DataTable";
 import { SearchBar } from "../components/ui/SearchBar";
 import { Filter } from "../components/ui/Filter";
+import { SummaryCard, SummaryGrid, SummarySection } from "../components/ui/SummaryCard";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { Modal } from "../components/ui/Modal";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { DownloadPdfButton } from "../components/ui/DownloadPdfButton";
 import { ActionDropdown } from "../components/ui/ActionDropdown";
+import { PhotoLightboxModal, LightboxItem } from "../components/ui/PhotoLightboxModal";
+import { AnggotaMobileCard } from "../components/anggota/AnggotaMobileCard";
 
 
 interface FormAnggota {
@@ -296,6 +305,16 @@ export function Anggota() {
     });
   }, [anggota, search, filterDivisi, filterStatus, sortField, sortDirection, customDivisiOrder, uniqueDivisiList]);
 
+  const memberStats = useMemo(() => {
+    const list = anggota || [];
+    return {
+      total: list.length,
+      aktif: list.filter((a) => a.status === "Aktif").length,
+      tidakAktif: list.filter((a) => a.status === "Tidak Aktif").length,
+      cuti: list.filter((a) => a.status === "Cuti").length,
+    };
+  }, [anggota]);
+
   const validate = (f: FormAnggota): Record<string, string> => {
     const err: Record<string, string> = {};
     if (!f.nama.trim()) err.nama = "Nama wajib diisi.";
@@ -451,6 +470,53 @@ export function Anggota() {
     });
   };
 
+  // State untuk PhotoLightboxModal
+  const memberPhotoItems = useMemo<LightboxItem[]>(() => {
+    const list: LightboxItem[] = [];
+    for (const a of filtered || []) {
+      const rawPhoto = a.foto || getMemberPhoto(a.id, a.nama);
+      if (isValidPhotoUrl(rawPhoto)) {
+        list.push({
+          id: a.id,
+          url: rawPhoto!,
+          title: `Pas Foto: ${a.nama}`,
+          subtitle: `Divisi: ${a.divisi}${a.jabatan ? ` • ${a.jabatan}` : ""}`,
+          status: a.status,
+          fileName: `${a.nama.replace(/[^a-zA-Z0-9_-]/g, "_")}.jpg`,
+        });
+      }
+    }
+    return list;
+  }, [filtered]);
+
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [customLightboxItems, setCustomLightboxItems] = useState<LightboxItem[] | null>(null);
+
+  const activeLightboxItems = customLightboxItems || memberPhotoItems;
+
+  const openPhotoLightbox = (url: string | undefined, title: string, fileName?: string, memberId?: string) => {
+    if (!url) return;
+    const idx = memberPhotoItems.findIndex(
+      (item) => (memberId && item.id === memberId) || item.url === url
+    );
+
+    if (idx !== -1) {
+      setCustomLightboxItems(null);
+      setLightboxIndex(idx);
+      setLightboxOpen(true);
+    } else {
+      const singleItem: LightboxItem = {
+        url,
+        title,
+        fileName,
+      };
+      setCustomLightboxItems([singleItem]);
+      setLightboxIndex(0);
+      setLightboxOpen(true);
+    }
+  };
+
   const columns: Column<Anggota>[] = [
     { key: "no", header: "No", render: (_r, idx) => <>{idx + 1}</> },
     {
@@ -468,6 +534,12 @@ export function Anggota() {
                 alt={r.nama}
                 className="member-avatar-img"
                 loading="lazy"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openPhotoLightbox(photoUrl, `Pas Foto: ${r.nama}`, `${r.nama}.jpg`, r.id);
+                }}
+                title={`Klik untuk memperbesar pas foto ${r.nama}`}
+                style={{ cursor: "pointer" }}
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = "none";
                   const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement | null;
@@ -521,6 +593,18 @@ export function Anggota() {
       render: (r) => (
         <ActionDropdown items={[
           { label: "Detail", icon: <Eye size={14} />, onClick: () => setDetail(r) },
+          {
+            label: "Lihat Foto Full",
+            icon: <Camera size={14} style={{ color: "var(--primary-700, #b91c1c)" }} />,
+            onClick: () => {
+              const rawPhoto = r.foto || getMemberPhoto(r.id, r.nama);
+              if (isValidPhotoUrl(rawPhoto)) {
+                openPhotoLightbox(rawPhoto, `Pas Foto: ${r.nama}`, `${r.nama}.jpg`, r.id);
+              } else {
+                toastError(`Anggota ${r.nama} belum memiliki pas foto.`);
+              }
+            },
+          },
           { label: "Edit", icon: <Pencil size={14} />, onClick: () => openEdit(r) },
           { label: "Hapus", icon: <Trash2 size={14} />, onClick: () => setToDelete(r), danger: true },
         ]} />
@@ -529,86 +613,137 @@ export function Anggota() {
   ];
 
   return (
-    <div className="page-grid">
-      <div className="card">
-        <div className="card-header">
-          <div>
-            <h2>Daftar Anggota</h2>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-              <p style={{ margin: 0 }}>{loading ? "Memuat data..." : `${filtered.length} data anggota ditampilkan`}</p>
-              {sortField && (
-                <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                  <button
-                    type="button"
-                    className="sort-active-badge"
-                    onClick={() => {
-                      if (sortField === "divisi") setCustomDivisiOrder([]);
-                      setSortField(null);
-                      setSortDirection("asc");
-                    }}
-                    title="Klik untuk reset urutan default"
-                  >
-                    <span>
-                      Urut: {sortField === "nama" ? "Nama Lengkap" : sortField === "namaPanggilan" ? "Nama Panggilan" : customDivisiOrder.length > 0 ? "Divisi (Pilihan Urutan)" : "Divisi"} ({sortDirection === "asc" ? "A-Z" : "Z-A"})
-                    </span>
-                    <span className="sort-badge-close">×</span>
-                  </button>
-                  {sortField === "divisi" && (
+    <div className="page-grid anggota-page-grid" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* RINGKASAN DATA ANGGOTA (STANDAR MINIMALIST SAAS) */}
+      <SummarySection
+        title="Ringkasan Data Anggota"
+        subtitle="Status dan ketersediaan anggota MB Chondro"
+      >
+        <SummaryGrid columns={4}>
+          <SummaryCard
+            label="Total Anggota"
+            value={loading ? "..." : memberStats.total}
+            icon={<Users size={16} />}
+            sub="Seluruh anggota terdaftar"
+            accent="slate"
+            active={!filterStatus}
+            onClick={() => setFilterStatus("")}
+            title="Tampilkan semua status anggota"
+          />
+          <SummaryCard
+            label="Anggota Aktif"
+            value={loading ? "..." : memberStats.aktif}
+            icon={<UserCheck size={16} />}
+            sub="Berpartisipasi aktif"
+            accent="green"
+            active={filterStatus === "Aktif"}
+            onClick={() => setFilterStatus(filterStatus === "Aktif" ? "" : "Aktif")}
+            title="Filter anggota aktif"
+          />
+          <SummaryCard
+            label="Tidak Aktif"
+            value={loading ? "..." : memberStats.tidakAktif}
+            icon={<UserX size={16} />}
+            sub="Nonaktif sementara"
+            accent="red"
+            active={filterStatus === "Tidak Aktif"}
+            onClick={() => setFilterStatus(filterStatus === "Tidak Aktif" ? "" : "Tidak Aktif")}
+            title="Filter anggota tidak aktif"
+          />
+          <SummaryCard
+            label="Cuti"
+            value={loading ? "..." : memberStats.cuti}
+            icon={<CalendarOff size={16} />}
+            sub="Izin cuti berkegiatan"
+            accent="purple"
+            active={filterStatus === "Cuti"}
+            onClick={() => setFilterStatus(filterStatus === "Cuti" ? "" : "Cuti")}
+            title="Filter anggota cuti"
+          />
+        </SummaryGrid>
+      </SummarySection>
+
+      <div className="card anggota-page-card">
+        <div className="anggota-top-section">
+          <div className="card-header">
+            <div>
+              <h2>Daftar Anggota</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <p style={{ margin: 0 }}>{loading ? "Memuat data..." : `${filtered.length} data anggota ditampilkan`}</p>
+                {sortField && (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                     <button
                       type="button"
-                      className="divisi-preset-btn"
-                      style={{ padding: "0.2rem 0.55rem" }}
-                      onClick={openDivisiSortModal}
-                      title="Ubah urutan divisi"
+                      className="sort-active-badge"
+                      onClick={() => {
+                        if (sortField === "divisi") setCustomDivisiOrder([]);
+                        setSortField(null);
+                        setSortDirection("asc");
+                      }}
+                      title="Klik untuk reset urutan default"
                     >
-                      <ListOrdered size={12} /> Ubah
+                      <span>
+                        Urut: {sortField === "nama" ? "Nama Lengkap" : sortField === "namaPanggilan" ? "Nama Panggilan" : customDivisiOrder.length > 0 ? "Divisi (Pilihan Urutan)" : "Divisi"} ({sortDirection === "asc" ? "A-Z" : "Z-A"})
+                      </span>
+                      <span className="sort-badge-close">×</span>
                     </button>
-                  )}
-                </div>
-              )}
+                    {sortField === "divisi" && (
+                      <button
+                        type="button"
+                        className="divisi-preset-btn"
+                        style={{ padding: "0.2rem 0.55rem" }}
+                        onClick={openDivisiSortModal}
+                        title="Ubah urutan divisi"
+                      >
+                        <ListOrdered size={12} /> Ubah
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="header-actions">
+              <DownloadPdfButton onGenerate={handleDownloadPdf} />
+              <button className="btn btn-primary" onClick={openAdd}><Plus size={17} /> Tambah Anggota</button>
             </div>
           </div>
-          <div className="header-actions">
-            <DownloadPdfButton onGenerate={handleDownloadPdf} />
-            <button className="btn btn-primary" onClick={openAdd}><Plus size={17} /> Tambah Anggota</button>
-          </div>
-        </div>
 
-        <div className="toolbar">
-          <SearchBar value={search} onChange={setSearch} placeholder="Cari nama / divisi / No. HP..." />
-          <Filter label="Divisi" value={filterDivisi} onChange={setFilterDivisi} options={divisiOptions} />
-          <Filter
-            label="Status"
-            value={filterStatus}
-            onChange={setFilterStatus}
-            options={STATUS_ANGGOTA.map((s) => ({ value: s, label: s }))}
-          />
-          <div className="filter">
-            <label className="filter-label">Urutan</label>
-            <button
-              type="button"
-              className={`filter-btn ${sortField === "divisi" ? "active" : ""}`}
-              onClick={openDivisiSortModal}
-              title="Buka popup untuk memilih urutan divisi"
-            >
-              <ListOrdered size={15} style={{ color: sortField === "divisi" ? "var(--primary)" : "var(--text-muted)" }} />
-              <span>Urutan Divisi</span>
-              {customDivisiOrder.length > 0 && (
-                <span
-                  style={{
-                    marginLeft: "2px",
-                    fontSize: "11px",
-                    backgroundColor: sortField === "divisi" ? "var(--primary-100)" : "var(--bg-soft, #f1f5f9)",
-                    color: sortField === "divisi" ? "var(--primary)" : "var(--text-secondary)",
-                    padding: "1px 6px",
-                    borderRadius: "9999px",
-                    fontWeight: 600,
-                  }}
-                >
-                  {customDivisiOrder.length}
-                </span>
-              )}
-            </button>
+          <div className="toolbar">
+            <SearchBar value={search} onChange={setSearch} placeholder="Cari nama / divisi / No. HP..." />
+            <Filter label="Divisi" value={filterDivisi} onChange={setFilterDivisi} options={divisiOptions} />
+            <Filter
+              label="Status"
+              value={filterStatus}
+              onChange={setFilterStatus}
+              options={STATUS_ANGGOTA.map((s) => ({ value: s, label: s }))}
+            />
+            <div className="filter">
+              <label className="filter-label">Urutan</label>
+              <button
+                type="button"
+                className={`filter-btn ${sortField === "divisi" ? "active" : ""}`}
+                onClick={openDivisiSortModal}
+                title="Buka popup untuk memilih urutan divisi"
+              >
+                <ListOrdered size={15} style={{ color: sortField === "divisi" ? "var(--primary)" : "var(--text-muted)" }} />
+                <span>Urutan Divisi</span>
+                {customDivisiOrder.length > 0 && (
+                  <span
+                    style={{
+                      marginLeft: "2px",
+                      fontSize: "11px",
+                      backgroundColor: sortField === "divisi" ? "var(--primary-100)" : "var(--bg-soft, #f1f5f9)",
+                      color: sortField === "divisi" ? "var(--primary)" : "var(--text-secondary)",
+                      padding: "1px 6px",
+                      borderRadius: "9999px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {customDivisiOrder.length}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -622,6 +757,18 @@ export function Anggota() {
           sortDirection={sortDirection}
           onSort={handleSort}
           fullHeight
+          renderMobileCard={(member, idx) => (
+            <AnggotaMobileCard
+              key={member.id}
+              member={member}
+              index={idx}
+              onEdit={openEdit}
+              onDelete={setToDelete}
+              onDetail={setDetail}
+              onOpenPhoto={openPhotoLightbox}
+              toastError={toastError}
+            />
+          )}
         />
       </div>
 
@@ -874,15 +1021,26 @@ export function Anggota() {
               const p = detail.foto || getMemberPhoto(detail.id, detail.nama);
               if (!isValidPhotoUrl(p)) return null;
               return (
-                <div className="detail-member-photo-wrap">
+                <div className="detail-member-photo-wrap" style={{ flexDirection: "column", alignItems: "center", gap: 8 }}>
                   <img
                     src={p}
                     alt={detail.nama}
                     className="detail-member-photo"
+                    onClick={() => openPhotoLightbox(p, `Pas Foto: ${detail.nama}`, `${detail.nama}.jpg`, detail.id)}
+                    style={{ cursor: "pointer" }}
+                    title="Klik untuk memperbesar pas foto"
                     onError={(e) => {
                       (e.currentTarget as HTMLElement).style.display = "none";
                     }}
                   />
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => openPhotoLightbox(p, `Pas Foto: ${detail.nama}`, `${detail.nama}.jpg`, detail.id)}
+                    style={{ fontSize: "11px", padding: "3px 10px", display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 600 }}
+                  >
+                    <Maximize2 size={12} /> Lihat Foto Full
+                  </button>
                 </div>
               );
             })()}
@@ -928,6 +1086,14 @@ export function Anggota() {
         loading={deleting}
         onConfirm={handleDelete}
         onCancel={() => setToDelete(null)}
+      />
+      {/* FULL PHOTO LIGHTBOX MODAL */}
+      <PhotoLightboxModal
+        isOpen={lightboxOpen}
+        items={activeLightboxItems}
+        currentIndex={lightboxIndex}
+        onClose={() => setLightboxOpen(false)}
+        onIndexChange={(idx) => setLightboxIndex(idx)}
       />
     </div>
   );

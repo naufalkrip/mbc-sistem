@@ -1,19 +1,19 @@
 import { useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import {
+  CalendarCheck,
   ClipboardCheck,
-  FileText,
   LayoutDashboard,
   LogOut,
-  UserPlus,
+  UserRoundPlus,
   Users,
   Wallet,
-  WalletCards,
-  ShoppingBag,
+  Layers,
+  ArrowLeftRight,
+  Package,
   Ticket,
   X,
   ChevronDown,
-  ChevronRight,
   History,
   ClipboardList,
   ScrollText,
@@ -40,12 +40,12 @@ type NavItemGroup = {
 type NavItem = NavItemSimple | NavItemGroup;
 
 const NAV_ITEMS: NavItem[] = [
-  { type: "link", to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { type: "link", to: "/", label: "Beranda", icon: LayoutDashboard, end: true },
   { type: "link", to: "/anggota", label: "Anggota", icon: Users },
   {
     type: "group",
     label: "Absensi",
-    icon: ClipboardCheck,
+    icon: CalendarCheck,
     matchPaths: ["/absensi"],
     children: [
       { to: "/absensi", label: "Input Absensi", icon: ClipboardCheck },
@@ -53,12 +53,12 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   { type: "link", to: "/keuangan", label: "Keuangan", icon: Wallet },
-  { type: "link", to: "/keuangan-media", label: "Keuangan Media", icon: WalletCards },
-  { type: "link", to: "/transaksi", label: "Transaksi", icon: FileText },
+  { type: "link", to: "/keuangan-media", label: "Keuangan Media", icon: Layers },
+  { type: "link", to: "/transaksi", label: "Transaksi", icon: ArrowLeftRight },
   {
     type: "group",
-    label: "Rekruitmen",
-    icon: UserPlus,
+    label: "Rekrutmen",
+    icon: UserRoundPlus,
     matchPaths: ["/rekrutmen"],
     children: [
       { to: "/rekrutmen", label: "Calon Anggota", icon: ClipboardList },
@@ -68,7 +68,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     type: "group",
     label: "Kelola Pesanan",
-    icon: ShoppingBag,
+    icon: Package,
     matchPaths: ["/pesanan"],
     children: [
       { to: "/pesanan", label: "Daftar Pesanan", icon: ClipboardList },
@@ -106,7 +106,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   };
 
   const handleLogout = () => {
-    if (window.confirm("Apakah Anda yakin ingin keluar dari sistem mbc sistem?")) {
+    if (window.confirm("Apakah Anda yakin ingin keluar dari sistem MB CHONDRO?")) {
       logout();
     }
   };
@@ -117,7 +117,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       <aside className={`sidebar ${open ? "sidebar-open" : ""}`} aria-label="Menu samping">
         <div className="sidebar-brand">
           <div className="brand-logo">
-            <img src={logo} alt="Logo mbc sistem" />
+            <img
+              src={logo}
+              alt="Logo MB CHONDRO"
+              style={{ width: 44, height: "auto", maxWidth: 46, maxHeight: 46, objectFit: "contain" }}
+            />
           </div>
           <div className="brand-text">
             <strong>MB CHONDRO</strong>
@@ -154,16 +158,17 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               <div key={item.label} className="nav-group">
                 <button
                   type="button"
-                  className={`nav-link nav-group-trigger ${isGroupActive ? "nav-active" : ""}`}
+                  className={`nav-link nav-group-trigger ${isOpen ? "nav-group-open" : ""} ${isGroupActive ? "nav-group-active" : ""}`}
                   onClick={() => toggleGroup(item.label)}
                   aria-expanded={isOpen}
                 >
                   <item.icon size={18} strokeWidth={2} aria-hidden="true" />
                   <span>{item.label}</span>
-                  {isOpen
-                    ? <ChevronDown size={14} style={{ marginLeft: "auto" }} />
-                    : <ChevronRight size={14} style={{ marginLeft: "auto" }} />
-                  }
+                  <ChevronDown
+                    size={14}
+                    className={`nav-arrow ${isOpen ? "open" : ""}`}
+                    style={{ marginLeft: "auto" }}
+                  />
                 </button>
                 {isOpen && (
                   <div className="nav-group-children">
@@ -198,7 +203,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             </div>
             <div className="sidebar-user-info">
               <span className="sidebar-user-name">{user.nama || user.username}</span>
-              <span className="sidebar-user-role">@{user.username} · {user.role || "Admin"}</span>
+              <span className="sidebar-user-role">@{user.username} · {user.role || "Administrator"}</span>
             </div>
             <button
               type="button"
@@ -213,7 +218,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         )}
 
         <div className="sidebar-footer">
-          <span>© {new Date().getFullYear()} mbc sistem</span>
+          <span>© {new Date().getFullYear()} MB CHONDRO</span>
           <span>v1.0.0</span>
         </div>
       </aside>

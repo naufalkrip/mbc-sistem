@@ -1,8 +1,21 @@
-import { useState, useEffect } from "react";
-import { Settings, Send, CheckCircle2, Clock, CheckCircle } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import {
+  X,
+  Copy,
+  Check,
+  Eye,
+  CheckCircle2,
+  FileCheck,
+  CreditCard,
+  Truck,
+  PenLine,
+  CheckCheck,
+  AlertTriangle,
+  RotateCcw,
+} from "lucide-react";
+import { createPortal } from "react-dom";
 import type { OrderWithAnswers } from "../../types";
 import { formatNomorWhatsAppUrl, formatRupiah } from "../../utils/format";
-import { Modal } from "../ui/Modal";
 import { useToast } from "../../contexts/ToastContext";
 
 interface WhatsAppBroadcastModalProps {
@@ -12,554 +25,746 @@ interface WhatsAppBroadcastModalProps {
   isContacted: boolean;
 }
 
-const DEFAULT_TEMPLATE_DIPROSES = `Halo Kak *{nama}* 👋
+type TemplateType = "konfirmasi" | "pembayaran" | "pengiriman" | "custom";
 
-Terima kasih telah melakukan pemesanan di *MB Chondro Wonopringgo*.
-
-Berikut rincian pesanan Anda:
-
-*RINCIAN PESANAN*
-────────────────────
-{rincian_pesanan}
-────────────────────
-
-*Jumlah Pesanan: {jumlah_pesanan} pcs*
-
-*Total Harga: {total_harga}*
-
-*DP {dp_persen}%: {nominal_dp}*
-
-Silakan melakukan pembayaran DP sebesar:
-
-*{nominal_dp}*
-
-{info_pembayaran}
-
-Setelah melakukan pembayaran, silakan kirimkan bukti pembayaran melalui WhatsApp ini.
-
-Terima kasih 🙏
-
-*MB Chondro Wonopringgo*`;
-
-const DEFAULT_TEMPLATE_SELESAI = `Halo Kak *{nama}* 👋
-
-Kabar gembira! Pesanan *{jenis_pesanan}* Anda di *MB Chondro Wonopringgo* telah *SELESAI* dikerjakan dan siap diambil 🎉
-
-*RINCIAN PESANAN*
-────────────────────
-{rincian_pesanan}
-────────────────────
-
-*Jumlah Pesanan: {jumlah_pesanan} pcs*
-*Total Tagihan: {total_harga}*
-
-*STATUS PEMBAYARAN:*
-• Nominal DP: {nominal_dp}
-• Sisa Kekurangan: {kekurangan}
-• Status: {status_pembayaran}
-
-📍 *LOKASI PENGAMBILAN:*
-{lokasi_pengambilan}
-
-Silakan mengonfirmasi ke admin saat hendak mengambil pesanan. Terima kasih! 🙏
-
-*MB Chondro Wonopringgo*`;
-
-const DEFAULT_PAYMENT = `Pembayaran dapat dilakukan melalui:
-
-BRI
-1234567890
-a.n. MB Chondro`;
+const DEFAULT_PAYMENT = `BCA: 1234567890 a.n. MB Chondro
+BRI: 0987654321 a.n. MB Chondro
+(Harap konfirmasi dengan mengirimkan bukti transfer)`;
 
 const DEFAULT_LOKASI = `Basecamp MB Chondro Wonopringgo
 Jl. Raya Wonopringgo No. 12, Pekalongan
 (Jam Operasional: Senin - Sabtu, 08:00 - 17:00 WIB)`;
 
-export function WhatsAppBroadcastModal({ order, onClose, onMarkContacted, isContacted }: WhatsAppBroadcastModalProps) {
-  const { success, error } = useToast();
-  const [showSettings, setShowSettings] = useState(false);
-  const [activeMode, setActiveMode] = useState<"diproses" | "selesai">("diproses");
-  
-  const [templateDiproses, setTemplateDiproses] = useState(DEFAULT_TEMPLATE_DIPROSES);
-  const [templateSelesai, setTemplateSelesai] = useState(DEFAULT_TEMPLATE_SELESAI);
-  const [lokasiPengambilan, setLokasiPengambilan] = useState(DEFAULT_LOKASI);
-  const [paymentInfo, setPaymentInfo] = useState(DEFAULT_PAYMENT);
-  const [dpPercent, setDpPercent] = useState(10);
+/**
+ * Komponen Modal Kirim Pesan WhatsApp MB CHONDRO
+ * Sesuai Spesifikasi Master: Modern Soft Red, Responsif Mobile (Bottom Sheet),
+ * Desktop Centered (780-820px), Live WhatsApp Chat Preview, 4 Segmented Templates,
+ * Validasi Nomor Internasional (+62) & Konfirmasi Unsaved Changes.
+ */
+export function WhatsAppBroadcastModal({
+  order,
+  onClose,
+  onMarkContacted,
+  isContacted: _isContacted,
+}: WhatsAppBroadcastModalProps) {
+  const { success, error, info } = useToast();
 
-  // Sync activeMode based on order status when order prop changes
-  useEffect(() => {
-    if (order) {
-      if (order.status === "selesai") {
-        setActiveMode("selesai");
-      } else {
-        setActiveMode("diproses");
-      }
+  const [activeTemplate, setActiveTemplate] = useState<TemplateType>("konfirmasi");
+  const [messageText, setMessageText] = useState("");
+  const [isDirty, setIsDirty] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
+
+  // Unsaved changes confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    open: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  // 1. Ekstrak Data Pesanan dari Database Aktual
+  const safeAnswers = useMemo(() => {
+    return Array.isArray(order?.answers) ? order.answers : [];
+  }, [order?.answers]);
+
+  const customerName = (order?.customerName || "Customer").trim();
+  const customerInitial = customerName ? customerName.charAt(0).toUpperCase() : "C";
+  const rawPhone = order?.whatsapp || "";
+
+  // Ekstrak nama jenis produk
+  const jenisPesanan = useMemo(() => {
+    const jenisAnswer = safeAnswers.find(
+      (a) =>
+        a &&
+        (String(a?.label || "").toLowerCase().includes("jenis") ||
+          String(a?.label || "").toLowerCase().includes("produk"))
+    );
+    if (jenisAnswer && typeof jenisAnswer.value === "string" && jenisAnswer.value.trim()) {
+      return jenisAnswer.value.trim();
     }
-  }, [order]);
+    return "Kaos MB Chondro";
+  }, [safeAnswers]);
 
-  // Load settings from local storage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("wa_template_settings_v2");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.templateDiproses) setTemplateDiproses(parsed.templateDiproses);
-        if (parsed.templateSelesai) {
-          // If stored template doesn't have payment variables, auto-migrate to DEFAULT_TEMPLATE_SELESAI
-          if (!parsed.templateSelesai.includes("{nominal_dp}") || !parsed.templateSelesai.includes("{kekurangan}")) {
-            setTemplateSelesai(DEFAULT_TEMPLATE_SELESAI);
-          } else {
-            setTemplateSelesai(parsed.templateSelesai);
+  // Ekstrak varian ukuran, jumlah, dan subtotal
+  const { parsedVariants, totalQty, totalPriceNumber } = useMemo(() => {
+    const variants: Array<{
+      qty: number;
+      size: string;
+      sleeve: string;
+      unitPrice: number;
+      subtotal: number;
+    }> = [];
+
+    let derivedQty = 0;
+    let derivedPrice = 0;
+
+    safeAnswers.forEach((ans) => {
+      if (!ans) return;
+      const ansValStr = typeof ans.value === "string" ? ans.value : String(ans.value || "");
+      const lines = ansValStr.split("\n");
+
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("•")) {
+          const match = trimmed.match(
+            /•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\](?:\s*@\s*(.*?)=\s*(.*?))?$/i
+          );
+          if (match) {
+            const qty = parseInt(match[1], 10) || 0;
+            const unitPriceStr = match[4] ? match[4].replace(/[^0-9]/g, "") : "";
+            const subtotalStr = match[5] ? match[5].replace(/[^0-9]/g, "") : "";
+            const unitPrice = unitPriceStr ? parseInt(unitPriceStr, 10) : 0;
+            const subtotal = subtotalStr ? parseInt(subtotalStr, 10) : 0;
+            variants.push({
+              qty,
+              size: match[2].trim(),
+              sleeve: match[3].trim(),
+              unitPrice,
+              subtotal,
+            });
           }
         }
-        if (parsed.lokasiPengambilan) setLokasiPengambilan(parsed.lokasiPengambilan);
-        if (parsed.paymentInfo) setPaymentInfo(parsed.paymentInfo);
-        if (parsed.dpPercent !== undefined) setDpPercent(parsed.dpPercent);
-      }
-    } catch (err) {}
-  }, []);
 
-  const saveSettings = () => {
-    try {
-      localStorage.setItem(
-        "wa_template_settings_v2",
-        JSON.stringify({
-          templateDiproses,
-          templateSelesai,
-          lokasiPengambilan,
-          paymentInfo,
-          dpPercent,
-        })
-      );
-      success("Pengaturan template WhatsApp berhasil disimpan.");
-      setShowSettings(false);
-    } catch (err) {
-      error("Gagal menyimpan pengaturan.");
+        if (trimmed.includes("Total:")) {
+          const matchTotal = trimmed.match(/Total:\s*(\d+)\s*pcs(?:\s*\|\s*(.*?))?/i);
+          if (matchTotal) {
+            if (!derivedQty) derivedQty = parseInt(matchTotal[1], 10);
+            if (matchTotal[2]) {
+              const priceOnly = matchTotal[2].replace(/[^0-9]/g, "");
+              if (priceOnly) derivedPrice = parseInt(priceOnly, 10);
+            }
+          }
+        }
+      });
+    });
+
+    if (derivedQty === 0 && variants.length > 0) {
+      derivedQty = variants.reduce((acc, v) => acc + v.qty, 0);
     }
-  };
+    if (derivedPrice === 0 && variants.length > 0) {
+      derivedPrice = variants.reduce((acc, v) => acc + v.subtotal, 0);
+    }
 
-  const resetToDefault = () => {
-    setTemplateDiproses(DEFAULT_TEMPLATE_DIPROSES);
-    setTemplateSelesai(DEFAULT_TEMPLATE_SELESAI);
-    setLokasiPengambilan(DEFAULT_LOKASI);
-    setPaymentInfo(DEFAULT_PAYMENT);
-    setDpPercent(10);
-    localStorage.removeItem("wa_template_settings_v2");
-    success("Template WhatsApp berhasil dikembalikan ke standar awal.");
-  };
+    if (derivedPrice === 0) {
+      safeAnswers.forEach((ans) => {
+        const lbl = String(ans?.label || "").toLowerCase();
+        const val = String(ans?.value || "");
+        if (
+          lbl.includes("total") ||
+          lbl.includes("harga") ||
+          lbl.includes("tagihan") ||
+          val.includes("Total:") ||
+          val.includes("Rp")
+        ) {
+          const numOnly = val.replace(/[^0-9]/g, "");
+          if (numOnly) {
+            const parsedNum = parseInt(numOnly, 10);
+            if (parsedNum > derivedPrice) derivedPrice = parsedNum;
+          }
+        }
+      });
+    }
+
+    return {
+      parsedVariants: variants,
+      totalQty: derivedQty || 1,
+      totalPriceNumber: derivedPrice,
+    };
+  }, [safeAnswers]);
+
+  // Kalkulasi Pembayaran & DP
+  const { dpNominal, sisaKekurangan } = useMemo(() => {
+    if (!order) return { dpNominal: 0, sisaKekurangan: 0 };
+    const isLunas = order.paymentStatus === "lunas";
+    let dp = 0;
+
+    if (isLunas) {
+      dp = totalPriceNumber > 0 ? totalPriceNumber : order.dpAmount || 0;
+    } else if (order.dpAmount && order.dpAmount > 0) {
+      dp = order.dpAmount;
+    } else if (totalPriceNumber > 0) {
+      // Standar DP 10% jika belum terdata di order
+      dp = Math.round((totalPriceNumber * 10) / 100);
+    }
+
+    const sisa = Math.max(0, totalPriceNumber - dp);
+    return {
+      dpNominal: dp,
+      sisaKekurangan: isLunas ? 0 : sisa,
+    };
+  }, [order, totalPriceNumber]);
+
+  // Format Rincian Pesanan
+  const rincianPesananText = useMemo(() => {
+    if (parsedVariants.length > 0) {
+      return parsedVariants
+        .map((v) => {
+          let line = `• ${v.qty} pcs [${v.size} - ${v.sleeve}]`;
+          if (v.unitPrice > 0) {
+            line += ` @ ${formatRupiah(v.unitPrice)}`;
+          }
+          return line;
+        })
+        .join("\n");
+    }
+    return `• ${totalQty} pcs ${jenisPesanan}`;
+  }, [parsedVariants, totalQty, jenisPesanan]);
+
+  // Format Status Pesanan
+  const statusPesananText = useMemo(() => {
+    if (!order) return "Sedang Diproses";
+    if (order.status === "selesai") return "Selesai & Siap Diambil";
+    if (order.status === "diproses") return "Sedang Diproses";
+    return "Menunggu Diproses";
+  }, [order]);
+
+  // 2. Fungsi Pembangkit Template Pesan WhatsApp
+  const generateMessageForTemplate = useMemo(() => {
+    return (tmpl: TemplateType): string => {
+      switch (tmpl) {
+        case "konfirmasi":
+          return `Halo Kak ${customerName} 👋
+
+Terima kasih telah melakukan pemesanan di MB Chondro Wonopringgo.
+
+Berikut rincian pesanan Anda:
+
+${rincianPesananText}
+
+Kami akan segera memproses pesanan Anda.
+
+Terima kasih 🙏`;
+
+        case "pembayaran":
+          return `Halo Kak ${customerName} 👋
+
+Berikut informasi pembayaran pesanan Anda:
+
+Total Pesanan: ${formatRupiah(totalPriceNumber)}
+DP: ${formatRupiah(dpNominal)}
+Sisa Pembayaran: ${formatRupiah(sisaKekurangan)}
+
+Informasi rekening:
+${DEFAULT_PAYMENT}
+
+Terima kasih.`;
+
+        case "pengiriman":
+          return `Halo Kak ${customerName} 👋
+
+Kami informasikan bahwa pesanan Anda saat ini berstatus ${statusPesananText}.
+
+Berikut rincian pesanan:
+${rincianPesananText}
+
+📍 Lokasi Pengambilan:
+${DEFAULT_LOKASI}
+
+Terima kasih telah mempercayakan pesanan kepada MB Chondro Wonopringgo.`;
+
+        case "custom":
+          return `Halo Kak ${customerName} 👋
+
+Terima kasih telah menghubungi MB Chondro Wonopringgo.
+
+Rincian Pesanan:
+${rincianPesananText}
+
+Ada yang bisa kami bantu terkait pesanan Anda?
+
+Terima kasih 🙏`;
+      }
+    };
+  }, [
+    customerName,
+    rincianPesananText,
+    totalPriceNumber,
+    dpNominal,
+    sisaKekurangan,
+    statusPesananText,
+  ]);
+
+  // Sinkronisasi teks awal saat modal dibuka atau order berganti
+  useEffect(() => {
+    if (order) {
+      const defaultTmpl: TemplateType =
+        order.status === "selesai" ? "pengiriman" : "konfirmasi";
+      setActiveTemplate(defaultTmpl);
+      setMessageText(generateMessageForTemplate(defaultTmpl));
+      setIsDirty(false);
+      setShowPreview(false);
+      setCopiedPhone(false);
+      setCopiedText(false);
+    }
+  }, [order, generateMessageForTemplate]);
+
+  // Menutup modal dengan ESC
+  useEffect(() => {
+    if (!order) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleAttemptClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [order, isDirty]);
 
   if (!order) return null;
 
-  // Extract variants and compute totals
-  const parsedVariants: any[] = [];
-  let totalQty = 0;
-  let totalPriceNumber = 0;
-
-  const safeAnswers = Array.isArray(order.answers) ? order.answers : [];
-
-  // Identify order name (jenis pesanan)
-  const jenisAnswer = safeAnswers.find(
-    (a) => a && (String(a?.label || "").toLowerCase().includes("jenis") || String(a?.label || "").toLowerCase().includes("produk"))
-  );
-  const jenisPesanan = jenisAnswer && typeof jenisAnswer.value === "string" ? jenisAnswer.value : "Kaos MB Chondro";
-
-  safeAnswers.forEach((ans) => {
-    if (!ans) return;
-    const ansValStr = typeof ans.value === "string" ? ans.value : String(ans.value || "");
-    const lines = ansValStr.split("\n");
-
-    lines.forEach((line) => {
-      const trimmedLine = line.trim();
-      if (trimmedLine.startsWith("•")) {
-        const match = trimmedLine.match(/•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\](?:\s*@\s*(.*?)=\s*(.*?))?$/i);
-        if (match) {
-          const qty = parseInt(match[1], 10) || 0;
-          const unitPriceStr = match[4] ? match[4].replace(/[^0-9]/g, "") : "";
-          const subtotalStr = match[5] ? match[5].replace(/[^0-9]/g, "") : "";
-          const unitPrice = unitPriceStr ? parseInt(unitPriceStr, 10) : 0;
-          const subtotal = subtotalStr ? parseInt(subtotalStr, 10) : 0;
-          parsedVariants.push({
-            qty,
-            size: match[2].trim(),
-            sleeve: match[3].trim(),
-            unitPrice,
-            subtotal,
-          });
-        }
-      }
-
-      if (trimmedLine.includes("Total:")) {
-        const matchTotal = trimmedLine.match(/Total:\s*(\d+)\s*pcs(?:\s*\|\s*(.*?))?/i);
-        if (matchTotal) {
-          if (!totalQty) totalQty = parseInt(matchTotal[1], 10);
-          if (matchTotal[2]) {
-            const priceOnly = matchTotal[2].replace(/[^0-9]/g, "");
-            if (priceOnly) totalPriceNumber = parseInt(priceOnly, 10);
-          }
-        }
-      }
-    });
-  });
-
-  // Fallback calculation if totalQty or totalPriceNumber wasn't parsed from summary string
-  if (totalQty === 0 && parsedVariants.length > 0) {
-    totalQty = parsedVariants.reduce((acc, v) => acc + v.qty, 0);
-  }
-  if (totalPriceNumber === 0 && parsedVariants.length > 0) {
-    totalPriceNumber = parsedVariants.reduce((acc, v) => acc + v.subtotal, 0);
-  }
-
-  // Second fallback: scan all answers for any price amount if totalPriceNumber is still 0
-  if (totalPriceNumber === 0) {
-    safeAnswers.forEach((ans) => {
-      const lbl = String(ans?.label || "").toLowerCase();
-      const val = String(ans?.value || "");
-      if (lbl.includes("total") || lbl.includes("harga") || lbl.includes("tagihan") || val.includes("Total:") || val.includes("Rp")) {
-        const numOnly = val.replace(/[^0-9]/g, "");
-        if (numOnly) {
-          const parsedNum = parseInt(numOnly, 10);
-          if (parsedNum > totalPriceNumber) totalPriceNumber = parsedNum;
-        }
-      }
-    });
-  }
-
-  // Calculate DP & Payment Details
-  const isLunas = order.paymentStatus === "lunas";
-  const isDpRecorded = order.paymentStatus === "dp" && Boolean(order.dpAmount && order.dpAmount > 0);
-
-  let dpNominal = 0;
-  if (isLunas) {
-    dpNominal = totalPriceNumber > 0 ? totalPriceNumber : (order.dpAmount || 0);
-  } else if (activeMode === "diproses") {
-    // Mode Konfirmasi DP: Hitung DP otomatis berdasarkan persentase dpPercent (misal 10%) dari totalPriceNumber
-    if (totalPriceNumber > 0 && dpPercent > 0) {
-      dpNominal = Math.round((totalPriceNumber * dpPercent) / 100);
-    } else if (order.dpAmount && order.dpAmount > 0) {
-      dpNominal = order.dpAmount;
+  // 3. Handler Tombol dan Aksi
+  const handleAttemptClose = () => {
+    if (isDirty) {
+      setConfirmDialog({
+        open: true,
+        title: "Perubahan Belum Dikirim",
+        message:
+          "Anda telah mengedit pesan ini secara manual. Yakin ingin menutup tanpa mengirim pesan?",
+        onConfirm: () => {
+          setConfirmDialog({ open: false, title: "", message: "", onConfirm: () => {} });
+          setIsDirty(false);
+          onClose();
+        },
+      });
     } else {
-      dpNominal = 0;
-    }
-  } else {
-    // Mode Selesai / Pengambilan
-    if (isDpRecorded && order.dpAmount) {
-      dpNominal = order.dpAmount;
-    } else if (totalPriceNumber > 0 && dpPercent > 0) {
-      dpNominal = Math.round((totalPriceNumber * dpPercent) / 100);
-    } else {
-      dpNominal = order.dpAmount || 0;
-    }
-  }
-
-  const sisaKekurangan = Math.max(0, totalPriceNumber - dpNominal);
-
-  const statusPembayaranStr = isLunas || (totalPriceNumber > 0 && sisaKekurangan === 0)
-    ? "✓ LUNAS"
-    : dpNominal > 0
-    ? `DP (${formatRupiah(dpNominal)})`
-    : "Belum Bayar";
-
-  const kekuranganStr = isLunas || (totalPriceNumber > 0 && sisaKekurangan === 0) ? "LUNAS (Rp 0)" : formatRupiah(sisaKekurangan);
-
-  // Build the message parts
-  const rincianText = parsedVariants
-    .map((v, idx) => {
-      let text = `${idx + 1}. ${jenisPesanan}
-   Size: ${v.size}
-   Lengan: ${v.sleeve}
-   Jumlah: ${v.qty} pcs`;
-      if (v.unitPrice > 0) {
-        text += `\n   Harga: ${formatRupiah(v.unitPrice)}/pcs
-   Subtotal: ${formatRupiah(v.subtotal)}`;
-      }
-      return text;
-    })
-    .join("\n\n");
-
-  const currentTemplate = activeMode === "selesai" ? templateSelesai : templateDiproses;
-
-  const finalMessage = currentTemplate
-    .replace(/{nama}/g, order.customerName || "Customer")
-    .replace(/{jenis_pesanan}/g, jenisPesanan)
-    .replace(/{rincian_pesanan}/g, rincianText || "Rincian pesanan tidak tersedia")
-    .replace(/{jumlah_pesanan}/g, String(totalQty))
-    .replace(/{total_harga}/g, formatRupiah(totalPriceNumber))
-    .replace(/{dp_persen}/g, String(dpPercent))
-    .replace(/{nominal_dp}/g, formatRupiah(dpNominal))
-    .replace(/{kekurangan}/g, kekuranganStr)
-    .replace(/{status_pembayaran}/g, statusPembayaranStr)
-    .replace(/{info_pembayaran}/g, paymentInfo)
-    .replace(/{lokasi_pengambilan}/g, lokasiPengambilan);
-
-  const rawWaClean = formatNomorWhatsAppUrl(order.whatsapp || "");
-  const directWaUrl = rawWaClean ? `https://wa.me/${rawWaClean}?text=${encodeURIComponent(finalMessage)}` : null;
-
-  const handleOpenWhatsApp = () => {
-    if (directWaUrl) {
-      window.open(directWaUrl, "_blank", "noopener,noreferrer");
+      onClose();
     }
   };
 
-  return (
-    <Modal
-      open={Boolean(order)}
-      onClose={onClose}
-      title={showSettings ? "Pengaturan Template WhatsApp" : "Kirim WhatsApp Customer"}
-      size={showSettings ? "md" : "lg"}
+  const handleSelectTemplate = (tmpl: TemplateType) => {
+    if (tmpl === activeTemplate) return;
+
+    if (isDirty) {
+      setConfirmDialog({
+        open: true,
+        title: "Ganti Template Pesan",
+        message:
+          "Beralih template akan mengganti teks pesan yang sudah Anda edit. Lanjutkan?",
+        onConfirm: () => {
+          setActiveTemplate(tmpl);
+          setMessageText(generateMessageForTemplate(tmpl));
+          setIsDirty(false);
+          setConfirmDialog({ open: false, title: "", message: "", onConfirm: () => {} });
+          info(`Template diubah ke: ${getTemplateLabel(tmpl)}`);
+        },
+      });
+    } else {
+      setActiveTemplate(tmpl);
+      setMessageText(generateMessageForTemplate(tmpl));
+      setIsDirty(false);
+    }
+  };
+
+  const handleResetCurrentTemplate = () => {
+    setMessageText(generateMessageForTemplate(activeTemplate));
+    setIsDirty(false);
+    info("Isi pesan dikembalikan sesuai template standar.");
+  };
+
+  const handleCopyPhone = () => {
+    if (!rawPhone || rawPhone === "-") {
+      error("Nomor WhatsApp belum tersedia.");
+      return;
+    }
+    navigator.clipboard.writeText(rawPhone);
+    setCopiedPhone(true);
+    success("Nomor WhatsApp berhasil disalin!");
+    setTimeout(() => setCopiedPhone(false), 2200);
+  };
+
+  const handleCopyMessage = () => {
+    if (!messageText) return;
+    navigator.clipboard.writeText(messageText);
+    setCopiedText(true);
+    success("Isi pesan WhatsApp berhasil disalin!");
+    setTimeout(() => setCopiedText(false), 2200);
+  };
+
+  const handleSendWhatsApp = async () => {
+    const cleanNumber = formatNomorWhatsAppUrl(rawPhone);
+
+    // Validasi nomor telepon
+    if (!cleanNumber || cleanNumber.length < 9) {
+      error(
+        "Nomor WhatsApp customer tidak valid atau belum diisi. Pastikan nomor mencakup kode area yang benar."
+      );
+      return;
+    }
+
+    if (!messageText.trim()) {
+      error("Isi pesan WhatsApp tidak boleh kosong.");
+      return;
+    }
+
+    // Bangun URL WhatsApp Click to Chat
+    const encodedMessage = encodeURIComponent(messageText.trim());
+    const waUrl = `https://wa.me/${cleanNumber}?text=${encodedMessage}`;
+
+    // Tandai pesanan sebagai sudah dihubungi jika fungsi callback tersedia
+    try {
+      if (onMarkContacted) {
+        await onMarkContacted();
+      }
+    } catch (_err) {
+      // Lanjutkan pengiriman pesan meskipun update status backend tertunda
+    }
+
+    // Buka WhatsApp Click to Chat di tab baru
+    window.open(waUrl, "_blank", "noopener,noreferrer");
+    success("Membuka WhatsApp Click to Chat...");
+    setIsDirty(false);
+    onClose();
+  };
+
+  return createPortal(
+    <div
+      className="wa-modal-overlay"
+      onClick={handleAttemptClose}
+      role="dialog"
+      aria-modal="true"
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        {showSettings ? (
-          <>
-            <div style={{ display: "flex", gap: 8, borderBottom: "1px solid var(--border)", paddingBottom: 8 }}>
-              <button
-                type="button"
-                className={`btn btn-sm ${activeMode === "diproses" ? "btn-primary" : "btn-outline"}`}
-                onClick={() => setActiveMode("diproses")}
-              >
-                Template Diproses (Konfirmasi DP)
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${activeMode === "selesai" ? "btn-primary" : "btn-outline"}`}
-                onClick={() => setActiveMode("selesai")}
-              >
-                Template Selesai (Pengambilan)
-              </button>
-            </div>
+      <div
+        className="wa-modal-container"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Mobile Drag Indicator */}
+        <div className="wa-modal-handle-bar" />
 
-            {activeMode === "diproses" ? (
-              <>
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6 }}>
-                    Template Pesanan Diproses (DP)
-                  </label>
-                  <textarea
-                    className="form-input"
-                    style={{ width: "100%", height: 220, resize: "vertical", fontSize: "12.5px", fontFamily: "monospace" }}
-                    value={templateDiproses}
-                    onChange={(e) => setTemplateDiproses(e.target.value)}
-                  />
-                  <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: 4 }}>
-                    Variabel: {"{nama}, {jenis_pesanan}, {rincian_pesanan}, {jumlah_pesanan}, {total_harga}, {dp_persen}, {nominal_dp}, {info_pembayaran}"}
-                  </p>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6 }}>
-                      Persentase DP (%)
-                    </label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      style={{ width: "100%" }}
-                      value={dpPercent}
-                      onChange={(e) => setDpPercent(Number(e.target.value) || 0)}
-                      min={0}
-                      max={100}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6 }}>
-                    Informasi Pembayaran / Rekening DP
-                  </label>
-                  <textarea
-                    className="form-input"
-                    style={{ width: "100%", height: 80, resize: "vertical", fontSize: "12.5px" }}
-                    value={paymentInfo}
-                    onChange={(e) => setPaymentInfo(e.target.value)}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6 }}>
-                    Template Pesanan Selesai (Pengambilan)
-                  </label>
-                  <textarea
-                    className="form-input"
-                    style={{ width: "100%", height: 220, resize: "vertical", fontSize: "12.5px", fontFamily: "monospace" }}
-                    value={templateSelesai}
-                    onChange={(e) => setTemplateSelesai(e.target.value)}
-                  />
-                  <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: 4 }}>
-                    Variabel: {"{nama}, {jenis_pesanan}, {rincian_pesanan}, {jumlah_pesanan}, {total_harga}, {nominal_dp}, {kekurangan}, {status_pembayaran}, {lokasi_pengambilan}"}
-                  </p>
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6 }}>
-                    Lokasi Pengambilan Pesanan
-                  </label>
-                  <textarea
-                    className="form-input"
-                    style={{ width: "100%", height: 80, resize: "vertical", fontSize: "12.5px" }}
-                    value={lokasiPengambilan}
-                    onChange={(e) => setLokasiPengambilan(e.target.value)}
-                    placeholder="Masukkan nama lokasi, alamat, atau jam operasional..."
-                  />
-                </div>
-              </>
-            )}
-
-            <div style={{ display: "flex", gap: 12, justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
-              <button
-                type="button"
-                className="btn btn-outline btn-sm"
-                onClick={resetToDefault}
-                style={{ fontSize: 12, color: "#dc2626", borderColor: "#fca5a5" }}
-              >
-                Reset ke Template Bawaan
-              </button>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowSettings(false)}>
-                  Batal
-                </button>
-                <button type="button" className="btn btn-primary btn-sm" onClick={saveSettings}>
-                  Simpan Pengaturan
-                </button>
-              </div>
+        {/* 1. Header Modal */}
+        <div className="wa-modal-header">
+          <div className="wa-modal-header-left">
+            <div className="wa-icon-badge" title="Fitur Kirim Pesan WhatsApp MB CHONDRO">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-5.805 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
+              </svg>
             </div>
-          </>
-        ) : (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-              <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
-                <span style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>Customer</span>
-                <strong style={{ fontSize: "13.5px", color: "var(--navy-900)" }}>{order.customerName}</strong>
+            <div className="wa-modal-titles">
+              <h3 className="wa-modal-title">Kirim Pesan WhatsApp</h3>
+              <p className="wa-modal-subtitle">
+                Hubungi customer secara langsung melalui WhatsApp resmi
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="wa-modal-close-btn"
+            onClick={handleAttemptClose}
+            aria-label="Tutup modal"
+            title="Tutup (Esc)"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* 2. Body Modal */}
+        <div className="wa-modal-body">
+          {/* A. Informasi Customer (Horizontal Card) */}
+          <div className="wa-cust-card">
+            <div className="wa-cust-left">
+              <div className="wa-cust-avatar" title={customerName}>
+                {customerInitial}
               </div>
-              <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
-                <span style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>Nomor WhatsApp</span>
-                <strong style={{ fontSize: "13.5px", color: "var(--navy-900)" }}>{order.whatsapp}</strong>
-              </div>
-              <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: 8, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div>
-                  <span style={{ fontSize: "12px", color: "var(--text-muted)", display: "block" }}>Status Kontak</span>
-                  {isContacted ? (
-                    <strong style={{ fontSize: "13px", color: "#16a34a", display: "flex", alignItems: "center", gap: 5 }}>
-                      <CheckCircle2 size={15} /> Sudah Dihubungi
-                    </strong>
-                  ) : (
-                    <strong style={{ fontSize: "13px", color: "#dc2626" }}>Belum Dihubungi</strong>
+              <div className="wa-cust-meta">
+                <div className="wa-cust-name-row">
+                  <span className="wa-cust-name" title={customerName}>
+                    {customerName}
+                  </span>
+                </div>
+                <div className="wa-cust-phone-row">
+                  <span>{rawPhone || "-"}</span>
+                  {rawPhone && (
+                    <button
+                      type="button"
+                      className="wa-copy-btn"
+                      onClick={handleCopyPhone}
+                      title="Salin nomor WhatsApp"
+                    >
+                      {copiedPhone ? <Check size={11} color="#16A34A" /> : <Copy size={11} />}
+                      <span>{copiedPhone ? "Disalin" : "Salin"}</span>
+                    </button>
                   )}
                 </div>
-                {!isContacted && (
-                  <button type="button" className="btn btn-outline btn-sm" onClick={onMarkContacted} style={{ fontSize: "11px", padding: "3px 8px" }}>
-                    Tandai
+              </div>
+            </div>
+
+            <div className="wa-cust-right">
+              <div className="wa-order-chip">
+                <span className="wa-order-chip-label">Pesanan</span>
+                <span className="wa-order-chip-val">{totalQty} pcs</span>
+              </div>
+              <div className="wa-order-chip">
+                <span className="wa-order-chip-label">Produk</span>
+                <span
+                  className="wa-order-chip-val"
+                  title={jenisPesanan}
+                  style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                >
+                  {jenisPesanan}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* B. Segmented Buttons Template Pesan (4 Pilihan) */}
+          <div className="wa-template-segmented">
+            <button
+              type="button"
+              className={`wa-template-btn ${activeTemplate === "konfirmasi" ? "active" : ""}`}
+              onClick={() => handleSelectTemplate("konfirmasi")}
+            >
+              <FileCheck size={14} />
+              <span>Konfirmasi Pesanan</span>
+            </button>
+            <button
+              type="button"
+              className={`wa-template-btn ${activeTemplate === "pembayaran" ? "active" : ""}`}
+              onClick={() => handleSelectTemplate("pembayaran")}
+            >
+              <CreditCard size={14} />
+              <span>Info Pembayaran</span>
+            </button>
+            <button
+              type="button"
+              className={`wa-template-btn ${activeTemplate === "pengiriman" ? "active" : ""}`}
+              onClick={() => handleSelectTemplate("pengiriman")}
+            >
+              <Truck size={14} />
+              <span>Pengiriman</span>
+            </button>
+            <button
+              type="button"
+              className={`wa-template-btn ${activeTemplate === "custom" ? "active" : ""}`}
+              onClick={() => handleSelectTemplate("custom")}
+            >
+              <PenLine size={14} />
+              <span>Custom</span>
+            </button>
+          </div>
+
+          {/* C. Preview Mode atau Editor Mode */}
+          {showPreview ? (
+            <div className="wa-editor-wrapper">
+              <div className="wa-editor-top-bar">
+                <span className="wa-editor-label">
+                  <CheckCircle2 size={14} color="#16A34A" /> Pratinjau Tampilan WhatsApp
+                </span>
+                <div className="wa-editor-actions-top">
+                  <button
+                    type="button"
+                    className="wa-copy-btn"
+                    onClick={() => setShowPreview(false)}
+                    title="Kembali ke editor pesan"
+                  >
+                    <span>Kembali ke Editor</span>
                   </button>
-                )}
+                </div>
               </div>
-            </div>
 
-            {/* TAB SELECTOR UNTUK PILIH MODE PESAN */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, background: "#f1f5f9", padding: 4, borderRadius: 10, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", gap: 4, flex: 1 }}>
-                <button
-                  type="button"
-                  onClick={() => setActiveMode("diproses")}
+              {/* Chat Bubble Simulation */}
+              <div className="wa-preview-box">
+                <div
                   style={{
-                    flex: 1,
-                    display: "inline-flex",
+                    display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    padding: "7px 12px",
-                    borderRadius: 8,
-                    border: "none",
-                    background: activeMode === "diproses" ? "#2563eb" : "transparent",
-                    color: activeMode === "diproses" ? "#ffffff" : "var(--text-secondary)",
-                    fontWeight: activeMode === "diproses" ? 600 : 500,
-                    fontSize: 12.5,
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
+                    gap: 8,
+                    background: "#075E54",
+                    color: "#FFFFFF",
+                    padding: "8px 12px",
+                    borderRadius: "8px 8px 0 0",
+                    margin: "-16px -16px 8px -16px",
                   }}
                 >
-                  <Clock size={14} />
-                  <span>Konfirmasi Diproses (DP)</span>
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      background: "#FFFFFF",
+                      color: "#075E54",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {customerInitial}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>
+                      {customerName}
+                    </span>
+                    <span style={{ fontSize: 10, color: "#C8F0E5" }}>online</span>
+                  </div>
+                </div>
+
+                <div className="wa-bubble-sent">
+                  <div className="wa-bubble-text">{messageText}</div>
+                  <div className="wa-bubble-meta">
+                    <span>
+                      {new Date().toLocaleTimeString("id-ID", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <CheckCheck size={14} color="#34B7F1" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="wa-editor-wrapper">
+              <div className="wa-editor-top-bar">
+                <span className="wa-editor-label">
+                  <PenLine size={13} color="#64748B" /> Editor Pesan (Dapat Diedit)
+                </span>
+                <div className="wa-editor-actions-top">
+                  {isDirty && (
+                    <button
+                      type="button"
+                      className="wa-copy-btn"
+                      onClick={handleResetCurrentTemplate}
+                      title="Kembalikan teks ke template standar"
+                    >
+                      <RotateCcw size={11} />
+                      <span>Reset Teks</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="wa-copy-btn"
+                    onClick={handleCopyMessage}
+                    title="Salin isi pesan ke clipboard"
+                  >
+                    {copiedText ? <Check size={11} color="#16A34A" /> : <Copy size={11} />}
+                    <span>{copiedText ? "Tersalin" : "Salin Pesan"}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="wa-textarea-card">
+                <textarea
+                  className="wa-textarea-input"
+                  value={messageText}
+                  onChange={(e) => {
+                    setMessageText(e.target.value);
+                    setIsDirty(true);
+                  }}
+                  placeholder="Ketik isi pesan WhatsApp di sini..."
+                  rows={8}
+                />
+                <div className="wa-editor-bottom-bar">
+                  <span style={{ fontSize: 11, color: isDirty ? "#D97706" : "#64748B" }}>
+                    {isDirty ? "● Pesan telah disesuaikan secara manual" : "Template standar aktif"}
+                  </span>
+                  <span className="wa-char-counter">{messageText.length} karakter</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 3. Footer Aksi: Preview & Kirim Sekarang */}
+        <div className="wa-modal-footer">
+          <div className="wa-modal-footer-left">
+            <button
+              type="button"
+              className={`wa-btn-preview ${showPreview ? "active" : ""}`}
+              onClick={() => setShowPreview(!showPreview)}
+              title={showPreview ? "Tutup pratinjau" : "Lihat simulasi pesan di WhatsApp"}
+            >
+              <Eye size={15} />
+              <span>{showPreview ? "Kembali ke Editor" : "Preview Pesan"}</span>
+            </button>
+          </div>
+
+          <div className="wa-modal-footer-right">
+            <button
+              type="button"
+              className="wa-btn-send"
+              onClick={handleSendWhatsApp}
+              title="Kirim pesan melalui WhatsApp Web / Aplikasi"
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-5.805 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
+              </svg>
+              <span>Kirim Sekarang</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 4. Dialog Konfirmasi Perubahan Belum Disimpan */}
+        {confirmDialog.open && (
+          <div className="wa-confirm-dialog-overlay">
+            <div className="wa-confirm-dialog">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: "50%",
+                    background: "#FEF3C7",
+                    color: "#D97706",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <AlertTriangle size={18} />
+                </div>
+                <h4>{confirmDialog.title}</h4>
+              </div>
+              <p>{confirmDialog.message}</p>
+              <div className="wa-confirm-dialog-actions">
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() =>
+                    setConfirmDialog({
+                      open: false,
+                      title: "",
+                      message: "",
+                      onConfirm: () => {},
+                    })
+                  }
+                >
+                  Batal
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveMode("selesai")}
-                  style={{
-                    flex: 1,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    padding: "7px 12px",
-                    borderRadius: 8,
-                    border: "none",
-                    background: activeMode === "selesai" ? "#16a34a" : "transparent",
-                    color: activeMode === "selesai" ? "#ffffff" : "var(--text-secondary)",
-                    fontWeight: activeMode === "selesai" ? 600 : 500,
-                    fontSize: 12.5,
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                  }}
+                  className="btn btn-primary btn-sm"
+                  style={{ background: "#DC1717", borderColor: "#B91C1C" }}
+                  onClick={confirmDialog.onConfirm}
                 >
-                  <CheckCircle size={14} />
-                  <span>Pengambilan Selesai</span>
+                  Ya, Lanjutkan
                 </button>
               </div>
-
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setShowSettings(true)}
-                style={{ color: "var(--primary-700, #c8101e)", fontSize: "12px", fontWeight: 600, padding: "4px 10px" }}
-              >
-                <Settings size={14} style={{ marginRight: 4 }} /> Pengaturan Template
-              </button>
             </div>
-
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <strong style={{ fontSize: "13px", color: "var(--navy-900)" }}>
-                  Pratinjau Pesan ({activeMode === "selesai" ? "Pesanan Selesai / Pengambilan" : "Pesanan Diproses / DP"})
-                </strong>
-              </div>
-              <div
-                style={{
-                  background: activeMode === "selesai" ? "#f0fdf4" : "#eff6ff",
-                  border: activeMode === "selesai" ? "1px solid #86efac" : "1px solid #93c5fd",
-                  padding: "16px",
-                  borderRadius: 10,
-                  fontSize: "13px",
-                  color: activeMode === "selesai" ? "#166534" : "#1e40af",
-                  whiteSpace: "pre-wrap",
-                  fontFamily: "system-ui, sans-serif",
-                  lineHeight: 1.6,
-                  maxHeight: "40vh",
-                  overflowY: "auto",
-                }}
-              >
-                {finalMessage}
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 6 }}>
-              <button type="button" className="btn btn-outline" onClick={onClose}>
-                Tutup
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleOpenWhatsApp}
-                disabled={!directWaUrl}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  background: activeMode === "selesai" ? "#16a34a" : "#25D366",
-                  borderColor: activeMode === "selesai" ? "#16a34a" : "#25D366",
-                }}
-              >
-                <Send size={16} /> Buka WhatsApp
-              </button>
-            </div>
-          </>
+          </div>
         )}
       </div>
-    </Modal>
+    </div>,
+    document.body
   );
+}
+
+function getTemplateLabel(tmpl: TemplateType): string {
+  switch (tmpl) {
+    case "konfirmasi":
+      return "Konfirmasi Pesanan";
+    case "pembayaran":
+      return "Info Pembayaran";
+    case "pengiriman":
+      return "Pengiriman";
+    case "custom":
+      return "Custom";
+  }
 }

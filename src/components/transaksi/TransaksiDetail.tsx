@@ -24,6 +24,7 @@ import { useToast } from "../../contexts/ToastContext";
 import { useApi } from "../../hooks/useApi";
 import { CACHE_KEYS } from "../../services/cache";
 import { ActionDropdown } from "../ui/ActionDropdown";
+import { SummaryCard, SummaryGrid, SummarySection } from "../ui/SummaryCard";
 
 
 interface FormDetail {
@@ -400,143 +401,51 @@ export function TransaksiDetail() {
           </div>
         </div>
 
-        {/* Ringkasan Keuangan Transaksi - Panel Merah Standout Seperti Absensi */}
-        <div className="summary-panel" style={{ marginTop: 16 }}>
-          <div className="summary-panel-header">
-            <div>
-              <h3>Ringkasan Uang Masuk & Keluar</h3>
-              <p>Total rekap keuangan untuk transaksi ini</p>
-            </div>
-            <span
-              style={{
-                fontSize: "12px",
-                color: "#ffffff",
-                background: "rgba(255, 255, 255, 0.18)",
-                border: "1px solid rgba(255, 255, 255, 0.28)",
-                padding: "4px 12px",
-                borderRadius: 20,
-                fontWeight: 500,
-              }}
-            >
-              {stats.totalTransaksi} Rincian Transaksi
-            </span>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))",
-              gap: 12,
-            }}
+        {/* Ringkasan Keuangan Transaksi (STANDAR MINIMALIST SAAS) */}
+        <div style={{ marginTop: 16 }}>
+          <SummarySection
+            title="Ringkasan Uang Masuk & Keluar"
+            subtitle="Total rekap keuangan untuk transaksi ini"
+            badge={
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#B91C1C",
+                  background: "#FEF2F2",
+                  border: "1px solid #FECACA",
+                  padding: "3px 10px",
+                  borderRadius: 20,
+                  fontWeight: 600,
+                }}
+              >
+                ● {stats.totalTransaksi} Rincian Transaksi
+              </span>
+            }
           >
-            {/* Total Uang Masuk */}
-            <div
-              style={{
-                background: "rgba(255, 255, 255, 0.12)",
-                backdropFilter: "blur(4px)",
-                borderRadius: 10,
-                padding: "14px 16px",
-                border: "1px solid rgba(255, 255, 255, 0.18)",
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: "13px", fontWeight: 500 }}>
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 8,
-                    background: "rgba(255, 255, 255, 0.2)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#ffffff",
-                    flexShrink: 0,
-                  }}
-                >
-                  <TrendingUp size={16} />
-                </div>
-                <span>Total Uang Masuk</span>
-              </div>
-              <div style={{ fontSize: "clamp(16px, 3.5vw, 22px)", fontWeight: 700, color: "#ffffff", marginTop: 4, wordBreak: "break-word" }}>
-                {formatRupiah(stats.totalPemasukan)}
-              </div>
-            </div>
-
-            {/* Total Uang Keluar */}
-            <div
-              style={{
-                background: "rgba(255, 255, 255, 0.12)",
-                backdropFilter: "blur(4px)",
-                borderRadius: 10,
-                padding: "14px 16px",
-                border: "1px solid rgba(255, 255, 255, 0.18)",
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: "13px", fontWeight: 500 }}>
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 8,
-                    background: "rgba(255, 255, 255, 0.2)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#ffffff",
-                    flexShrink: 0,
-                  }}
-                >
-                  <TrendingDown size={16} />
-                </div>
-                <span>Total Uang Keluar</span>
-              </div>
-              <div style={{ fontSize: "clamp(16px, 3.5vw, 22px)", fontWeight: 700, color: "#ffffff", marginTop: 4, wordBreak: "break-word" }}>
-                {formatRupiah(stats.totalPengeluaran)}
-              </div>
-            </div>
-
-            {/* Sisa Saldo Kas */}
-            <div
-              style={{
-                background: "rgba(255, 255, 255, 0.16)",
-                backdropFilter: "blur(4px)",
-                borderRadius: 10,
-                padding: "14px 16px",
-                border: "1px solid rgba(255, 255, 255, 0.25)",
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255, 255, 255, 0.9)", fontSize: "13px", fontWeight: 500 }}>
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 8,
-                    background: "rgba(255, 255, 255, 0.2)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#ffffff",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Wallet size={16} />
-                </div>
-                <span>Sisa Saldo Kas</span>
-              </div>
-              <div style={{ fontSize: "clamp(16px, 3.5vw, 22px)", fontWeight: 700, color: "#ffffff", marginTop: 4, wordBreak: "break-word" }}>
-                {formatRupiah(stats.saldo)}
-              </div>
-            </div>
-          </div>
+            <SummaryGrid columns={3}>
+              <SummaryCard
+                label="Total Uang Masuk"
+                value={formatRupiah(stats.totalPemasukan)}
+                icon={<TrendingUp size={16} />}
+                sub="Dana masuk kegiatan"
+                accent="green"
+              />
+              <SummaryCard
+                label="Total Uang Keluar"
+                value={formatRupiah(stats.totalPengeluaran)}
+                icon={<TrendingDown size={16} />}
+                sub="Dana keluar kegiatan"
+                accent="red"
+              />
+              <SummaryCard
+                label="Sisa Saldo Kas"
+                value={formatRupiah(stats.saldo)}
+                icon={<Wallet size={16} />}
+                sub="Sisa kas pos kegiatan"
+                accent="gold"
+              />
+            </SummaryGrid>
+          </SummarySection>
         </div>
 
         {/* Toolbar Filter */}

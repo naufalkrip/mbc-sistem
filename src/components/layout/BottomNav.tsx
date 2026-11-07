@@ -54,7 +54,7 @@ export function BottomNav({}: BottomNavProps) {
           <div className="bottom-nav-icon-wrap">
             <LayoutDashboard size={20} strokeWidth={2} />
           </div>
-          <span className="bottom-nav-label">Dashboard</span>
+          <span className="bottom-nav-label">Beranda</span>
         </NavLink>
 
         <NavLink

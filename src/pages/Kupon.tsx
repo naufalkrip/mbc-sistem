@@ -40,6 +40,7 @@ import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import type { CouponLocation } from "../types";
 import { formatNoHp, toWaLink, isValidPhotoUrl } from "../utils/format";
 import { ActionDropdown } from "../components/ui/ActionDropdown";
+import { SummaryCard, SummaryGrid, SummarySection } from "../components/ui/SummaryCard";
 
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -626,95 +627,69 @@ export function Kupon() {
 
   return (
     <div className="page-grid">
-      {/* 1. SIGNATURE SUMMARY PANEL (Khas MBC Sistem) */}
-      <div className="summary-panel animate-fade-slide-up">
-        <div className="summary-panel-header">
-          <div>
-            <h3>Ringkasan Lokasi Penjualan Kupon</h3>
-            <p>Kelola titik outlet penjualan tiket & pantau peta publik customer</p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <a
-              href={publicUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                padding: "7px 14px",
-                background: "rgba(255, 255, 255, 0.16)",
-                backdropFilter: "blur(8px)",
-                borderRadius: "var(--radius-sm, 8px)",
-                fontSize: "13px",
-                fontWeight: 600,
-                color: "#ffffff",
-                border: "1px solid rgba(255, 255, 255, 0.28)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 7,
-                textDecoration: "none",
-                transition: "all 0.15s ease",
-              }}
-              title="Buka tampilan peta publik customer di tab baru"
-            >
-              <ExternalLink size={14} />
-              <span>Buka Peta Publik ↗</span>
-            </a>
-          </div>
-        </div>
-
-        {/* 3 Interactive Stat Cards (Bisa diklik untuk filter cepat seperti Rekrutmen & Pesanan) */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: 12,
-          }}
-        >
-          {/* Card 1: Total Titik Lokasi */}
-          <div
+      {/* 1. RINGKASAN LOKASI PENJUALAN KUPON (STANDAR MINIMALIST SAAS) */}
+      <SummarySection
+        title="Ringkasan Lokasi Penjualan Kupon"
+        subtitle="Kelola titik outlet penjualan tiket & pantau peta publik customer"
+        extra={
+          <a
+            href={publicUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              padding: "7px 14px",
+              background: "#F8FAFC",
+              borderRadius: "var(--radius-sm, 8px)",
+              fontSize: "13px",
+              fontWeight: 600,
+              color: "#475569",
+              border: "1px solid #E2E8F0",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              textDecoration: "none",
+              transition: "all 0.15s ease",
+            }}
+            title="Buka tampilan peta publik customer di tab baru"
+          >
+            <ExternalLink size={14} />
+            <span>Buka Peta Publik ↗</span>
+          </a>
+        }
+      >
+        <SummaryGrid columns={3}>
+          <SummaryCard
+            label="Total Titik Lokasi"
+            value={loading ? "..." : stats.total}
+            icon={<Ticket size={16} />}
+            sub="Semua outlet penjualan"
+            accent="slate"
+            active={filterStatus === "semua"}
             onClick={() => setFilterStatus("semua")}
-            className={`rekrutmen-stat-card ${filterStatus === "semua" ? "active" : ""}`}
             title="Klik untuk menampilkan semua titik lokasi penjualan"
-          >
-            <div className="rekrutmen-stat-head">
-              <Ticket size={15} /> Total Titik Lokasi
-            </div>
-            <div className="rekrutmen-stat-value">
-              {loading ? "..." : stats.total}
-            </div>
-            <span className="rekrutmen-stat-sub">Semua outlet penjualan ↗</span>
-          </div>
-
-          {/* Card 2: Lokasi Aktif */}
-          <div
+          />
+          <SummaryCard
+            label="Lokasi Aktif"
+            value={loading ? "..." : stats.aktif}
+            icon={<CheckCircle2 size={16} />}
+            sub="Tampil di peta publik"
+            accent="green"
+            active={filterStatus === "aktif"}
             onClick={() => setFilterStatus("aktif")}
-            className={`rekrutmen-stat-card ${filterStatus === "aktif" ? "active" : ""}`}
             title="Klik untuk menyaring lokasi yang aktif"
-          >
-            <div className="rekrutmen-stat-head">
-              <CheckCircle2 size={15} /> Lokasi Aktif
-            </div>
-            <div className="rekrutmen-stat-value">
-              {loading ? "..." : stats.aktif}
-            </div>
-            <span className="rekrutmen-stat-sub">🟢 Tampil di peta publik ↗</span>
-          </div>
-
-          {/* Card 3: Lokasi Nonaktif */}
-          <div
+          />
+          <SummaryCard
+            label="Lokasi Nonaktif"
+            value={loading ? "..." : stats.nonaktif}
+            icon={<XCircle size={16} />}
+            sub="Disembunyikan sementara"
+            accent="red"
+            active={filterStatus === "nonaktif"}
             onClick={() => setFilterStatus("nonaktif")}
-            className={`rekrutmen-stat-card ${filterStatus === "nonaktif" ? "active" : ""}`}
             title="Klik untuk menyaring lokasi nonaktif"
-          >
-            <div className="rekrutmen-stat-head">
-              <XCircle size={15} /> Lokasi Nonaktif
-            </div>
-            <div className="rekrutmen-stat-value">
-              {loading ? "..." : stats.nonaktif}
-            </div>
-            <span className="rekrutmen-stat-sub">⚪ Disembunyikan sementara ↗</span>
-          </div>
-        </div>
-      </div>
+          />
+        </SummaryGrid>
+      </SummarySection>
 
       {/* 2. CARD LINK PETA PUBLIK (Elegan & Terintegrasi) */}
       <div className="card" style={{ padding: "16px 20px" }}>

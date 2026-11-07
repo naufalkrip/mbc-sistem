@@ -12,9 +12,12 @@ export interface ActionItem {
 
 interface ActionDropdownProps {
   items: ActionItem[];
+  className?: string;
+  style?: React.CSSProperties;
+  variant?: "primary" | "minimal";
 }
 
-export function ActionDropdown({ items }: ActionDropdownProps) {
+export function ActionDropdown({ items, className, style, variant = "primary" }: ActionDropdownProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -28,7 +31,7 @@ export function ActionDropdown({ items }: ActionDropdownProps) {
     
     setDropdownStyle({
       position: "fixed",
-      right: window.innerWidth - rect.right,
+      right: Math.max(8, window.innerWidth - rect.right),
       ...(menuPosition === "bottom"
         ? { top: rect.bottom + 6 }
         : { bottom: window.innerHeight - rect.top + 6 }),
@@ -84,6 +87,7 @@ export function ActionDropdown({ items }: ActionDropdownProps) {
       <button
         ref={buttonRef}
         type="button"
+        className={`action-dropdown-btn ${variant === "minimal" ? "action-dropdown-btn-minimal" : ""} ${className ?? ""}`}
         onClick={handleToggle}
         aria-label="Aksi"
         aria-haspopup="true"
@@ -91,31 +95,56 @@ export function ActionDropdown({ items }: ActionDropdownProps) {
         style={{
           display: "inline-flex",
           alignItems: "center",
+          justifyContent: "center",
           gap: 5,
-          padding: "5px 12px",
+          padding: variant === "minimal" ? "0 10px" : "5px 12px",
+          height: variant === "minimal" ? 30 : undefined,
           fontSize: 12,
-          borderRadius: "var(--radius-sm, 8px)",
-          background: open ? "var(--primary-700, #b91c1c)" : "var(--primary-600, #dc2626)",
-          border: "none",
-          color: "#ffffff",
-          fontWeight: 600,
+          borderRadius: variant === "minimal" ? 6 : "var(--radius-sm, 8px)",
+          background:
+            variant === "minimal"
+              ? open
+                ? "#f1f5f9"
+                : "#ffffff"
+              : open
+              ? "var(--primary-700, #b91c1c)"
+              : "var(--primary-600, #dc2626)",
+          border: variant === "minimal" ? "1px solid #cbd5e1" : "none",
+          color: variant === "minimal" ? "#334155" : "#ffffff",
+          fontWeight: variant === "minimal" ? 500 : 600,
           cursor: "pointer",
-          boxShadow: "0 1px 3px rgba(220, 38, 38, 0.3)",
+          boxShadow: variant === "minimal" ? "0 1px 2px rgba(0, 0, 0, 0.04)" : "0 1px 3px rgba(220, 38, 38, 0.3)",
           transition: "all 0.15s ease",
+          ...style,
         }}
         onMouseEnter={(e) => {
-          if (!open) e.currentTarget.style.background = "var(--primary-700, #b91c1c)";
+          if (!open) {
+            if (variant === "minimal") {
+              e.currentTarget.style.background = "#f8fafc";
+              e.currentTarget.style.borderColor = "#94a3b8";
+            } else {
+              e.currentTarget.style.background = "var(--primary-700, #b91c1c)";
+            }
+          }
         }}
         onMouseLeave={(e) => {
-          if (!open) e.currentTarget.style.background = "var(--primary-600, #dc2626)";
+          if (!open) {
+            if (variant === "minimal") {
+              e.currentTarget.style.background = "#ffffff";
+              e.currentTarget.style.borderColor = "#cbd5e1";
+            } else {
+              e.currentTarget.style.background = "var(--primary-600, #dc2626)";
+            }
+          }
         }}
       >
         <span>Aksi</span>
         <ChevronDown
-          size={13}
+          size={variant === "minimal" ? 11 : 13}
           style={{
             transform: open ? "rotate(180deg)" : "rotate(0deg)",
             transition: "transform 0.15s ease",
+            color: variant === "minimal" ? "#64748b" : "currentColor",
           }}
         />
       </button>

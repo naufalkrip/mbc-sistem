@@ -1,26 +1,84 @@
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, X, Shirt } from "lucide-react";
 import type { OrderWithAnswers } from "../../types";
-import { getSizeRank } from "../../utils/format";
 
 interface OrderRecapProps {
   orders: OrderWithAnswers[];
   onItemClick?: (product: string, size: string, sleeve: string) => void;
 }
 
-interface RecapItem {
-  key: string;
-  product: string;
-  size: string;
-  sleeve: string;
-  qty: number;
+const SIZES_ANAK = ["XS", "S", "M", "L", "XL", "XXL"];
+const SIZES_DEWASA = ["S", "M", "L", "XL", "XXL", "XXXL"];
+
+/**
+ * Normalisasi ukuran dan kategorisasi (anak vs dewasa)
+ */
+function normalizeSizeAndCategory(
+  rawSize: string,
+  rawLabel: string,
+  productName: string
+): { size: string; category: "anak" | "dewasa" } {
+  const combined = `${rawSize} ${rawLabel} ${productName}`.toUpperCase();
+  const s = rawSize.trim().toUpperCase();
+
+  const isAnak =
+    combined.includes("ANAK") ||
+    combined.includes("KIDS") ||
+    combined.includes("BABY") ||
+    s.startsWith("NO.") ||
+    s.startsWith("NO ") ||
+    s === "XS";
+
+  // Bersihkan teks ukuran
+  let cleanSize = s.replace(/ANAK|DEWASA|KIDS|ADULT|\(|\)|\[|\]/g, "").trim();
+
+  // Mapping ukuran nomor anak jika ada
+  if (isAnak) {
+    if (cleanSize === "NO. 2" || cleanSize === "NO.2" || cleanSize === "2") cleanSize = "XS";
+    else if (cleanSize === "NO. 4" || cleanSize === "NO.4" || cleanSize === "4") cleanSize = "S";
+    else if (cleanSize === "NO. 6" || cleanSize === "NO.6" || cleanSize === "6") cleanSize = "M";
+    else if (cleanSize === "NO. 8" || cleanSize === "NO.8" || cleanSize === "8") cleanSize = "L";
+    else if (cleanSize === "NO. 10" || cleanSize === "NO.10" || cleanSize === "10") cleanSize = "XL";
+    else if (cleanSize === "NO. 12" || cleanSize === "NO.12" || cleanSize === "12") cleanSize = "XXL";
+  }
+
+  // Standarisasi varian 3XL / XXXL
+  if (cleanSize === "3XL" || cleanSize.startsWith("3XL") || cleanSize.startsWith("XXXL")) cleanSize = "XXXL";
+  else if (cleanSize === "2XL" || cleanSize.startsWith("2XL") || cleanSize.startsWith("XXL")) cleanSize = "XXL";
+  else if (cleanSize.startsWith("XL")) cleanSize = "XL";
+  else if (cleanSize.startsWith("XS")) cleanSize = "XS";
+  else if (cleanSize === "S" || cleanSize.startsWith("S ")) cleanSize = "S";
+  else if (cleanSize === "M" || cleanSize.startsWith("M ")) cleanSize = "M";
+  else if (cleanSize === "L" || cleanSize.startsWith("L ")) cleanSize = "L";
+  else if (cleanSize.includes("4XL") || cleanSize.includes("5XL")) cleanSize = "XXXL";
+
+  const category: "anak" | "dewasa" = isAnak ? "anak" : "dewasa";
+
+  return { size: cleanSize, category };
 }
 
 export function OrderRecap({ orders, onItemClick }: OrderRecapProps) {
   const [search, setSearch] = useState("");
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
-  const recapData = useMemo(() => {
-    const map = new Map<string, RecapItem>();
+  // Perhitungan Data 4 Tabel & Subtotal / Grand Total
+  const {
+    mapPendekAnak,
+    mapPendekDewasa,
+    mapPanjangAnak,
+    mapPanjangDewasa,
+    subtotalPendekAnak,
+    subtotalPendekDewasa,
+    subtotalPanjangAnak,
+    subtotalPanjangDewasa,
+    totalLenganPendek,
+    totalLenganPanjang,
+    totalKeseluruhan,
+  } = useMemo(() => {
+    const pendekAnak: Record<string, number> = { XS: 0, S: 0, M: 0, L: 0, XL: 0, XXL: 0 };
+    const pendekDewasa: Record<string, number> = { S: 0, M: 0, L: 0, XL: 0, XXL: 0, XXXL: 0 };
+    const panjangAnak: Record<string, number> = { XS: 0, S: 0, M: 0, L: 0, XL: 0, XXL: 0 };
+    const panjangDewasa: Record<string, number> = { S: 0, M: 0, L: 0, XL: 0, XXL: 0, XXXL: 0 };
 
     orders.forEach((o) => {
       const safeAnswers = Array.isArray(o.answers) ? o.answers : [];
@@ -31,7 +89,9 @@ export function OrderRecap({ orders, onItemClick }: OrderRecapProps) {
           (String(a?.label || "").toLowerCase().includes("jenis") ||
             String(a?.label || "").toLowerCase().includes("produk"))
       );
-      const productName = jenisAnswer && typeof jenisAnswer.value === "string" ? jenisAnswer.value : "Pesanan Produk";
+      const productName = jenisAnswer && typeof jenisAnswer.value === "string" ? jenisAnswer.value : "Pesanan Kaos";
+
+      let foundBullets = false;
 
       safeAnswers.forEach((ans) => {
         if (!ans) return;
@@ -42,209 +102,256 @@ export function OrderRecap({ orders, onItemClick }: OrderRecapProps) {
             if (line.trim().startsWith("•")) {
               const match = line.match(/•\s*(\d+)x\s*\[(?:Ukuran\s*)?(.*?)\s*-\s*(.*?)\]/i);
               if (match) {
-                const qty = parseInt(match[1], 10);
-                const size = match[2].trim();
-                const sleeve = match[3].trim();
+                const qty = parseInt(match[1], 10) || 1;
+                const rawSize = match[2].trim();
+                const sleeveStr = match[3].trim().toLowerCase();
 
-                const key = `${productName}|${size}|${sleeve}`;
-                const existing = map.get(key);
-                if (existing) {
-                  existing.qty += qty;
+                const isPanjang = sleeveStr.includes("panjang");
+                const { size, category } = normalizeSizeAndCategory(rawSize, String(ans.label || ""), productName);
+
+                if (!isPanjang) {
+                  if (category === "anak") {
+                    pendekAnak[size] = (pendekAnak[size] || 0) + qty;
+                  } else {
+                    pendekDewasa[size] = (pendekDewasa[size] || 0) + qty;
+                  }
                 } else {
-                  map.set(key, { key, product: productName, size, sleeve, qty });
+                  if (category === "anak") {
+                    panjangAnak[size] = (panjangAnak[size] || 0) + qty;
+                  } else {
+                    panjangDewasa[size] = (panjangDewasa[size] || 0) + qty;
+                  }
                 }
+                foundBullets = true;
               }
             }
           });
         }
       });
-    });
 
-    const items = Array.from(map.values());
+      // Fallback jika bukan format bullet
+      if (!foundBullets) {
+        const sizeAns = safeAnswers.find(
+          (a) =>
+            a &&
+            (String(a?.label || "").toLowerCase().includes("ukuran") ||
+              String(a?.label || "").toLowerCase().includes("size"))
+        );
+        const sleeveAns = safeAnswers.find(
+          (a) =>
+            a &&
+            (String(a?.label || "").toLowerCase().includes("lengan") ||
+              String(a?.label || "").toLowerCase().includes("model"))
+        );
+        const qtyAns = safeAnswers.find(
+          (a) =>
+            a &&
+            (String(a?.label || "").toLowerCase().includes("jumlah") ||
+              String(a?.label || "").toLowerCase().includes("qty"))
+        );
 
-    // Sort: Product -> Sleeve (Pendek first, Panjang second) -> Size Rank (Anak ke Dewasa, terkecil ke terbesar)
-    items.sort((a, b) => {
-      if (a.product !== b.product) return a.product.localeCompare(b.product);
+        if (sizeAns && sizeAns.value) {
+          const qty = qtyAns ? parseInt(String(qtyAns.value).replace(/\D/g, ""), 10) || 1 : 1;
+          const rawSize = String(sizeAns.value).trim();
+          const sleeveStr = sleeveAns ? String(sleeveAns.value).toLowerCase() : "";
+          const isPanjang = sleeveStr.includes("panjang");
 
-      const isPanjangA = a.sleeve.toLowerCase().includes("panjang");
-      const isPanjangB = b.sleeve.toLowerCase().includes("panjang");
-      if (isPanjangA !== isPanjangB) {
-        return isPanjangA ? 1 : -1;
+          const { size, category } = normalizeSizeAndCategory(rawSize, String(sizeAns.label || ""), productName);
+
+          if (!isPanjang) {
+            if (category === "anak") {
+              pendekAnak[size] = (pendekAnak[size] || 0) + qty;
+            } else {
+              pendekDewasa[size] = (pendekDewasa[size] || 0) + qty;
+            }
+          } else {
+            if (category === "anak") {
+              panjangAnak[size] = (panjangAnak[size] || 0) + qty;
+            } else {
+              panjangDewasa[size] = (panjangDewasa[size] || 0) + qty;
+            }
+          }
+        }
       }
-
-      const rankA = getSizeRank(a.size);
-      const rankB = getSizeRank(b.size);
-      if (rankA !== rankB) return rankA - rankB;
-
-      return a.size.localeCompare(b.size);
     });
 
-    return items;
+    const subPendekAnak = SIZES_ANAK.reduce((sum, sz) => sum + (pendekAnak[sz] || 0), 0);
+    const subPendekDewasa = SIZES_DEWASA.reduce((sum, sz) => sum + (pendekDewasa[sz] || 0), 0);
+    const subPanjangAnak = SIZES_ANAK.reduce((sum, sz) => sum + (panjangAnak[sz] || 0), 0);
+    const subPanjangDewasa = SIZES_DEWASA.reduce((sum, sz) => sum + (panjangDewasa[sz] || 0), 0);
+
+    const totPendek = subPendekAnak + subPendekDewasa;
+    const totPanjang = subPanjangAnak + subPanjangDewasa;
+    const totAll = totPendek + totPanjang;
+
+    return {
+      mapPendekAnak: pendekAnak,
+      mapPendekDewasa: pendekDewasa,
+      mapPanjangAnak: panjangAnak,
+      mapPanjangDewasa: panjangDewasa,
+      subtotalPendekAnak: subPendekAnak,
+      subtotalPendekDewasa: subPendekDewasa,
+      subtotalPanjangAnak: subPanjangAnak,
+      subtotalPanjangDewasa: subPanjangDewasa,
+      totalLenganPendek: totPendek,
+      totalLenganPanjang: totPanjang,
+      totalKeseluruhan: totAll,
+    };
   }, [orders]);
-
-  const filteredRecap = useMemo(() => {
-    if (!search.trim()) return recapData;
-    const q = search.toLowerCase();
-    return recapData.filter(
-      (item) =>
-        item.product.toLowerCase().includes(q) ||
-        item.size.toLowerCase().includes(q) ||
-        item.sleeve.toLowerCase().includes(q)
-    );
-  }, [recapData, search]);
-
-  const groupedByProduct = useMemo(() => {
-    const groups: Record<string, { pendek: RecapItem[]; panjang: RecapItem[] }> = {};
-    filteredRecap.forEach((item) => {
-      if (!groups[item.product]) {
-        groups[item.product] = { pendek: [], panjang: [] };
-      }
-      const isPanjang = item.sleeve.toLowerCase().includes("panjang");
-      if (isPanjang) {
-        groups[item.product].panjang.push(item);
-      } else {
-        groups[item.product].pendek.push(item);
-      }
-    });
-    return groups;
-  }, [filteredRecap]);
-
-  const totalQty = recapData.reduce((acc, item) => acc + item.qty, 0);
-  const totalVariants = recapData.length;
-  const totalOrders = orders.length;
 
   if (orders.length === 0) return null;
 
+  // Render Tabel Kategori dengan alignment baru
+  const renderTable = (
+    title: string,
+    sizes: string[],
+    dataMap: Record<string, number>,
+    subtotal: number,
+    sleeveType: string,
+    categoryType: string
+  ) => {
+    return (
+      <div className="rekap-table-card">
+        {/* Header Kategori – merah marun */}
+        <div className="rekap-category-header">
+          <span className="rekap-category-title">{title}</span>
+        </div>
+        <table className="rekap-category-table">
+          <colgroup>
+            <col style={{ width: "20%" }} />
+            <col style={{ width: "40%" }} />
+            <col style={{ width: "40%" }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th className="text-center">NO.</th>
+              <th className="text-center">UKURAN</th>
+              <th className="text-center">JUMLAH</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sizes.map((sz, idx) => {
+              const qty = dataMap[sz] || 0;
+              const isSearchMatch =
+                search.trim() &&
+                (sz.toLowerCase().includes(search.toLowerCase().trim()) ||
+                  title.toLowerCase().includes(search.toLowerCase().trim()));
+
+              return (
+                <tr
+                  key={sz}
+                  className={`rekap-data-row ${isSearchMatch ? "rekap-row-highlight" : ""}`}
+                  onClick={() => onItemClick && onItemClick("Kaos", sz, `${sleeveType} ${categoryType}`)}
+                  title={`Klik untuk menyaring pesanan ${title} ukuran ${sz}`}
+                >
+                  <td className="text-center text-muted">{idx + 1}</td>
+                  <td className="text-center font-medium">{sz}</td>
+                  <td className="text-center rekap-col-qty">
+                    {qty > 0 ? qty : "-"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="rekap-subtotal-row">
+              <td colSpan={2} className="rekap-subtotal-label">
+                JUMLAH
+              </td>
+              <td className="rekap-subtotal-qty">
+                {subtotal} PCS
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    );
+  };
+
   return (
-    <div
-      style={{
-        background: "#ffffff",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-md)",
-        padding: 20,
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--navy-900)" }}>
-            REKAP PESANAN PRODUK
-          </h2>
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            Diurutkan dari size terkecil ke terbesar (Anak-anak → Dewasa), dipisah per tipe Lengan
-          </span>
-        </div>
-
-        <div className="rekap-summary-row" style={{ display: "flex", gap: 8, flexWrap: "nowrap", overflowX: "auto", maxWidth: "100%" }}>
-          <div style={{ textAlign: "center", padding: "8px 14px", background: "var(--bg-soft)", borderRadius: 8, border: "1px solid var(--border)", flex: "1 0 auto" }}>
-            <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", marginBottom: 2, whiteSpace: "nowrap" }}>TOTAL PESANAN</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--primary-700)" }}>{totalQty} PCS</div>
+    <div className="rekap-produk-container">
+      {/* Header Rekap */}
+      <div className="rekap-header-bar">
+        <div className="rekap-header-title-box">
+          <div className="rekap-icon-box">
+            <Shirt size={18} />
           </div>
-          <div style={{ textAlign: "center", padding: "8px 14px", background: "var(--bg-soft)", borderRadius: 8, border: "1px solid var(--border)", flex: "1 0 auto" }}>
-            <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", marginBottom: 2, whiteSpace: "nowrap" }}>TOTAL VARIASI</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--navy-900)" }}>{totalVariants}</div>
-          </div>
-          <div style={{ textAlign: "center", padding: "8px 14px", background: "var(--bg-soft)", borderRadius: 8, border: "1px solid var(--border)", flex: "1 0 auto" }}>
-            <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--text-muted)", marginBottom: 2, whiteSpace: "nowrap" }}>TOTAL ORDER</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--navy-900)" }}>{totalOrders}</div>
+          <div>
+            <h3 className="rekap-main-heading">REKAP PESANAN PRODUK</h3>
+            <p className="rekap-sub-heading">
+              Rekap jumlah pesanan berdasarkan model lengan, kategori, dan ukuran.
+            </p>
           </div>
         </div>
-      </div>
-
-      <div style={{ marginBottom: 16, position: "relative" }}>
-        <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-        <input
-          type="text"
-          className="form-input"
-          placeholder="Cari size, lengan, produk..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ width: "100%", paddingLeft: 36, fontSize: 13 }}
-        />
-      </div>
-
-      {filteredRecap.length === 0 ? (
-        <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)", fontSize: 13, background: "var(--bg-soft)", borderRadius: 8 }}>
-          Tidak ada rekap yang sesuai.
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          {Object.entries(groupedByProduct).map(([productName, sections]) => (
-            <div key={productName} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--navy-900)", textTransform: "uppercase", paddingBottom: 6, borderBottom: "2px solid var(--border)" }}>
-                {productName}
-              </div>
-
-              {/* 1. TABEL LENGAN PENDEK */}
-              {sections.pendek.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--navy-900)", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                    <span>👕</span> TABEL LENGAN PENDEK ({sections.pendek.reduce((a, b) => a + b.qty, 0)} PCS)
-                  </div>
-                  <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead style={{ background: "#f8fafc" }}>
-                        <tr>
-                          <th style={{ padding: "8px 14px", textAlign: "left", fontSize: 11.5, fontWeight: 700, color: "var(--navy-900)", borderBottom: "1px solid var(--border)", width: "40%" }}>Size / Ukuran</th>
-                          <th style={{ padding: "8px 14px", textAlign: "left", fontSize: 11.5, fontWeight: 700, color: "var(--text-secondary)", borderBottom: "1px solid var(--border)", width: "35%" }}>Model Lengan</th>
-                          <th style={{ padding: "8px 14px", textAlign: "right", fontSize: 11.5, fontWeight: 700, color: "var(--navy-900)", borderBottom: "1px solid var(--border)" }}>Jumlah (Pcs)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sections.pendek.map((item) => (
-                          <tr
-                            key={item.key}
-                            style={{ borderBottom: "1px solid var(--border-soft)", cursor: onItemClick ? "pointer" : "default" }}
-                            onClick={() => onItemClick && onItemClick(item.product, item.size, item.sleeve)}
-                          >
-                            <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, color: "var(--navy-900)" }}>{item.size}</td>
-                            <td style={{ padding: "10px 14px", fontSize: 12.5, color: "var(--text)" }}>{item.sleeve}</td>
-                            <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700, color: "var(--primary-700)", textAlign: "right" }}>
-                              {item.qty} PCS
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* 2. TABEL LENGAN PANJANG */}
-              {sections.panjang.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--navy-900)", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                    <span>👕</span> TABEL LENGAN PANJANG ({sections.panjang.reduce((a, b) => a + b.qty, 0)} PCS)
-                  </div>
-                  <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", background: "#ffffff" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead style={{ background: "#f8fafc" }}>
-                        <tr>
-                          <th style={{ padding: "8px 14px", textAlign: "left", fontSize: 11.5, fontWeight: 700, color: "var(--navy-900)", borderBottom: "1px solid var(--border)", width: "40%" }}>Size / Ukuran</th>
-                          <th style={{ padding: "8px 14px", textAlign: "left", fontSize: 11.5, fontWeight: 700, color: "var(--text-secondary)", borderBottom: "1px solid var(--border)", width: "35%" }}>Model Lengan</th>
-                          <th style={{ padding: "8px 14px", textAlign: "right", fontSize: 11.5, fontWeight: 700, color: "var(--navy-900)", borderBottom: "1px solid var(--border)" }}>Jumlah (Pcs)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sections.panjang.map((item) => (
-                          <tr
-                            key={item.key}
-                            style={{ borderBottom: "1px solid var(--border-soft)", cursor: onItemClick ? "pointer" : "default", background: "#ffffff" }}
-                            onClick={() => onItemClick && onItemClick(item.product, item.size, item.sleeve)}
-                          >
-                            <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, color: "var(--navy-900)" }}>{item.size}</td>
-                            <td style={{ padding: "10px 14px", fontSize: 12.5, color: "var(--text)" }}>{item.sleeve}</td>
-                            <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700, color: "var(--primary-700)", textAlign: "right" }}>
-                              {item.qty} PCS
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
+        <div className="rekap-header-right">
+          <div className="rekap-header-stats-chips">
+            <div className="rekap-stat-chip">
+              <span className="rekap-stat-chip-label">Total Pendek:</span>
+              <span className="rekap-stat-chip-val">{totalLenganPendek} PCS</span>
             </div>
-          ))}
+            <div className="rekap-stat-chip">
+              <span className="rekap-stat-chip-label">Total Panjang:</span>
+              <span className="rekap-stat-chip-val">{totalLenganPanjang} PCS</span>
+            </div>
+            <div className="rekap-stat-chip rekap-stat-chip-total">
+              <span className="rekap-stat-chip-label">Total Keseluruhan:</span>
+              <span className="rekap-stat-chip-val">{totalKeseluruhan} PCS</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="rekap-toggle-btn"
+            title={isCollapsed ? "Buka Rekap Produk" : "Tutup Rekap Produk"}
+          >
+            {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+            <span>{isCollapsed ? "Buka" : "Tutup"}</span>
+          </button>
+        </div>
+      </div>
+
+      {!isCollapsed && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Pencarian */}
+          <div className="rekap-search-wrapper">
+            <Search size={15} className="rekap-search-icon" />
+            <input
+              type="text"
+              className="rekap-search-input"
+              placeholder="Cari ukuran, misalnya S, M, XL, Anak, Pendek..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button type="button" onClick={() => setSearch("")} className="rekap-search-clear" title="Hapus pencarian">
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* Grid 2x2 */}
+          <div className="rekap-grid-2x2">
+            {renderTable("PENDEK ANAK", SIZES_ANAK, mapPendekAnak, subtotalPendekAnak, "Pendek", "Anak")}
+            {renderTable("PENDEK DEWASA", SIZES_DEWASA, mapPendekDewasa, subtotalPendekDewasa, "Pendek", "Dewasa")}
+            {renderTable("PANJANG ANAK", SIZES_ANAK, mapPanjangAnak, subtotalPanjangAnak, "Panjang", "Anak")}
+            {renderTable("PANJANG DEWASA", SIZES_DEWASA, mapPanjangDewasa, subtotalPanjangDewasa, "Panjang", "Dewasa")}
+          </div>
+
+          {/* Grand Summary */}
+          <div className="rekap-grand-summary-card">
+            <div className="rekap-grand-stat-item">
+              <span className="rekap-grand-stat-label">TOTAL LENGAN PENDEK</span>
+              <span className="rekap-grand-stat-val">{totalLenganPendek} PCS</span>
+            </div>
+            <div className="rekap-grand-stat-item">
+              <span className="rekap-grand-stat-label">TOTAL LENGAN PANJANG</span>
+              <span className="rekap-grand-stat-val">{totalLenganPanjang} PCS</span>
+            </div>
+            <div className="rekap-grand-stat-item rekap-grand-stat-total">
+              <span className="rekap-grand-stat-label">TOTAL KESELURUHAN</span>
+              <span className="rekap-grand-stat-val rekap-maroon-text">{totalKeseluruhan} PCS</span>
+            </div>
+          </div>
         </div>
       )}
     </div>
