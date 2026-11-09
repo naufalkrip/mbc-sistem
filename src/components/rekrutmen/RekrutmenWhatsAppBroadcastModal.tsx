@@ -28,7 +28,7 @@ interface RekrutmenWhatsAppBroadcastModalProps {
   formTitle?: string;
   submissions?: RekrutmenSubmissionWithAnswers[];
   initialSubmission?: RekrutmenSubmissionWithAnswers | null;
-  initialMode?: "skrining" | "lolos" | "general";
+  initialMode?: "skrining" | "lolos" | "tidak_lolos" | "general";
   initialTab?: "broadcast" | "settings";
 }
 
@@ -44,7 +44,7 @@ export function RekrutmenWhatsAppBroadcastModal({
   const { success, error } = useToast();
 
   const [activeTab, setActiveTab] = useState<"broadcast" | "settings">(initialTab);
-  const [templateType, setTemplateType] = useState<"skrining" | "lolos" | "general">(initialMode);
+  const [templateType, setTemplateType] = useState<"skrining" | "lolos" | "tidak_lolos" | "general">(initialMode);
 
   // Settings state
   const [settings, setSettings] = useState<RekrutmenWaSettings>(getRekrutmenWaSettings());
@@ -133,6 +133,7 @@ export function RekrutmenWhatsAppBroadcastModal({
       tanggalWaktu: overrideTanggalWaktu,
       templateSkrining: settings.templateSkrining,
       templateLolos: settings.templateLolos,
+      templateTidakLolos: settings.templateTidakLolos,
       templateGeneral: settings.templateGeneral,
     }),
     [overrideNamaTempat, overrideTitikGmaps, overrideTanggalWaktu, settings]
@@ -290,6 +291,23 @@ export function RekrutmenWhatsAppBroadcastModal({
                   }}
                 >
                   🎉 Pengumuman Lolos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTemplateType("tidak_lolos")}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    border: templateType === "tidak_lolos" ? "2px solid #dc2626" : "1px solid #cbd5e1",
+                    background: templateType === "tidak_lolos" ? "#fef2f2" : "#ffffff",
+                    color: templateType === "tidak_lolos" ? "#991b1b" : "var(--text-primary)",
+                    fontWeight: templateType === "tidak_lolos" ? 700 : 500,
+                    fontSize: "12.5px",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  💌 Tidak Lolos (Bahasa Santun)
                 </button>
                 <button
                   type="button"
@@ -652,6 +670,19 @@ export function RekrutmenWhatsAppBroadcastModal({
                   style={{ width: "100%", height: 160, resize: "vertical", fontSize: "12px", fontFamily: "monospace" }}
                   value={settings.templateLolos}
                   onChange={(e) => setSettings({ ...settings, templateLolos: e.target.value })}
+                />
+              </div>
+
+              {/* Template Pemberitahuan Tidak Lolos (Bahasa Santun) */}
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: 6, color: "var(--navy-900)" }}>
+                  Template Pesan Pemberitahuan Tidak Lolos (Bahasa Santun &amp; Apresiatif)
+                </label>
+                <textarea
+                  className="form-input"
+                  style={{ width: "100%", height: 160, resize: "vertical", fontSize: "12px", fontFamily: "monospace" }}
+                  value={settings.templateTidakLolos}
+                  onChange={(e) => setSettings({ ...settings, templateTidakLolos: e.target.value })}
                 />
               </div>
 

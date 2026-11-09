@@ -7,6 +7,7 @@ export interface RekrutmenWaSettings {
   tanggalWaktu: string;
   templateSkrining: string;
   templateLolos: string;
+  templateTidakLolos: string;
   templateGeneral: string;
 }
 
@@ -53,6 +54,21 @@ Mohon membalas pesan ini untuk konfirmasi penerimaan dan kesediaan Anda ya kak.
 
 Selamat bergabung dan semangat berproses bersama keluarga besar MB Chondro Wonopringgo! 🎺🥁✨`,
 
+  templateTidakLolos: `Halo Kak *{nama}* 🙏
+
+Terima kasih yang sebesar-besarnya atas partisipasi, antusiasme, dan waktu yang telah Kakak luangkan dalam mengikuti tahapan seleksi calon anggota *{judul_form}* MB Chondro Wonopringgo untuk posisi *{posisi}*.
+
+Setelah melalui tahapan evaluasi dan pertimbangan yang cermat bersama seluruh tim penilai, kami menginformasikan dengan penuh rasa hormat bahwa untuk saat ini Kakak *belum dapat kami terima* sebagai anggota MB Chondro Wonopringgo pada periode ini.
+
+Keputusan ini diambil semata-mata karena keterbatasan kuota formasi dan kebutuhan komposisi instrumen pada periode berjalan, dan sama sekali tidak mengurangi apresiasi kami terhadap potensi, bakat, serta semangat luar biasa yang telah Kakak tunjukkan.{catatan}
+
+Tetaplah bersemangat untuk terus berkarya, berlatih, dan mengembangkan potensi bermusik. Pintu kami senantiasa terbuka untuk Kakak pada kesempatan dan agenda MB Chondro di masa mendatang.
+
+Terima kasih banyak atas dedikasinya dan sukses selalu untuk langkah Kakak ke depan 🙏✨
+
+Salam hormat,
+*Pengurus & Tim Seleksi MB Chondro Wonopringgo*`,
+
   templateGeneral: `Halo Kak *{nama}* 👋
 
 Informasi mengenai pendaftaran Anda pada *{judul_form}* MB Chondro Wonopringgo (Posisi: *{posisi}*).
@@ -79,6 +95,7 @@ export function getRekrutmenWaSettings(): RekrutmenWaSettings {
         tanggalWaktu: parsed.tanggalWaktu ?? DEFAULT_REKRUTMEN_WA_SETTINGS.tanggalWaktu,
         templateSkrining: parsed.templateSkrining ?? DEFAULT_REKRUTMEN_WA_SETTINGS.templateSkrining,
         templateLolos: parsed.templateLolos ?? DEFAULT_REKRUTMEN_WA_SETTINGS.templateLolos,
+        templateTidakLolos: parsed.templateTidakLolos ?? DEFAULT_REKRUTMEN_WA_SETTINGS.templateTidakLolos,
         templateGeneral: parsed.templateGeneral ?? DEFAULT_REKRUTMEN_WA_SETTINGS.templateGeneral,
       };
     }
@@ -97,7 +114,7 @@ export function saveRekrutmenWaSettings(settings: RekrutmenWaSettings): void {
 }
 
 export function buildRekrutmenWaMessage(
-  templateType: "skrining" | "lolos" | "general",
+  templateType: "skrining" | "lolos" | "tidak_lolos" | "general",
   params: {
     nama?: string;
     judulForm?: string;
@@ -113,6 +130,7 @@ export function buildRekrutmenWaMessage(
 
   let rawTemplate = settings.templateSkrining;
   if (templateType === "lolos") rawTemplate = settings.templateLolos;
+  if (templateType === "tidak_lolos") rawTemplate = settings.templateTidakLolos;
   if (templateType === "general") rawTemplate = settings.templateGeneral;
 
   if (params.customSettings) {
@@ -120,6 +138,8 @@ export function buildRekrutmenWaMessage(
       rawTemplate = params.customSettings.templateSkrining;
     } else if (templateType === "lolos" && params.customSettings.templateLolos) {
       rawTemplate = params.customSettings.templateLolos;
+    } else if (templateType === "tidak_lolos" && params.customSettings.templateTidakLolos) {
+      rawTemplate = params.customSettings.templateTidakLolos;
     } else if (templateType === "general" && params.customSettings.templateGeneral) {
       rawTemplate = params.customSettings.templateGeneral;
     }
@@ -144,7 +164,7 @@ export function buildRekrutmenWaMessage(
 
 export function buildRekrutmenWaLink(
   nomorHp: string | number | null | undefined,
-  templateType: "skrining" | "lolos" | "general",
+  templateType: "skrining" | "lolos" | "tidak_lolos" | "general",
   params: {
     nama?: string;
     judulForm?: string;

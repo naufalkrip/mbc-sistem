@@ -633,6 +633,51 @@ export function buatLinkWhatsAppLolos(
 }
 
 /**
+ * Membuat pesan template otomatis penolakan santun (tidak lolos) calon anggota MB Chondro
+ */
+export function buatPesanWhatsAppTidakLolos(
+  nama: string,
+  judulFormulir?: string,
+  posisi?: string,
+  catatanKhusus?: string
+): string {
+  const cleanName = (nama || "Calon Anggota").trim();
+  const formTitle = (judulFormulir || "Penerimaan Calon Anggota").trim();
+  const posisiInfo = posisi && posisi !== "-" ? ` untuk posisi *${posisi.trim()}*` : "";
+  const noteSection = catatanKhusus && catatanKhusus.trim()
+    ? `\n\n📌 *Catatan Tim Penilai:*\n${catatanKhusus.trim()}`
+    : "";
+
+  return (
+    `Halo Kak *${cleanName}* 🙏\n\n` +
+    `Terima kasih yang sebesar-besarnya atas partisipasi, antusiasme, dan waktu yang telah Kakak luangkan dalam mengikuti seleksi calon anggota *${formTitle}* MB Chondro Wonopringgo${posisiInfo}.\n\n` +
+    `Setelah melalui tahapan evaluasi dan pertimbangan yang cermat bersama seluruh tim penilai, kami menginformasikan dengan penuh rasa hormat bahwa untuk saat ini Kakak *belum dapat kami terima* sebagai anggota MB Chondro Wonopringgo pada periode ini.\n\n` +
+    `Keputusan ini diambil murni karena keterbatasan kuota formasi dan kebutuhan teknis instrumen pada periode berjalan, dan sama sekali tidak mengurangi apresiasi kami terhadap potensi, bakat, serta semangat luar biasa yang telah Kakak tunjukkan.${noteSection}\n\n` +
+    `Tetaplah bersemangat untuk terus berkarya, berlatih, dan mengembangkan potensi bermusik. Pintu kami senantiasa terbuka untuk Kakak pada agenda dan kesempatan MB Chondro di masa mendatang.\n\n` +
+    `Terima kasih banyak atas dedikasinya dan sukses selalu untuk langkah Kakak ke depan 🙏✨\n\n` +
+    `Salam hormat,\n` +
+    `*Pengurus & Tim Seleksi MB Chondro Wonopringgo*`
+  );
+}
+
+/**
+ * Membuat link tautan langsung ke WhatsApp dengan pesan penolakan santun (tidak lolos)
+ */
+export function buatLinkWhatsAppTidakLolos(
+  nomor: string | number | null | undefined,
+  nama: string,
+  judulFormulir?: string,
+  posisi?: string,
+  catatanKhusus?: string
+): string | null {
+  const cleanNumber = formatNomorWhatsAppUrl(nomor);
+  if (!cleanNumber) return null;
+
+  const pesan = buatPesanWhatsAppTidakLolos(nama, judulFormulir, posisi, catatanKhusus);
+  return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(pesan)}`;
+}
+
+/**
  * Membuat pesan template otomatis follow-up pesanan customer MB Chondro
  */
 export function buatPesanWhatsAppPesanan(

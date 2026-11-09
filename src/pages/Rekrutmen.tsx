@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
-  Bookmark,
   Plus,
   Copy,
   ExternalLink,
@@ -267,7 +266,7 @@ export function Rekrutmen() {
           ) : null
         }
       >
-        <SummaryGrid columns={5}>
+        <SummaryGrid columns={4}>
           <SummaryCard
             label="Total Pendaftar"
             value={statsCalculated.total}
@@ -279,44 +278,34 @@ export function Rekrutmen() {
             title="Klik untuk melihat semua calon pendaftar"
           />
           <SummaryCard
-            label="Menunggu"
+            label="Menunggu Seleksi"
             value={statsCalculated.menunggu}
             icon={<Clock size={16} />}
             sub="Belum direview"
             accent="amber"
             active={selectedStatusFilter === "menunggu"}
             onClick={() => handleCardStatusClick("menunggu")}
-            title="Klik untuk menyaring pendaftar yang menunggu review"
+            title="Klik untuk menyaring pendaftar yang menunggu seleksi"
           />
           <SummaryCard
             label="Lolos Seleksi"
             value={statsCalculated.lolos}
             icon={<CheckCircle2 size={16} />}
-            sub="Diterima lolos"
+            sub="Dinyatakan lolos"
             accent="green"
             active={selectedStatusFilter === "lolos"}
             onClick={() => handleCardStatusClick("lolos")}
             title="Klik untuk menyaring calon yang lolos seleksi"
           />
           <SummaryCard
-            label="Cadangan"
-            value={statsCalculated.cadangan}
-            icon={<Bookmark size={16} />}
-            sub="Status cadangan"
-            accent="blue"
-            active={selectedStatusFilter === "cadangan"}
-            onClick={() => handleCardStatusClick("cadangan")}
-            title="Klik untuk menyaring calon cadangan"
-          />
-          <SummaryCard
-            label="Tidak Lolos"
+            label="Tidak Lolos Seleksi"
             value={statsCalculated.tidakLolos}
             icon={<XCircle size={16} />}
             sub="Belum memenuhi"
             accent="red"
             active={selectedStatusFilter === "tidak_lolos"}
             onClick={() => handleCardStatusClick("tidak_lolos")}
-            title="Klik untuk menyaring calon yang belum lolos"
+            title="Klik untuk menyaring calon yang tidak lolos seleksi"
           />
         </SummaryGrid>
       </SummarySection>

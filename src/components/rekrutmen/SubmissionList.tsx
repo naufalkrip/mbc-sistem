@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
-  Eye,
   Download,
   Trash2,
   CheckCircle,
@@ -8,16 +8,14 @@ import {
   XCircle,
   Bookmark,
   FileText,
-  ZoomIn,
   Check,
   Camera,
   Sparkles,
   MessageCircle,
-  RotateCw,
   Copy,
   Send,
-  Layers,
   X,
+  User,
   Users,
   FileSpreadsheet,
   ChevronDown,
@@ -25,6 +23,8 @@ import {
   QrCode,
   Settings,
   Maximize2,
+  Loader2,
+  RotateCcw,
 } from "lucide-react";
 import { PhotoLightboxModal, LightboxItem } from "../ui/PhotoLightboxModal";
 import type {
@@ -38,12 +38,15 @@ import {
   formatTanggalPanjang,
   formatRentangTanggal,
   formatNomorHp,
+  formatNomorWhatsAppUrl,
   buatLinkWhatsAppCalon,
   buatLinkWhatsAppLolos,
+  buatLinkWhatsAppTidakLolos,
 } from "../../utils/format";
 import {
   buildRekrutmenWaMessage,
   buildRekrutmenWaLink,
+  getRekrutmenWaSettings,
 } from "../../utils/rekrutmenWaTemplate";
 import { RekrutmenWhatsAppBroadcastModal } from "./RekrutmenWhatsAppBroadcastModal";
 import { SearchBar } from "../ui/SearchBar";
@@ -214,196 +217,6 @@ function categorizeCandidateAnswers(
   }
 
   return { dataPribadi, pilihanMusik, berkasDokumen, lainnya };
-}
-
-/**
- * Komponen Pas Foto Calon Anggota Cerdas
- * dengan dukungan Multi-Tier Fallback (Base64 -> Google Drive CDN -> Backend Base64 Resolver -> Inisial Elegan).
- */
-function CandidatePhotoBadge({
-  answers,
-  candidateName,
-  size = "md",
-  onClick,
-}: {
-  answers: Array<{
-    id?: string;
-    fieldId?: string;
-    value?: string;
-    fileUrl?: string | null;
-    fileBase64?: string | null;
-    fileName?: string | null;
-    fileType?: string | null;
-    field?: { label?: string; fieldType?: string };
-  }>;
-  candidateName: string;
-  size?: "sm" | "md" | "lg" | "xl";
-  onClick?: (url: string, title: string, fileName?: string) => void;
-}) {
-  const photoInfo = useMemo(() => extractCandidatePhotoInfo(answers), [answers]);
-  const [currentSrc, setCurrentSrc] = useState<string | null>(photoInfo.url);
-  const [loadingFallback, setLoadingFallback] = useState(false);
-  const [loadError, setLoadError] = useState(false);
-
-  useEffect(() => {
-    // Cek apakah ada foto ter-cache
-    if (photoInfo.driveFileId) {
-      const cached = getCachedResolvedPhoto(photoInfo.driveFileId);
-      if (cached) {
-        setCurrentSrc(cached);
-        return;
-      }
-    }
-    setCurrentSrc(photoInfo.url);
-    setLoadError(false);
-  }, [photoInfo]);
-
-  const handleImageError = async () => {
-    // Jika link Google Drive standar gagal dimuat, coba gunakan endpoint resolver
-    if (photoInfo.driveFileId && !loadingFallback && !loadError) {
-      setLoadingFallback(true);
-      const res = await getRekrutmenImageBase64Item({
-        fileId: photoInfo.driveFileId,
-        fileName: photoInfo.fileName || undefined,
-      });
-      setLoadingFallback(false);
-      if (res.success && res.base64) {
-        setCachedResolvedPhoto(photoInfo.driveFileId, res.base64);
-        setCurrentSrc(res.base64);
-        setLoadError(false);
-      } else {
-        setLoadError(true);
-      }
-    } else {
-      setLoadError(true);
-    }
-  };
-
-  const dimensions = {
-    sm: { w: 36, h: 46, radius: 6, fontSize: 13, iconSize: 14 },
-    md: { w: 46, h: 58, radius: 8, fontSize: 15, iconSize: 16 },
-    lg: { w: 72, h: 92, radius: 10, fontSize: 22, iconSize: 22 },
-    xl: { w: 120, h: 150, radius: 12, fontSize: 32, iconSize: 32 },
-  }[size];
-
-  const initial = (candidateName || "C").trim().charAt(0).toUpperCase();
-
-  const isPhotoAvailable = Boolean(currentSrc && !loadError);
-
-  return (
-    <div
-      style={{
-        position: "relative",
-        width: dimensions.w,
-        height: dimensions.h,
-        borderRadius: dimensions.radius,
-        flexShrink: 0,
-        overflow: "hidden",
-        boxShadow: "0 2px 8px rgba(15, 23, 42, 0.08)",
-        border: isPhotoAvailable ? "1.5px solid #cbd5e1" : "1.5px dashed #cbd5e1",
-        background: isPhotoAvailable ? "#0f172a" : "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
-        cursor: isPhotoAvailable && onClick ? "pointer" : "default",
-        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-      }}
-      onClick={(e) => {
-        if (isPhotoAvailable && onClick && currentSrc) {
-          e.stopPropagation();
-          onClick(currentSrc, `Pas Foto: ${candidateName}`, photoInfo.fileName || undefined);
-        }
-      }}
-      title={isPhotoAvailable ? `Klik untuk memperbesar Pas Foto ${candidateName}` : `Belum ada pas foto untuk ${candidateName}`}
-    >
-      {isPhotoAvailable && currentSrc ? (
-        <>
-          <img
-            src={currentSrc}
-            alt={`Foto ${candidateName}`}
-            referrerPolicy="no-referrer"
-            onError={handleImageError}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              display: "block",
-              transition: "transform 0.3s ease",
-            }}
-            onMouseEnter={(e) => {
-              if (size !== "sm") e.currentTarget.style.transform = "scale(1.08)";
-            }}
-            onMouseLeave={(e) => {
-              if (size !== "sm") e.currentTarget.style.transform = "scale(1)";
-            }}
-          />
-          {/* Zoom Overlay Badge */}
-          {size !== "sm" && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: 3,
-                right: 3,
-                background: "rgba(0, 0, 0, 0.65)",
-                color: "#ffffff",
-                borderRadius: 4,
-                padding: "2px 4px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backdropFilter: "blur(4px)",
-              }}
-            >
-              <ZoomIn size={11} />
-            </div>
-          )}
-        </>
-      ) : loadingFallback ? (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 4,
-            color: "#64748b",
-          }}
-        >
-          <RotateCw size={dimensions.iconSize} className="spinning" />
-        </div>
-      ) : (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--primary-700, #b91c1c)",
-            fontWeight: 800,
-            fontSize: dimensions.fontSize,
-            position: "relative",
-            background: "linear-gradient(135deg, rgba(185, 28, 28, 0.06) 0%, rgba(185, 28, 28, 0.12) 100%)",
-          }}
-        >
-          <span>{initial}</span>
-          <span
-            style={{
-              position: "absolute",
-              bottom: 2,
-              fontSize: "8.5px",
-              color: "#94a3b8",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.2px",
-            }}
-          >
-            {size !== "sm" ? "No Foto" : ""}
-          </span>
-        </div>
-      )}
-    </div>
-  );
 }
 
 /**
@@ -586,6 +399,28 @@ export function SubmissionList({
   const [adminNote, setAdminNote] = useState("");
   const [savingStatus, setSavingStatus] = useState(false);
   const [sendWaOnLolosSave, setSendWaOnLolosSave] = useState(true);
+  const [sendWaOnTidakLolosSave, setSendWaOnTidakLolosSave] = useState(true);
+
+  // States for Refactored OrderDetail-style Candidate Detail Modal
+  const [detailTab, setDetailTab] = useState<"detail" | "whatsapp">("detail");
+  const [detailWaType, setDetailWaType] = useState<"skrining" | "lolos" | "tidak_lolos" | "general">("skrining");
+  const [detailWaMessage, setDetailWaMessage] = useState("");
+  const [isDetailWaDirty, setIsDetailWaDirty] = useState(false);
+  const [copiedDetailWa, setCopiedDetailWa] = useState(false);
+  const [copiedDetailHp, setCopiedDetailHp] = useState(false);
+  const [detailStatus, setDetailStatus] = useState<RekrutmenSubmissionStatus>("menunggu");
+  const [detailNote, setDetailNote] = useState("");
+  const [detailSavingStatus, setDetailSavingStatus] = useState(false);
+  const [detailSendWaLolos, setDetailSendWaLolos] = useState(true);
+  const [detailSendWaTidakLolos, setDetailSendWaTidakLolos] = useState(true);
+  const [detailOverrideTempat, setDetailOverrideTempat] = useState("");
+  const [detailOverrideGmaps, setDetailOverrideGmaps] = useState("");
+  const [detailOverrideWaktu, setDetailOverrideWaktu] = useState("");
+
+  // State Khusus Fitur Kirim WhatsApp Calon Anggota Tidak Lolos
+  const [waTidakLolosPreviewSub, setWaTidakLolosPreviewSub] = useState<RekrutmenSubmissionWithAnswers | null>(null);
+  const [waTidakLolosText, setWaTidakLolosText] = useState("");
+  const [copiedWaTidakLolos, setCopiedWaTidakLolos] = useState(false);
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -606,7 +441,7 @@ export function SubmissionList({
   // WhatsApp Broadcast Modal State
   const [waBroadcastModalData, setWaBroadcastModalData] = useState<{
     sub?: RekrutmenSubmissionWithAnswers | null;
-    mode?: "skrining" | "lolos" | "general";
+    mode?: "skrining" | "lolos" | "tidak_lolos" | "general";
     tab?: "broadcast" | "settings";
   } | null>(null);
 
@@ -663,8 +498,10 @@ export function SubmissionList({
     const waUrl = buildRekrutmenWaLink(rawHp, "skrining", { nama, judulForm: form.title, posisi: pilihan }) || buatLinkWhatsAppCalon(rawHp, nama, form.title);
     const waLolosUrl = buildRekrutmenWaLink(rawHp, "lolos", { nama, judulForm: form.title, posisi: pilihan, catatan: noteForMsg }) || buatLinkWhatsAppLolos(rawHp, nama, form.title, noteForMsg);
     const pesanLolos = buildRekrutmenWaMessage("lolos", { nama, judulForm: form.title, posisi: pilihan, catatan: noteForMsg });
+    const waTidakLolosUrl = buildRekrutmenWaLink(rawHp, "tidak_lolos", { nama, judulForm: form.title, posisi: pilihan, catatan: noteForMsg }) || buatLinkWhatsAppTidakLolos(rawHp, nama, form.title, pilihan, noteForMsg);
+    const pesanTidakLolos = buildRekrutmenWaMessage("tidak_lolos", { nama, judulForm: form.title, posisi: pilihan, catatan: noteForMsg });
 
-    return { nama, namaPanggilan, rawHp, hp, pilihan, waUrl, waLolosUrl, pesanLolos };
+    return { nama, namaPanggilan, rawHp, hp, pilihan, waUrl, waLolosUrl, pesanLolos, waTidakLolosUrl, pesanTidakLolos };
   };
 
   const safeSubmissions = useMemo(
@@ -827,24 +664,30 @@ export function SubmissionList({
     setSelectedStatus(s.status);
     setAdminNote(s.adminNote || "");
     setSendWaOnLolosSave(true);
+    setSendWaOnTidakLolosSave(true);
   };
 
   const handleStatusSave = async () => {
     if (!statusModalSub) return;
     const isPassing = selectedStatus === "lolos";
+    const isRejecting = selectedStatus === "tidak_lolos";
     const subTarget = statusModalSub;
     setSavingStatus(true);
     const ok = await onUpdateStatus(subTarget.id, selectedStatus, adminNote);
     setSavingStatus(false);
     if (ok) {
-      toastSuccess("Status calon anggota berhasil diperbarui.");
+      toastSuccess(`Status calon anggota berhasil diperbarui menjadi ${STATUS_CONFIG[selectedStatus].label}.`);
 
       // Jika status lolos dan opsi kirim WA aktif, buka tautan WhatsApp otomatis
       if (isPassing && sendWaOnLolosSave) {
-        const { nama, rawHp } = getCandidateInfo(subTarget);
-        const waUrl = buatLinkWhatsAppLolos(rawHp, nama, form.title, adminNote);
-        if (waUrl) {
-          window.open(waUrl, "_blank", "noopener,noreferrer");
+        const { waLolosUrl } = getCandidateInfo(subTarget);
+        if (waLolosUrl) {
+          window.open(waLolosUrl, "_blank", "noopener,noreferrer");
+        }
+      } else if (isRejecting && sendWaOnTidakLolosSave) {
+        const { waTidakLolosUrl } = getCandidateInfo(subTarget);
+        if (waTidakLolosUrl) {
+          window.open(waTidakLolosUrl, "_blank", "noopener,noreferrer");
         }
       }
 
@@ -853,6 +696,8 @@ export function SubmissionList({
         setDetailOpen({ ...detailOpen, status: selectedStatus, adminNote });
       }
       await onRefresh();
+    } else {
+      toastError("Gagal memperbarui status seleksi.");
     }
   };
 
@@ -868,6 +713,129 @@ export function SubmissionList({
         setDetailOpen(null);
       }
       await onRefresh();
+    }
+  };
+
+  // Sync state when detailOpen changes
+  useEffect(() => {
+    if (detailOpen) {
+      setDetailTab("detail");
+      setDetailStatus(detailOpen.status);
+      setDetailNote(detailOpen.adminNote || "");
+      setDetailSendWaLolos(true);
+      setDetailSendWaTidakLolos(true);
+      setIsDetailWaDirty(false);
+
+      const s = getRekrutmenWaSettings();
+      setDetailOverrideTempat(s.namaTempat);
+      setDetailOverrideGmaps(s.titikGmaps);
+      setDetailOverrideWaktu(s.tanggalWaktu);
+
+      let initialMode: "skrining" | "lolos" | "tidak_lolos" | "general" = "skrining";
+      if (detailOpen.status === "lolos") initialMode = "lolos";
+      else if (detailOpen.status === "tidak_lolos") initialMode = "tidak_lolos";
+      setDetailWaType(initialMode);
+    }
+  }, [detailOpen]);
+
+  // Lock body scroll when detailOpen is active
+  useEffect(() => {
+    if (detailOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [detailOpen]);
+
+  // Template WA yang di-generate secara live berdasarkan jenis pesan & override tempat
+  const generatedDetailWaTemplate = useMemo(() => {
+    if (!detailOpen) return "";
+    const { nama, pilihan } = getCandidateInfo(detailOpen);
+    return buildRekrutmenWaMessage(detailWaType, {
+      nama,
+      judulForm: form.title,
+      posisi: pilihan,
+      catatan: detailNote || detailOpen.adminNote,
+      customSettings: {
+        namaTempat: detailOverrideTempat,
+        titikGmaps: detailOverrideGmaps,
+        tanggalWaktu: detailOverrideWaktu,
+      },
+    });
+  }, [
+    detailOpen,
+    detailWaType,
+    form.title,
+    detailNote,
+    detailOverrideTempat,
+    detailOverrideGmaps,
+    detailOverrideWaktu,
+  ]);
+
+  useEffect(() => {
+    if (!isDetailWaDirty) {
+      setDetailWaMessage(generatedDetailWaTemplate);
+    }
+  }, [generatedDetailWaTemplate, isDetailWaDirty]);
+
+  const handleCopyDetailCandidateHp = () => {
+    if (!detailOpen) return;
+    const { rawHp, hp } = getCandidateInfo(detailOpen);
+    const target = hp || rawHp;
+    if (target) {
+      navigator.clipboard.writeText(target);
+      setCopiedDetailHp(true);
+      setTimeout(() => setCopiedDetailHp(false), 2000);
+      toastSuccess("Nomor WhatsApp berhasil disalin!");
+    }
+  };
+
+  const handleCopyDetailWaMessage = () => {
+    if (!detailWaMessage) return;
+    navigator.clipboard.writeText(detailWaMessage);
+    setCopiedDetailWa(true);
+    setTimeout(() => setCopiedDetailWa(false), 2000);
+    toastSuccess("Pesan WhatsApp berhasil disalin ke clipboard!");
+  };
+
+  const handleSendDetailWa = () => {
+    if (!detailOpen) return;
+    const { rawHp, hp } = getCandidateInfo(detailOpen);
+    const clean = formatNomorWhatsAppUrl(rawHp || hp);
+    if (!clean) {
+      toastError("Nomor WhatsApp calon anggota tidak valid.");
+      return;
+    }
+    const encoded = encodeURIComponent(detailWaMessage);
+    const url = `https://wa.me/${clean}?text=${encoded}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleDetailSaveStatus = async () => {
+    if (!detailOpen || detailSavingStatus) return;
+    setDetailSavingStatus(true);
+    const ok = await onUpdateStatus(detailOpen.id, detailStatus, detailNote);
+    setDetailSavingStatus(false);
+    if (ok) {
+      toastSuccess(`Status seleksi berhasil diubah menjadi ${STATUS_CONFIG[detailStatus].label}.`);
+
+      if (detailStatus === "lolos" && detailSendWaLolos) {
+        const { waLolosUrl } = getCandidateInfo({ ...detailOpen, adminNote: detailNote });
+        if (waLolosUrl) {
+          window.open(waLolosUrl, "_blank", "noopener,noreferrer");
+        }
+      } else if (detailStatus === "tidak_lolos" && detailSendWaTidakLolos) {
+        const { waTidakLolosUrl } = getCandidateInfo({ ...detailOpen, adminNote: detailNote });
+        if (waTidakLolosUrl) {
+          window.open(waTidakLolosUrl, "_blank", "noopener,noreferrer");
+        }
+      }
+
+      setDetailOpen((prev) => (prev ? { ...prev, status: detailStatus, adminNote: detailNote } : null));
+      await onRefresh();
+    } else {
+      toastError("Gagal memperbarui status seleksi.");
     }
   };
 
@@ -959,56 +927,47 @@ export function SubmissionList({
     }
   };
 
-  const handleOpenFile = (ans: RekrutmenAnswer & { field?: RekrutmenField }) => {
-    const fileUrl = ans.fileUrl || (ans.value?.startsWith("data:") || ans.value?.startsWith("http") ? ans.value : null);
-    if (!fileUrl) return;
-
-    const isImage =
-      ans.field?.fieldType === "image" ||
-      ans.fileType?.startsWith("image/") ||
-      (ans.field?.label || "").toLowerCase().includes("foto") ||
-      Boolean(ans.fileName && /\.(jpe?g|png|webp|gif)$/i.test(ans.fileName)) ||
-      fileUrl.startsWith("data:image/") ||
-      /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(fileUrl) ||
-      fileUrl.includes("drive.google.com") ||
-      fileUrl.includes("lh3.googleusercontent");
-
-    if (isImage) {
-      openPhotoLightbox(
-        fileUrl,
-        ans.field?.label || ans.fileName || "Foto Calon Anggota",
-        ans.fileName || ans.value
-      );
-    } else {
-      try {
-        if (fileUrl.startsWith("data:")) {
-          const parts = fileUrl.split(";base64,");
-          const contentType = parts[0].split(":")[1] || "application/octet-stream";
-          const byteCharacters = atob(parts[1] || "");
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          const blob = new Blob([byteArray], { type: contentType });
-          const blobUrl = URL.createObjectURL(blob);
-          window.open(blobUrl, "_blank");
-        } else {
-          window.open(fileUrl, "_blank");
-        }
-      } catch {
-        window.open(fileUrl, "_blank");
-      }
-    }
+  /** Template pesan WhatsApp khusus calon anggota tidak lolos seleksi sesuai instruksi MB Chondro */
+  const generatePesanTidakLolosSpecific = (namaPeserta: string, posisiPeserta: string): string => {
+    const cleanNama = (namaPeserta || "Calon Anggota").trim();
+    const cleanPosisi = (posisiPeserta && posisiPeserta !== "-" ? posisiPeserta : "Calon Anggota").trim();
+    return (
+      `Halo Kak *${cleanNama}* 🙏\n\n` +
+      `Terima kasih telah berpartisipasi dalam seleksi calon anggota *MB Chondro Wonopringgo 2026* untuk posisi *${cleanPosisi}*.\n\n` +
+      `Setelah melalui proses evaluasi tim seleksi, kami informasikan bahwa untuk saat ini Kakak *belum dapat diterima* sebagai anggota MB Chondro.\n\n` +
+      `Keputusan ini mempertimbangkan kebutuhan formasi dan kuota anggota pada periode ini, bukan berarti mengurangi apresiasi kami terhadap potensi dan semangat Kakak.\n\n` +
+      `Tetap semangat berkarya dan mengembangkan kemampuan. Semoga ada kesempatan untuk bertemu kembali dalam kegiatan MB Chondro di masa mendatang.\n\n` +
+      `Terima kasih atas partisipasinya. Sukses selalu untuk Kakak 🙏✨\n\n` +
+      `*Pengurus & Tim Seleksi MB Chondro Wonopringgo*`
+    );
   };
 
-  const handleDownloadImage = (url: string, title?: string) => {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${(title || "foto-calon").replace(/[^a-zA-Z0-9_-]/g, "_")}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleOpenWaTidakLolos = (sub: RekrutmenSubmissionWithAnswers) => {
+    const { nama, pilihan } = getCandidateInfo(sub);
+    setWaTidakLolosPreviewSub(sub);
+    setWaTidakLolosText(generatePesanTidakLolosSpecific(nama, pilihan));
+    setCopiedWaTidakLolos(false);
+  };
+
+  const handleSendWaTidakLolosDirect = () => {
+    if (!waTidakLolosPreviewSub) return;
+    const { rawHp, hp, nama } = getCandidateInfo(waTidakLolosPreviewSub);
+    const cleanNumber = formatNomorWhatsAppUrl(rawHp || hp);
+    if (!cleanNumber) {
+      toastError(`Nomor WhatsApp untuk calon anggota ${nama} tidak valid.`);
+      return;
+    }
+    const waUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(waTidakLolosText)}`;
+    window.open(waUrl, "_blank", "noopener,noreferrer");
+    setWaTidakLolosPreviewSub(null);
+  };
+
+  const handleCopyWaTidakLolosDirect = () => {
+    if (!waTidakLolosText) return;
+    navigator.clipboard.writeText(waTidakLolosText);
+    setCopiedWaTidakLolos(true);
+    setTimeout(() => setCopiedWaTidakLolos(false), 2000);
+    toastSuccess("Pesan WhatsApp berhasil disalin!");
   };
 
   const handleAdminUploadPhoto = async (answerId: string, file: File) => {
@@ -1540,7 +1499,15 @@ export function SubmissionList({
                             </td>
 
                             <td className="td-center">
-                              <span className={`order-status-badge status-${s.status}`}>
+                              <span
+                                className={`order-status-badge status-${s.status}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openStatusChange(s);
+                                }}
+                                style={{ cursor: "pointer" }}
+                                title="Klik untuk mengubah status seleksi"
+                              >
                                 {STATUS_CONFIG[s.status]?.label || s.status}
                               </span>
                             </td>
@@ -1554,45 +1521,17 @@ export function SubmissionList({
                                   variant="minimal"
                                   style={{ width: 68, height: 30 }}
                                   items={[
+                                    ...(s.status === "tidak_lolos"
+                                      ? [
+                                          {
+                                            label: "Kirim WA Tidak Lolos",
+                                            icon: <MessageCircle size={13} style={{ color: "#DC2626" }} />,
+                                            onClick: () => handleOpenWaTidakLolos(s),
+                                          },
+                                        ]
+                                      : []),
                                     {
-                                      label: "Lihat Detail",
-                                      icon: <Eye size={13} />,
-                                      onClick: () => setDetailOpen(s),
-                                    },
-                                    {
-                                      label: "Lihat Foto Full",
-                                      icon: <Camera size={13} style={{ color: "#7C3AED" }} />,
-                                      onClick: () => {
-                                        const photoInfo = extractCandidatePhotoInfo(s.answers);
-                                        if (photoInfo.url) {
-                                          openPhotoLightbox(
-                                            photoInfo.url,
-                                            `Pas Foto: ${nama}`,
-                                            photoInfo.fileName || undefined,
-                                            s.id
-                                          );
-                                        } else {
-                                          toastError(`Calon anggota ${nama} belum memiliki pas foto.`);
-                                        }
-                                      },
-                                    },
-                                    {
-                                      label: "Ubah Status",
-                                      icon: <Check size={13} style={{ color: "#16A34A" }} />,
-                                      onClick: () => openStatusChange(s),
-                                    },
-                                    {
-                                      label: "Kirim WhatsApp",
-                                      icon: <MessageCircle size={13} style={{ color: "#25D366" }} />,
-                                      onClick: () =>
-                                        setWaBroadcastModalData({
-                                          sub: s,
-                                          mode: s.status === "lolos" ? "lolos" : "skrining",
-                                          tab: "broadcast",
-                                        }),
-                                    },
-                                    {
-                                      label: "Unduh PDF",
+                                      label: "Download PDF",
                                       icon: <Download size={13} />,
                                       onClick: () => handleDownloadDetailPdf(s),
                                     },
@@ -1617,18 +1556,18 @@ export function SubmissionList({
                 <div className="orders-table-mobile-view" style={{ maxHeight: "none", overflowY: "visible" }}>
                   <table className="orders-table-mobile-compact">
                     <colgroup>
-                      <col style={{ width: "32px" }} />
+                      <col style={{ width: "26px" }} />
                       <col style={{ width: "auto" }} />
-                      <col style={{ width: "85px" }} />
-                      <col style={{ width: "80px" }} />
+                      <col style={{ width: "62px" }} />
+                      <col style={{ width: "44px" }} />
                     </colgroup>
 
                     <thead>
                       <tr>
                         <th className="th-mobile-no">No.</th>
                         <th className="th-mobile-cust">Calon Anggota</th>
-                        <th style={{ textAlign: "left", fontSize: 11, fontWeight: 600, padding: "8px 6px" }}>Pilihan</th>
                         <th className="th-mobile-status">Status</th>
+                        <th style={{ textAlign: "center", fontSize: 11, fontWeight: 600, padding: "8px 4px" }}>Aksi</th>
                       </tr>
                     </thead>
 
@@ -1647,34 +1586,73 @@ export function SubmissionList({
                             </td>
 
                             <td className="td-mobile-cust">
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
                                 <span
                                   className="mobile-customer-name"
                                   title={nama}
+                                  style={{ fontSize: "12px", fontWeight: 600, color: "#0F172A" }}
                                 >
                                   {nama}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: "10.5px",
+                                    color: "#64748B",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    marginTop: "1px",
+                                  }}
+                                  title={pilihan}
+                                >
+                                  {pilihan || "-"}
                                 </span>
                               </div>
                             </td>
 
                             <td
-                              style={{
-                                padding: "6px 6px",
-                                fontSize: 11,
-                                color: "#475569",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
+                              className="td-mobile-status"
+                              style={{ textAlign: "center", padding: "6px 2px" }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openStatusChange(s);
                               }}
-                              title={pilihan}
                             >
-                              {pilihan || "-"}
-                            </td>
-
-                            <td className="td-mobile-status">
-                              <span className={`order-status-badge compact status-${s.status}`}>
+                              <span
+                                className={`order-status-badge compact status-${s.status}`}
+                                title="Klik untuk mengubah status seleksi"
+                              >
                                 {STATUS_CONFIG[s.status]?.label || s.status}
                               </span>
+                            </td>
+
+                            <td style={{ textAlign: "center", padding: "4px 2px" }} onClick={(e) => e.stopPropagation()}>
+                              <ActionDropdown
+                                variant="minimal"
+                                style={{ width: 44, height: 26, fontSize: "11px", padding: "0 4px" }}
+                                items={[
+                                  ...(s.status === "tidak_lolos"
+                                    ? [
+                                        {
+                                          label: "Kirim WA Tidak Lolos",
+                                          icon: <MessageCircle size={12} style={{ color: "#DC2626" }} />,
+                                          onClick: () => handleOpenWaTidakLolos(s),
+                                        },
+                                      ]
+                                    : []),
+                                  {
+                                    label: "Download PDF",
+                                    icon: <Download size={12} />,
+                                    onClick: () => handleDownloadDetailPdf(s),
+                                  },
+                                  {
+                                    label: "Hapus",
+                                    icon: <Trash2 size={12} />,
+                                    onClick: () => setDeleteOpen(s),
+                                    danger: true,
+                                  },
+                                ]}
+                              />
                             </td>
                           </tr>
                         );
@@ -1688,568 +1666,1413 @@ export function SubmissionList({
         </div>
       </div>
 
-      {/* DETAIL MODAL CALON ANGGOTA & BERKAS LENGKAP */}
-      <Modal
-        open={detailOpen !== null}
-        title="Berkas & Profil Calon Anggota"
-        onClose={() => setDetailOpen(null)}
-        size="lg"
-        footer={
-          <>
-            <button className="btn btn-ghost" onClick={() => setDetailOpen(null)}>
-              Tutup
-            </button>
-            <button
-              className="btn btn-outline"
-              onClick={() => detailOpen && handleDownloadDetailPdf(detailOpen)}
+      {/* DETAIL MODAL CALON ANGGOTA & BERKAS LENGKAP (ORDER-DETAIL STYLE) */}
+      {detailOpen &&
+        createPortal(
+          <div className="order-detail-overlay" onClick={() => setDetailOpen(null)}>
+            <div
+              className="order-detail-modal"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Detail Calon Anggota"
             >
-              <Download size={16} /> Unduh PDF Lembar Calon
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={() => detailOpen && openStatusChange(detailOpen)}
-            >
-              <Check size={16} /> Ubah Status Seleksi
-            </button>
-          </>
-        }
-      >
-        {detailOpen && (() => {
-          const { nama, namaPanggilan, hp, rawHp, pilihan, waUrl, waLolosUrl, pesanLolos } = getCandidateInfo(detailOpen);
-          const isLolos = detailOpen.status === "lolos";
-          const statusBadge = STATUS_BADGE_MAP[detailOpen.status] || { label: detailOpen.status, className: "badge-neutral" };
-          const photoInfo = extractCandidatePhotoInfo(detailOpen.answers);
-          const { dataPribadi, pilihanMusik, berkasDokumen, lainnya } = categorizeCandidateAnswers(detailOpen.answers);
+              {(() => {
+                const {
+                  nama,
+                  namaPanggilan,
+                  hp,
+                  rawHp,
+                  pilihan,
+                  waLolosUrl,
+                  pesanLolos,
+                  waTidakLolosUrl,
+                  pesanTidakLolos,
+                } = getCandidateInfo(detailOpen);
+                const statusBadge =
+                  STATUS_BADGE_MAP[detailOpen.status] || {
+                    label: detailOpen.status,
+                    className: "badge-neutral",
+                  };
+                const photoInfo = extractCandidatePhotoInfo(detailOpen.answers);
+                const { dataPribadi, pilihanMusik, lainnya } =
+                  categorizeCandidateAnswers(detailOpen.answers);
+                const candidateInitial = (nama || "C").trim().charAt(0).toUpperCase();
 
-          return (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16, maxHeight: "72vh", overflowY: "auto", paddingRight: 4 }}>
-              {/* Standout Profile Header Card: Diselaraskan dengan layout Detail Anggota */}
-              <div
-                className="detail-list"
-                style={{
-                  background: "var(--bg-soft, #f8fafc)",
-                  padding: "16px 20px",
-                  borderRadius: 12,
-                  border: "1px solid var(--border, #e2e8f0)",
-                }}
-              >
-                {photoInfo.url ? (
-                  <div className="detail-member-photo-wrap" style={{ flexDirection: "column", alignItems: "center", gap: 8 }}>
-                    <img
-                      src={photoInfo.url}
-                      alt={nama}
-                      className="detail-member-photo"
-                      onClick={() => openPhotoLightbox(photoInfo.url!, `Pas Foto: ${nama}`, photoInfo.fileName || undefined)}
-                      style={{ cursor: "pointer" }}
-                      title="Klik untuk memperbesar foto"
-                    />
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button
-                        type="button"
-                        className="btn btn-outline btn-sm"
-                        onClick={() => openPhotoLightbox(photoInfo.url!, `Pas Foto: ${nama}`, photoInfo.fileName || undefined, detailOpen.id)}
-                        style={{ fontSize: "11px", padding: "3px 10px", display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 600 }}
-                      >
-                        <Maximize2 size={12} /> Lihat Foto Full
-                      </button>
-                      {photoInfo.answerId && (
-                        <label
-                          className="btn btn-ghost btn-sm"
-                          style={{ fontSize: "11px", padding: "2px 8px", cursor: "pointer", color: "var(--primary-700, #b91c1c)", display: "inline-flex", alignItems: "center", gap: 4 }}
-                          title="Ganti Foto Calon"
-                        >
-                          <Camera size={12} /> Ganti Foto
-                          <input
-                            type="file"
-                            accept="image/*"
-                            style={{ display: "none" }}
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f && photoInfo.answerId) {
-                                handleAdminUploadPhoto(photoInfo.answerId, f);
-                              }
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="detail-member-photo-wrap" style={{ flexDirection: "column", alignItems: "center", gap: 8 }}>
-                    <div className="member-avatar-placeholder" style={{ width: 68, height: 68, fontSize: 24 }}>
-                      {(nama || "C").trim().charAt(0).toUpperCase()}
-                    </div>
-                    {photoInfo.answerId && (
-                      <label
-                        className="btn btn-outline btn-sm"
-                        style={{ fontSize: "11px", padding: "3px 8px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
-                      >
-                        <Camera size={12} /> Unggah Foto
-                        <input
-                          type="file"
-                          accept="image/*"
-                          style={{ display: "none" }}
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f && photoInfo.answerId) {
-                              handleAdminUploadPhoto(photoInfo.answerId, f);
-                            }
-                          }}
-                        />
-                      </label>
-                    )}
-                  </div>
-                )}
-
-                <div className="detail-row"><span className="detail-label">ID Calon</span><span>{detailOpen.id}</span></div>
-                <div className="detail-row"><span className="detail-label">Nama Lengkap</span><span>{nama}</span></div>
-                {namaPanggilan && namaPanggilan !== "-" && (
-                  <div className="detail-row"><span className="detail-label">Nama Panggilan</span><span>{namaPanggilan}</span></div>
-                )}
-                <div className="detail-row"><span className="detail-label">Pilihan / Posisi</span><span>{pilihan}</span></div>
-                <div className="detail-row">
-                  <span className="detail-label">No. HP</span>
-                  <span>
-                    {rawHp || (hp && hp !== "-") ? (
-                      <a
-                        href={(isLolos ? (waLolosUrl || waUrl) : waUrl) || undefined}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="wa-detail-link"
-                        title={`Hubungi ${nama} via WhatsApp`}
-                      >
-                        <MessageCircle size={15} className="wa-icon" />
-                        <span>{hp}</span>
-                        <span className="wa-pill">{isLolos ? "Kirim WA Lolos" : "WhatsApp"}</span>
-                      </a>
-                    ) : (
-                      "-"
-                    )}
-                  </span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Status Seleksi</span>
-                  <span>
-                    <span
-                      className={`status-pill status-${detailOpen.status}`}
-                      style={{
-                        textTransform: "uppercase",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: "3px 10px",
-                        borderRadius: 20,
-                      }}
-                    >
-                      {statusBadge.label}
-                    </span>
-                  </span>
-                </div>
-                <div className="detail-row"><span className="detail-label">Tanggal Mendaftar</span><span>{formatTanggalPanjang(detailOpen.submittedAt)}</span></div>
-                {detailOpen.adminNote && (
-                  <div className="detail-row"><span className="detail-label">Catatan Seleksi</span><span>{detailOpen.adminNote}</span></div>
-                )}
-              </div>
-
-              {/* Lolos Announcement Banner */}
-              {detailOpen.status === "lolos" && (
-                <div
-                  style={{
-                    padding: "12px 16px",
-                    background: "linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.05) 100%)",
-                    borderRadius: 8,
-                    border: "1px solid rgba(16, 185, 129, 0.38)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    flexWrap: "wrap",
-                    gap: 10,
-                  }}
-                >
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700, fontSize: "13.5px", color: "#065f46" }}>
-                      <CheckCircle size={16} style={{ color: "#059669" }} />
-                      <span>Calon Anggota Lolos Seleksi mbc sistem</span>
-                    </div>
-                    <span style={{ fontSize: "12px", color: "#047857", display: "block", marginTop: 2 }}>
-                      Ketentuan resmi: Wajib mengikuti training &amp; 3x penampilan Chondro Wonopringgo.
-                    </span>
-                  </div>
-
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => copyToClipboard(pesanLolos, "Format Pesan Kelolosan")}
-                      style={{ fontSize: "11.5px", padding: "4px 9px", background: "#ffffff", border: "1px solid #a7f3d0", color: "#065f46" }}
-                    >
-                      <Copy size={12} /> Salin Pesan
-                    </button>
-                    {waLolosUrl && (
-                      <a
-                        href={waLolosUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-sm"
-                        style={{
-                          fontSize: "12px",
-                          padding: "5px 12px",
-                          background: "#059669",
-                          color: "#ffffff",
-                          textDecoration: "none",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 5,
-                          borderRadius: 6,
-                          fontWeight: 600,
-                        }}
-                      >
-                        <Send size={13} /> Kirim Pesan Lolos via WA
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Admin Note Banner */}
-              {detailOpen.adminNote && (
-                <div
-                  style={{
-                    padding: "10px 14px",
-                    background: "#eff6ff",
-                    borderRadius: 8,
-                    border: "1px solid #bfdbfe",
-                    fontSize: "12.5px",
-                    color: "#1e40af",
-                  }}
-                >
-                  <strong>Catatan Seleksi:</strong>
-                  <p style={{ margin: "2px 0 0", color: "#1d4ed8" }}>{detailOpen.adminNote}</p>
-                </div>
-              )}
-
-              {/* 📁 SECTION 1: BERKAS & DOKUMEN PENDAFTARAN */}
-              <div
-                style={{
-                  background: "#ffffff",
-                  borderRadius: 10,
-                  border: "1px solid #e2e8f0",
-                  padding: "14px 16px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <Layers size={16} style={{ color: "var(--primary-700, #b91c1c)" }} />
-                    <strong style={{ fontSize: "13.5px", color: "var(--navy-900)" }}>
-                      Berkas &amp; Dokumen Lampiran
-                    </strong>
-                  </div>
-                  <span style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
-                    {berkasDokumen.length} Berkas Terlampir
-                  </span>
-                </div>
-
-                {berkasDokumen.length === 0 ? (
-                  <div style={{ padding: "12px", background: "#f8fafc", borderRadius: 8, textAlign: "center", fontSize: "12.5px", color: "#64748b" }}>
-                    Pas foto calon anggota telah terlampir pada profil di atas. Tidak ada berkas lampiran tambahan.
-                  </div>
-                ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}>
-                    {berkasDokumen.map((ans, bIdx) => {
-                      const fileUrl = ans.fileUrl || (ans.value?.startsWith("data:") || ans.value?.startsWith("http") ? ans.value : null);
-                      const isImg =
-                        ans.field?.fieldType === "image" ||
-                        ans.fileType?.startsWith("image/") ||
-                        (ans.field?.label || "").toLowerCase().includes("foto") ||
-                        Boolean(ans.fileName && /\.(jpe?g|png|webp|gif)$/i.test(ans.fileName)) ||
-                        Boolean(fileUrl && (fileUrl.startsWith("data:image/") || /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(fileUrl) || fileUrl.includes("drive.google.com")));
-
-                      const displayName = ans.fileName || (ans.value && !ans.value.startsWith("data:") && !ans.value.startsWith("http") ? ans.value : (isImg ? "Pas Foto Calon Anggota" : "Berkas Terunggah"));
-
-                      return (
+                return (
+                  <>
+                    {/* 1. HEADER MODAL */}
+                    <div className="order-detail-header">
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                         <div
-                          key={ans.id || bIdx}
                           style={{
-                            padding: "12px",
-                            background: "#f8fafc",
-                            borderRadius: 8,
-                            border: "1px solid #e2e8f0",
+                            width: 38,
+                            height: 38,
+                            borderRadius: 10,
+                            background: "#FEF2F2",
+                            color: "#DC1717",
                             display: "flex",
-                            gap: 12,
                             alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
                           }}
                         >
-                          {isImg ? (
-                            <div
-                              style={{ cursor: "pointer", flexShrink: 0 }}
-                              onClick={() => openPhotoLightbox(fileUrl || "", ans.field?.label || displayName, displayName)}
-                            >
-                              <CandidatePhotoBadge
-                                answers={[ans]}
-                                candidateName={nama}
-                                size="sm"
-                                onClick={(u, t, fn) => openPhotoLightbox(u, t, fn)}
-                              />
-                            </div>
-                          ) : (
-                            <div
+                          <Users size={20} />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0F172A" }}>
+                              Profil Calon Anggota
+                            </h3>
+                            <span
                               style={{
-                                width: 40,
-                                height: 46,
-                                background: "#eff6ff",
+                                fontSize: 12,
+                                fontWeight: 700,
+                                padding: "2px 8px",
                                 borderRadius: 6,
-                                border: "1px solid #bfdbfe",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                flexShrink: 0,
-                                color: "#2563eb",
+                                background: "#F1F5F9",
+                                color: "#334155",
+                                fontFamily: "monospace",
                               }}
                             >
-                              <FileText size={22} />
+                              #{detailOpen.id.substring(0, 8)}
+                            </span>
+                            <span
+                              className={`status-pill status-${detailOpen.status}`}
+                              style={{
+                                textTransform: "uppercase",
+                                fontSize: 11,
+                                fontWeight: 700,
+                                padding: "2px 8px",
+                                borderRadius: 6,
+                              }}
+                            >
+                              {statusBadge.label}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: 12, color: "#64748B", display: "block" }}>
+                            Pusat evaluasi calon pendaftar, berkas lampiran, status seleksi, dan komunikasi WhatsApp
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-icon"
+                        onClick={() => setDetailOpen(null)}
+                        aria-label="Tutup modal"
+                        style={{
+                          background: "#F1F5F9",
+                          border: "none",
+                          borderRadius: 8,
+                          width: 32,
+                          height: 32,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          color: "#64748B",
+                        }}
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    {/* 2. SUBHEADER: DUA TAB UTAMA */}
+                    <div className="order-detail-nav-tabs">
+                      <button
+                        type="button"
+                        className={`order-detail-tab-btn ${detailTab === "detail" ? "active" : ""}`}
+                        onClick={() => setDetailTab("detail")}
+                      >
+                        <FileText size={16} />
+                        <span>Profil &amp; Berkas Calon</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`order-detail-tab-btn ${detailTab === "whatsapp" ? "active" : ""}`}
+                        onClick={() => setDetailTab("whatsapp")}
+                      >
+                        <MessageCircle size={16} />
+                        <span>Kirim Pesan WhatsApp</span>
+                      </button>
+                    </div>
+
+                    {/* 3. MODAL BODY */}
+                    <div className="order-detail-body">
+                      {detailTab === "detail" ? (
+                        /* ============================================================
+                           TAB 1: PROFIL & BERKAS LENGKAP CALON
+                           ============================================================ */
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                          {/* A. KARTU INFORMASI CALON ANGGOTA */}
+                          <div
+                            style={{
+                              background: "#FFFFFF",
+                              borderRadius: 12,
+                              padding: "16px 18px",
+                              border: "1px solid #E2E8F0",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                              <User size={16} style={{ color: "#DC1717" }} />
+                              <span
+                                style={{
+                                  fontSize: 12.5,
+                                  fontWeight: 700,
+                                  color: "#0F172A",
+                                  letterSpacing: "0.3px",
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                Informasi Calon Anggota
+                              </span>
+                            </div>
+
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 14,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 16,
+                                  flexWrap: "wrap",
+                                  background: "#F8FAFC",
+                                  padding: "14px 16px",
+                                  borderRadius: 10,
+                                  border: "1px solid #F1F5F9",
+                                }}
+                              >
+                                {photoInfo.url ? (
+                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                                    <img
+                                      src={photoInfo.url}
+                                      alt={nama}
+                                      onClick={() => openPhotoLightbox(photoInfo.url!, `Pas Foto: ${nama}`, photoInfo.fileName || undefined)}
+                                      style={{
+                                        width: 72,
+                                        height: 72,
+                                        borderRadius: 10,
+                                        objectFit: "cover",
+                                        border: "2px solid #E2E8F0",
+                                        cursor: "pointer",
+                                      }}
+                                      title="Klik untuk memperbesar foto"
+                                    />
+                                    <div style={{ display: "flex", gap: 4 }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => openPhotoLightbox(photoInfo.url!, `Pas Foto: ${nama}`, photoInfo.fileName || undefined, detailOpen.id)}
+                                        style={{
+                                          padding: "3px 8px",
+                                          fontSize: 11,
+                                          borderRadius: 4,
+                                          border: "1px solid #CBD5E1",
+                                          background: "#FFFFFF",
+                                          color: "#334155",
+                                          cursor: "pointer",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 3,
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        <Maximize2 size={11} /> Lihat
+                                      </button>
+                                      {photoInfo.answerId && (
+                                        <label
+                                          style={{
+                                            padding: "3px 8px",
+                                            fontSize: 11,
+                                            borderRadius: 4,
+                                            border: "1px solid #FCA5A5",
+                                            background: "#FEF2F2",
+                                            color: "#B91C1C",
+                                            cursor: "pointer",
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: 3,
+                                            fontWeight: 600,
+                                          }}
+                                          title="Ganti foto calon"
+                                        >
+                                          <Camera size={11} /> Ganti
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            style={{ display: "none" }}
+                                            onChange={(e) => {
+                                              const f = e.target.files?.[0];
+                                              if (f && photoInfo.answerId) {
+                                                handleAdminUploadPhoto(photoInfo.answerId, f);
+                                              }
+                                            }}
+                                          />
+                                        </label>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                                    <div
+                                      style={{
+                                        width: 72,
+                                        height: 72,
+                                        borderRadius: 10,
+                                        background: "#E2E8F0",
+                                        color: "#475569",
+                                        fontWeight: 800,
+                                        fontSize: 26,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                      }}
+                                    >
+                                      {candidateInitial}
+                                    </div>
+                                    {photoInfo.answerId && (
+                                      <label
+                                        style={{
+                                          padding: "3px 8px",
+                                          fontSize: 11,
+                                          borderRadius: 4,
+                                          border: "1px solid #CBD5E1",
+                                          background: "#FFFFFF",
+                                          color: "#334155",
+                                          cursor: "pointer",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 3,
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        <Camera size={11} /> Unggah
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          style={{ display: "none" }}
+                                          onChange={(e) => {
+                                            const f = e.target.files?.[0];
+                                            if (f && photoInfo.answerId) {
+                                              handleAdminUploadPhoto(photoInfo.answerId, f);
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
+                                )}
+
+                                <div style={{ flex: 1, minWidth: 200 }}>
+                                  <h4 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#0F172A" }}>
+                                    {nama}
+                                  </h4>
+                                  {namaPanggilan && namaPanggilan !== "-" && (
+                                    <span style={{ fontSize: 12, color: "#64748B", display: "block", marginBottom: 6 }}>
+                                      Nama Panggilan: <strong>{namaPanggilan}</strong>
+                                    </span>
+                                  )}
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+                                    <span
+                                      style={{
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        padding: "3px 10px",
+                                        borderRadius: 6,
+                                        background: "#EFF6FF",
+                                        color: "#1E40AF",
+                                        border: "1px solid #DBEAFE",
+                                      }}
+                                    >
+                                      Instrumen: {pilihan}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: 12,
+                                        color: "#64748B",
+                                      }}
+                                    >
+                                      Mendaftar pada: {formatTanggalPanjang(detailOpen.submittedAt)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                                  gap: 12,
+                                }}
+                              >
+                                <div style={{ background: "#F8FAFC", padding: "10px 14px", borderRadius: 8, border: "1px solid #F1F5F9" }}>
+                                  <span style={{ fontSize: 11, color: "#64748B", display: "block", marginBottom: 2 }}>ID Pendaftaran</span>
+                                  <strong style={{ fontSize: 13.5, color: "#0F172A", fontFamily: "monospace" }}>{detailOpen.id}</strong>
+                                </div>
+
+                                <div style={{ background: "#F8FAFC", padding: "10px 14px", borderRadius: 8, border: "1px solid #F1F5F9" }}>
+                                  <span style={{ fontSize: 11, color: "#64748B", display: "block", marginBottom: 2 }}>Kontak WhatsApp</span>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <strong style={{ fontSize: 13.5, color: "#0F172A" }}>{hp || rawHp || "-"}</strong>
+                                    {(hp || rawHp) && (
+                                      <button
+                                        type="button"
+                                        onClick={handleCopyDetailCandidateHp}
+                                        style={{
+                                          background: "none",
+                                          border: "none",
+                                          padding: 2,
+                                          cursor: "pointer",
+                                          color: copiedDetailHp ? "#16A34A" : "#64748B",
+                                        }}
+                                        title="Salin nomor WhatsApp"
+                                      >
+                                        {copiedDetailHp ? <Check size={14} /> : <Copy size={14} />}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div style={{ background: "#F8FAFC", padding: "10px 14px", borderRadius: 8, border: "1px solid #F1F5F9" }}>
+                                  <span style={{ fontSize: 11, color: "#64748B", display: "block", marginBottom: 2 }}>Status Seleksi Saat Ini</span>
+                                  <span
+                                    className={`status-pill status-${detailOpen.status}`}
+                                    style={{
+                                      textTransform: "uppercase",
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      padding: "3px 10px",
+                                      borderRadius: 6,
+                                      display: "inline-block",
+                                    }}
+                                  >
+                                    {statusBadge.label}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* B. KARTU KEPUTUSAN STATUS SELEKSI & CATATAN */}
+                          <div
+                            style={{
+                              background: "#FFFFFF",
+                              borderRadius: 12,
+                              padding: "18px 20px",
+                              border: "1px solid #E2E8F0",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 16,
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <CheckCircle size={16} style={{ color: "#DC1717" }} />
+                                <span
+                                  style={{
+                                    fontSize: 12.5,
+                                    fontWeight: 700,
+                                    color: "#0F172A",
+                                    letterSpacing: "0.3px",
+                                    textTransform: "uppercase",
+                                  }}
+                                >
+                                  Keputusan Status Seleksi &amp; Catatan Reviewer
+                                </span>
+                              </div>
+                              <span style={{ fontSize: 11.5, color: "#64748B" }}>
+                                Pilih status lalu klik simpan untuk memperbarui database
+                              </span>
+                            </div>
+
+                            {/* 4 Status Seleksi Buttons */}
+                            <div>
+                              <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>
+                                Tentukan Status Hasil Seleksi:
+                              </label>
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 8 }}>
+                                {(["menunggu", "lolos", "cadangan", "tidak_lolos"] as RekrutmenSubmissionStatus[]).map((st) => {
+                                  const conf = STATUS_CONFIG[st];
+                                  const Icon = conf.icon;
+                                  const active = detailStatus === st;
+                                  return (
+                                    <button
+                                      key={st}
+                                      type="button"
+                                      onClick={() => setDetailStatus(st)}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: 7,
+                                        padding: "10px 12px",
+                                        borderRadius: 8,
+                                        border: active ? `2px solid ${conf.color}` : "1px solid #E2E8F0",
+                                        background: active ? conf.bg : "#FFFFFF",
+                                        color: conf.color,
+                                        fontWeight: active ? 700 : 500,
+                                        fontSize: 12.5,
+                                        cursor: "pointer",
+                                        transition: "all 0.15s ease",
+                                      }}
+                                    >
+                                      <Icon size={15} />
+                                      <span>{conf.label}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Catatan Reviewer */}
+                            <div>
+                              <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>
+                                Catatan Reviewer / Alasan Keputusan (Opsional)
+                              </label>
+                              <textarea
+                                rows={3}
+                                value={detailNote}
+                                onChange={(e) => setDetailNote(e.target.value)}
+                                placeholder="Tuliskan catatan teknis hasil penilaian seleksi calon pendaftar..."
+                                style={{
+                                  width: "100%",
+                                  fontSize: 13,
+                                  padding: "10px 12px",
+                                  borderRadius: 8,
+                                  border: "1px solid #CBD5E1",
+                                  background: "#F8FAFC",
+                                  color: "#0F172A",
+                                  outline: "none",
+                                  boxSizing: "border-box",
+                                  resize: "vertical",
+                                }}
+                              />
+                            </div>
+
+                            {/* OPSI NOTIFIKASI WA UNTUK STATUS LOLOS */}
+                            {detailStatus === "lolos" && (
+                              <div
+                                style={{
+                                  padding: 14,
+                                  borderRadius: 10,
+                                  background: "linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.04) 100%)",
+                                  border: "1px solid rgba(16, 185, 129, 0.35)",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: 10,
+                                }}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <div
+                                      style={{
+                                        width: 28,
+                                        height: 28,
+                                        borderRadius: "50%",
+                                        background: "#10B981",
+                                        color: "#FFFFFF",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                      }}
+                                    >
+                                      <MessageCircle size={16} />
+                                    </div>
+                                    <div>
+                                      <strong style={{ fontSize: 13, color: "#065F46", display: "block" }}>
+                                        Opsi Pengumuman Lolos via WhatsApp
+                                      </strong>
+                                      <span style={{ fontSize: 11.5, color: "#047857" }}>
+                                        Tujuan: {hp || rawHp || "Nomor belum terdeteksi"}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => copyToClipboard(pesanLolos, "Format Pesan Pengumuman Lolos")}
+                                      style={{
+                                        fontSize: 11.5,
+                                        padding: "4px 8px",
+                                        background: "#FFFFFF",
+                                        border: "1px solid #D1FAE5",
+                                        color: "#065F46",
+                                        borderRadius: 6,
+                                        cursor: "pointer",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 4,
+                                      }}
+                                    >
+                                      <Copy size={12} /> Salin Pesan
+                                    </button>
+                                    {waLolosUrl && (
+                                      <a
+                                        href={waLolosUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                          fontSize: 11.5,
+                                          padding: "4px 9px",
+                                          background: "#059669",
+                                          color: "#FFFFFF",
+                                          textDecoration: "none",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 4,
+                                          borderRadius: 6,
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        <Send size={12} /> Buka WA
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    padding: "6px 10px",
+                                    background: "rgba(16, 185, 129, 0.12)",
+                                    borderRadius: 6,
+                                    fontSize: 11.5,
+                                    color: "#065F46",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  <Sparkles size={13} style={{ color: "#059669", flexShrink: 0 }} />
+                                  <span>Ketentuan resmi: Wajib mengikuti training &amp; 3x penampilan Chondro Wonopringgo</span>
+                                </div>
+
+                                <label
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    fontSize: 12.5,
+                                    color: "#064E3B",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                    userSelect: "none",
+                                  }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={detailSendWaLolos}
+                                    onChange={(e) => setDetailSendWaLolos(e.target.checked)}
+                                    style={{ cursor: "pointer", accentColor: "#059669", width: 16, height: 16 }}
+                                  />
+                                  Buka WhatsApp otomatis untuk kirim pengumuman setelah tombol simpan diklik
+                                </label>
+                              </div>
+                            )}
+
+                            {/* OPSI NOTIFIKASI WA UNTUK STATUS TIDAK LOLOS (BAHASA SANTUN) */}
+                            {detailStatus === "tidak_lolos" && (
+                              <div
+                                style={{
+                                  padding: 14,
+                                  borderRadius: 10,
+                                  background: "linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(185, 28, 28, 0.04) 100%)",
+                                  border: "1px solid rgba(220, 38, 38, 0.35)",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: 10,
+                                }}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <div
+                                      style={{
+                                        width: 28,
+                                        height: 28,
+                                        borderRadius: "50%",
+                                        background: "#DC2626",
+                                        color: "#FFFFFF",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                      }}
+                                    >
+                                      <MessageCircle size={16} />
+                                    </div>
+                                    <div>
+                                      <strong style={{ fontSize: 13, color: "#991B1B", display: "block" }}>
+                                        Opsi Pemberitahuan Tidak Lolos via WhatsApp
+                                      </strong>
+                                      <span style={{ fontSize: 11.5, color: "#B91C1C" }}>
+                                        Tujuan: {hp || rawHp || "Nomor belum terdeteksi"}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => copyToClipboard(pesanTidakLolos, "Format Pesan Pemberitahuan Tidak Lolos")}
+                                      style={{
+                                        fontSize: 11.5,
+                                        padding: "4px 8px",
+                                        background: "#FFFFFF",
+                                        border: "1px solid #FECACA",
+                                        color: "#991B1B",
+                                        borderRadius: 6,
+                                        cursor: "pointer",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 4,
+                                      }}
+                                    >
+                                      <Copy size={12} /> Salin Pesan
+                                    </button>
+                                    {waTidakLolosUrl && (
+                                      <a
+                                        href={waTidakLolosUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                          fontSize: 11.5,
+                                          padding: "4px 9px",
+                                          background: "#DC2626",
+                                          color: "#FFFFFF",
+                                          textDecoration: "none",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 4,
+                                          borderRadius: 6,
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        <Send size={12} /> Buka WA
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    padding: "6px 10px",
+                                    background: "rgba(220, 38, 38, 0.12)",
+                                    borderRadius: 6,
+                                    fontSize: 11.5,
+                                    color: "#991B1B",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  <Sparkles size={13} style={{ color: "#DC2626", flexShrink: 0 }} />
+                                  <span>Bahasa santun &amp; apresiatif: Mengapresiasi dedikasi, menerangkan kuota terbatas, dan memotivasi</span>
+                                </div>
+
+                                <label
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    fontSize: 12.5,
+                                    color: "#7F1D1D",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                    userSelect: "none",
+                                  }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={detailSendWaTidakLolos}
+                                    onChange={(e) => setDetailSendWaTidakLolos(e.target.checked)}
+                                    style={{ cursor: "pointer", accentColor: "#DC2626", width: 16, height: 16 }}
+                                  />
+                                  Buka WhatsApp otomatis untuk kirim pemberitahuan santun setelah tombol simpan diklik
+                                </label>
+                              </div>
+                            )}
+
+                            {/* Tombol Simpan Perubahan Status */}
+                            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                              <button
+                                type="button"
+                                disabled={detailSavingStatus}
+                                onClick={handleDetailSaveStatus}
+                                style={{
+                                  background: "#DC1717",
+                                  color: "#FFFFFF",
+                                  border: "none",
+                                  borderRadius: 8,
+                                  padding: "9px 18px",
+                                  fontSize: 13,
+                                  fontWeight: 600,
+                                  cursor: detailSavingStatus ? "not-allowed" : "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  boxShadow: "0 2px 6px rgba(220, 23, 23, 0.25)",
+                                }}
+                              >
+                                {detailSavingStatus ? (
+                                  <Loader2 size={15} className="spinning" />
+                                ) : (
+                                  <Check size={15} />
+                                )}
+                                <span>Simpan Status Seleksi</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* C. KARTU PILIHAN ALAT & MINAT MUSIK */}
+                          {pilihanMusik.length > 0 && (
+                            <div
+                              style={{
+                                background: "#FFFFFF",
+                                borderRadius: 12,
+                                padding: "16px 18px",
+                                border: "1px solid #E2E8F0",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                <Sparkles size={16} style={{ color: "#DC1717" }} />
+                                <span
+                                  style={{
+                                    fontSize: 12.5,
+                                    fontWeight: 700,
+                                    color: "#0F172A",
+                                    letterSpacing: "0.3px",
+                                    textTransform: "uppercase",
+                                  }}
+                                >
+                                  Pilihan Alat &amp; Minat Musik
+                                </span>
+                              </div>
+
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10 }}>
+                                {pilihanMusik.map((ans, mIdx) => (
+                                  <div
+                                    key={ans.id || mIdx}
+                                    style={{
+                                      padding: "10px 14px",
+                                      background: "#FFF9F9",
+                                      borderRadius: 8,
+                                      border: "1px solid #FEE2E2",
+                                    }}
+                                  >
+                                    <span style={{ fontSize: 11.5, color: "#B91C1C", fontWeight: 600, display: "block", marginBottom: 3 }}>
+                                      {ans.field?.label || "Pertanyaan Musik"}
+                                    </span>
+                                    <strong style={{ fontSize: 13, color: "#0F172A", display: "block" }}>
+                                      {ans.value || <span style={{ color: "#94A3B8", fontWeight: 400 }}>-</span>}
+                                    </strong>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
 
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 600 }}>
-                              {ans.field?.label || "Berkas"}
-                            </span>
-                            <strong
+                          {/* D. KARTU DATA PRIBADI & KONTAK */}
+                          {dataPribadi.length > 0 && (
+                            <div
                               style={{
-                                fontSize: "12.5px",
-                                color: "var(--navy-900)",
-                                display: "block",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                marginTop: 1,
+                                background: "#FFFFFF",
+                                borderRadius: 12,
+                                padding: "16px 18px",
+                                border: "1px solid #E2E8F0",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
                               }}
-                              title={displayName}
                             >
-                              {displayName}
-                            </strong>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                <Users size={16} style={{ color: "#DC1717" }} />
+                                <span
+                                  style={{
+                                    fontSize: 12.5,
+                                    fontWeight: 700,
+                                    color: "#0F172A",
+                                    letterSpacing: "0.3px",
+                                    textTransform: "uppercase",
+                                  }}
+                                >
+                                  Data Pribadi &amp; Kontak Calon
+                                </span>
+                              </div>
 
-                            <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-                              <button
-                                type="button"
-                                className="btn btn-outline btn-sm"
-                                onClick={() => handleOpenFile(ans)}
-                                style={{ fontSize: "11px", padding: "2px 7px", display: "inline-flex", alignItems: "center", gap: 3 }}
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                                  gap: 10,
+                                }}
                               >
-                                <Eye size={11} /> Buka
-                              </button>
-                              {isImg && fileUrl && (
-                                <button
-                                  type="button"
-                                  className="btn btn-ghost btn-sm"
-                                  onClick={() => handleDownloadImage(fileUrl, displayName)}
-                                  style={{ fontSize: "11px", padding: "2px 7px", display: "inline-flex", alignItems: "center", gap: 3, color: "var(--primary-700, #b91c1c)" }}
-                                >
-                                  <Download size={11} /> Unduh
-                                </button>
-                              )}
-                              {isImg && (
-                                <label
-                                  className="btn btn-ghost btn-sm"
-                                  style={{ fontSize: "11px", padding: "2px 7px", display: "inline-flex", alignItems: "center", gap: 3, color: "#0284c7", cursor: "pointer", margin: 0 }}
-                                  title="Ganti foto ini"
-                                >
-                                  <Camera size={11} /> Ganti
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    style={{ display: "none" }}
-                                    onChange={(e) => {
-                                      const f = e.target.files?.[0];
-                                      if (f) handleAdminUploadPhoto(ans.id, f);
+                                {dataPribadi.map((ans, pIdx) => (
+                                  <div
+                                    key={ans.id || pIdx}
+                                    style={{
+                                      padding: "10px 14px",
+                                      background: "#F8FAFC",
+                                      borderRadius: 8,
+                                      border: "1px solid #F1F5F9",
                                     }}
-                                  />
-                                </label>
-                              )}
+                                  >
+                                    <span style={{ fontSize: 11.5, color: "#64748B", fontWeight: 600, display: "block", marginBottom: 3 }}>
+                                      {ans.field?.label || "Data"}
+                                    </span>
+                                    <strong style={{ fontSize: 13, color: "#0F172A", display: "block", wordBreak: "break-word" }}>
+                                      {ans.value || <span style={{ color: "#94A3B8", fontWeight: 400 }}>-</span>}
+                                    </strong>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* E. KARTU INFORMASI TAMBAHAN LAINNYA */}
+                          {lainnya.length > 0 && (
+                            <div
+                              style={{
+                                background: "#FFFFFF",
+                                borderRadius: 12,
+                                padding: "16px 18px",
+                                border: "1px solid #E2E8F0",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                <FileText size={16} style={{ color: "#DC1717" }} />
+                                <span
+                                  style={{
+                                    fontSize: 12.5,
+                                    fontWeight: 700,
+                                    color: "#0F172A",
+                                    letterSpacing: "0.3px",
+                                    textTransform: "uppercase",
+                                  }}
+                                >
+                                  Informasi Tambahan Lainnya
+                                </span>
+                              </div>
+
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
+                                {lainnya.map((ans, lIdx) => (
+                                  <div
+                                    key={ans.id || lIdx}
+                                    style={{
+                                      padding: "10px 14px",
+                                      background: "#F8FAFC",
+                                      borderRadius: 8,
+                                      border: "1px solid #F1F5F9",
+                                    }}
+                                  >
+                                    <span style={{ fontSize: 11.5, color: "#64748B", fontWeight: 600, display: "block", marginBottom: 3 }}>
+                                      {ans.field?.label || "Pertanyaan"}
+                                    </span>
+                                    <strong style={{ fontSize: 13, color: "#0F172A", display: "block", wordBreak: "break-word" }}>
+                                      {ans.value || <span style={{ color: "#94A3B8", fontWeight: 400 }}>-</span>}
+                                    </strong>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        /* ============================================================
+                           TAB 2: KIRIM PESAN WHATSAPP (ORDER-DETAIL STYLE)
+                           ============================================================ */
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                          {/* A. HEADER RINGKASAN CALON ANGGOTA */}
+                          <div
+                            style={{
+                              background: "#FFFFFF",
+                              borderRadius: 12,
+                              padding: "16px 18px",
+                              border: "1px solid #E2E8F0",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              flexWrap: "wrap",
+                              gap: 12,
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              <div
+                                style={{
+                                  width: 42,
+                                  height: 42,
+                                  borderRadius: 10,
+                                  background: "#22C55E",
+                                  color: "#FFFFFF",
+                                  fontWeight: 800,
+                                  fontSize: 18,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {candidateInitial}
+                              </div>
+                              <div>
+                                <strong style={{ fontSize: 15, color: "#0F172A", display: "block" }}>
+                                  {nama}
+                                </strong>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                                  <span style={{ fontSize: 12, color: "#64748B" }}>
+                                    WhatsApp: {hp || rawHp || "Tidak tersedia"}
+                                  </span>
+                                  {(hp || rawHp) && (
+                                    <button
+                                      type="button"
+                                      onClick={handleCopyDetailCandidateHp}
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        padding: 1,
+                                        cursor: "pointer",
+                                        color: copiedDetailHp ? "#16A34A" : "#64748B",
+                                      }}
+                                      title="Salin nomor"
+                                    >
+                                      {copiedDetailHp ? <Check size={13} /> : <Copy size={13} />}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style={{ textAlign: "right" }}>
+                              <span style={{ fontSize: 11.5, color: "#64748B", display: "block" }}>Pilihan / Posisi Calon</span>
+                              <strong style={{ fontSize: 13.5, color: "#0F172A" }}>
+                                {pilihan}
+                              </strong>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
 
-              {/* 🎺 SECTION 2: MINAT & PILIHAN MUSIK (JIKA ADA) */}
-              {pilihanMusik.length > 0 && (
-                <div
-                  style={{
-                    background: "#ffffff",
-                    borderRadius: 10,
-                    border: "1px solid #e2e8f0",
-                    padding: "14px 16px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <Sparkles size={16} style={{ color: "var(--primary-700, #b91c1c)" }} />
-                    <strong style={{ fontSize: "13.5px", color: "var(--navy-900)" }}>
-                      Pilihan Alat &amp; Minat Musik
-                    </strong>
-                  </div>
+                          {/* B. PILIHAN JENIS PESAN & PENGATURAN TEMPLATE */}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              flexWrap: "wrap",
+                              gap: 10,
+                            }}
+                          >
+                            {/* 4 PILIHAN JENIS PESAN */}
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8, flex: 1 }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDetailWaType("skrining");
+                                  setIsDetailWaDirty(false);
+                                }}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: 6,
+                                  padding: "9px 12px",
+                                  borderRadius: 8,
+                                  fontSize: 12.5,
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  border: detailWaType === "skrining" ? "2px solid #2563EB" : "1px solid #CBD5E1",
+                                  background: detailWaType === "skrining" ? "#EFF6FF" : "#FFFFFF",
+                                  color: detailWaType === "skrining" ? "#1E40AF" : "#475569",
+                                  transition: "all 0.15s ease",
+                                }}
+                              >
+                                <span>📅 Skrining / Audisi</span>
+                              </button>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10 }}>
-                    {pilihanMusik.map((ans, mIdx) => (
-                      <div
-                        key={ans.id || mIdx}
-                        style={{
-                          padding: "10px 14px",
-                          background: "#fff9f9",
-                          borderRadius: 8,
-                          border: "1px solid #fee2e2",
-                        }}
-                      >
-                        <span style={{ fontSize: "11.5px", color: "var(--primary-700, #b91c1c)", fontWeight: 600, display: "block", marginBottom: 3 }}>
-                          {ans.field?.label || "Pertanyaan Musik"}
-                        </span>
-                        <strong style={{ fontSize: "13px", color: "var(--navy-900)", display: "block" }}>
-                          {ans.value || <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>-</span>}
-                        </strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDetailWaType("lolos");
+                                  setIsDetailWaDirty(false);
+                                }}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: 6,
+                                  padding: "9px 12px",
+                                  borderRadius: 8,
+                                  fontSize: 12.5,
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  border: detailWaType === "lolos" ? "2px solid #059669" : "1px solid #CBD5E1",
+                                  background: detailWaType === "lolos" ? "#ECFDF5" : "#FFFFFF",
+                                  color: detailWaType === "lolos" ? "#065F46" : "#475569",
+                                  transition: "all 0.15s ease",
+                                }}
+                              >
+                                <span>🎉 Pengumuman Lolos</span>
+                              </button>
 
-              {/* 👤 SECTION 3: DATA PRIBADI & KONTAK (2-COLUMN CLEAN GRID) */}
-              <div
-                style={{
-                  background: "#ffffff",
-                  borderRadius: 10,
-                  border: "1px solid #e2e8f0",
-                  padding: "14px 16px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <Users size={16} style={{ color: "var(--navy-900)" }} />
-                  <strong style={{ fontSize: "13.5px", color: "var(--navy-900)" }}>
-                    Data Pribadi &amp; Kontak Calon
-                  </strong>
-                </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDetailWaType("tidak_lolos");
+                                  setIsDetailWaDirty(false);
+                                }}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: 6,
+                                  padding: "9px 12px",
+                                  borderRadius: 8,
+                                  fontSize: 12.5,
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  border: detailWaType === "tidak_lolos" ? "2px solid #DC2626" : "1px solid #CBD5E1",
+                                  background: detailWaType === "tidak_lolos" ? "#FEF2F2" : "#FFFFFF",
+                                  color: detailWaType === "tidak_lolos" ? "#991B1B" : "#475569",
+                                  transition: "all 0.15s ease",
+                                }}
+                              >
+                                <span>💌 Tidak Lolos (Santun)</span>
+                              </button>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                    gap: 10,
-                  }}
-                >
-                  {dataPribadi.map((ans, pIdx) => {
-                    const isPhone =
-                      (ans.field?.label || "").toLowerCase().includes("hp") ||
-                      (ans.field?.label || "").toLowerCase().includes("telepon") ||
-                      (ans.field?.label || "").toLowerCase().includes("whatsapp") ||
-                      (ans.field?.label || "").toLowerCase().includes("wa") ||
-                      (ans.field?.label || "").toLowerCase().includes("kontak");
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDetailWaType("general");
+                                  setIsDetailWaDirty(false);
+                                }}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: 6,
+                                  padding: "9px 12px",
+                                  borderRadius: 8,
+                                  fontSize: 12.5,
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  border: detailWaType === "general" ? "2px solid #D97706" : "1px solid #CBD5E1",
+                                  background: detailWaType === "general" ? "#FFFBEB" : "#FFFFFF",
+                                  color: detailWaType === "general" ? "#92400E" : "#475569",
+                                  transition: "all 0.15s ease",
+                                }}
+                              >
+                                <span>💬 Pesan Umum / Info</span>
+                              </button>
+                            </div>
 
-                    return (
-                      <div
-                        key={ans.id || pIdx}
-                        style={{
-                          padding: "10px 14px",
-                          background: "#f8fafc",
-                          borderRadius: 8,
-                          border: "1px solid #e2e8f0",
-                        }}
-                      >
-                        <span style={{ fontSize: "11.5px", color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: 3 }}>
-                          {ans.field?.label || "Data Pribadi"}
-                        </span>
-
-                        {isPhone && ans.value ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                            <strong style={{ fontSize: "13px", color: "var(--navy-900)" }}>
-                              {formatNomorHp(ans.value)}
-                            </strong>
-                            <a
-                              href={buatLinkWhatsAppCalon(ans.value, nama, form.title) || "#"}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            {/* TOMBOL PENGATURAN TEMPLATE */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setWaBroadcastModalData({
+                                  sub: detailOpen,
+                                  mode: detailWaType,
+                                  tab: "settings",
+                                });
+                              }}
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
-                                gap: 3,
-                                fontSize: "11px",
-                                color: "#047857",
+                                gap: 6,
+                                padding: "8px 14px",
+                                borderRadius: 8,
+                                fontSize: 12.5,
                                 fontWeight: 600,
-                                textDecoration: "none",
-                                padding: "2px 6px",
-                                borderRadius: 4,
-                                background: "rgba(16, 185, 129, 0.12)",
+                                background: "#FFFFFF",
+                                border: "1px solid #CBD5E1",
+                                color: "#334155",
+                                cursor: "pointer",
+                              }}
+                              title="Atur template pesan & lokasi bawaan rekrutmen"
+                            >
+                              <Settings size={14} />
+                              <span>Pengaturan Template</span>
+                            </button>
+                          </div>
+
+                          {/* C. PENGATURAN LOKASI & JADWAL DINAMIS */}
+                          {detailWaType !== "tidak_lolos" && (
+                            <div
+                              style={{
+                                background: "#F8FAFC",
+                                border: "1px solid #E2E8F0",
+                                borderRadius: 10,
+                                padding: 14,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 10,
                               }}
                             >
-                              <MessageCircle size={11} /> Chat WA
-                            </a>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>
+                                📍 Penyesuaian Lokasi &amp; Waktu ({detailWaType === "skrining" ? "Skrining / Audisi" : "Training Perdana"})
+                              </span>
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
+                                <div>
+                                  <label style={{ fontSize: 11, color: "#64748B", display: "block", marginBottom: 3 }}>
+                                    Nama Tempat
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={detailOverrideTempat}
+                                    onChange={(e) => setDetailOverrideTempat(e.target.value)}
+                                    placeholder="Basecamp MB Chondro..."
+                                    style={{
+                                      width: "100%",
+                                      fontSize: 12.5,
+                                      padding: "6px 10px",
+                                      borderRadius: 6,
+                                      border: "1px solid #CBD5E1",
+                                      boxSizing: "border-box",
+                                    }}
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: 11, color: "#64748B", display: "block", marginBottom: 3 }}>
+                                    Titik GMaps (Link)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={detailOverrideGmaps}
+                                    onChange={(e) => setDetailOverrideGmaps(e.target.value)}
+                                    placeholder="https://maps.app.goo.gl/..."
+                                    style={{
+                                      width: "100%",
+                                      fontSize: 12.5,
+                                      padding: "6px 10px",
+                                      borderRadius: 6,
+                                      border: "1px solid #CBD5E1",
+                                      boxSizing: "border-box",
+                                    }}
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: 11, color: "#64748B", display: "block", marginBottom: 3 }}>
+                                    Tanggal &amp; Waktu
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={detailOverrideWaktu}
+                                    onChange={(e) => setDetailOverrideWaktu(e.target.value)}
+                                    placeholder="Sabtu, 15 Oktober 2026..."
+                                    style={{
+                                      width: "100%",
+                                      fontSize: 12.5,
+                                      padding: "6px 10px",
+                                      borderRadius: 6,
+                                      border: "1px solid #CBD5E1",
+                                      boxSizing: "border-box",
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* D. PREVIEW & EDITOR PESAN WHATSAPP */}
+                          <div
+                            style={{
+                              background: "#FFFFFF",
+                              borderRadius: 12,
+                              padding: 18,
+                              border: "1px solid #E2E8F0",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 12,
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <MessageCircle size={16} style={{ color: "#22C55E" }} />
+                                <span style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>
+                                  Preview Pesan WhatsApp (Dapat Diedit)
+                                </span>
+                              </div>
+                              {isDetailWaDirty && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsDetailWaDirty(false);
+                                    setDetailWaMessage(generatedDetailWaTemplate);
+                                    toastSuccess("Pesan telah direset ke template bawaan.");
+                                  }}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: "#DC1717",
+                                    fontSize: 11.5,
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                  }}
+                                >
+                                  <RotateCcw size={12} /> Reset Template
+                                </button>
+                              )}
+                            </div>
+
+                            <textarea
+                              rows={11}
+                              value={detailWaMessage}
+                              onChange={(e) => {
+                                setDetailWaMessage(e.target.value);
+                                setIsDetailWaDirty(true);
+                              }}
+                              placeholder="Ketik atau edit pesan WhatsApp di sini..."
+                              style={{
+                                width: "100%",
+                                fontSize: 13,
+                                padding: "12px 14px",
+                                borderRadius: 8,
+                                border: "1px solid #CBD5E1",
+                                background: "#F8FAFC",
+                                color: "#0F172A",
+                                lineHeight: 1.5,
+                                fontFamily: "inherit",
+                                outline: "none",
+                                boxSizing: "border-box",
+                                resize: "vertical",
+                              }}
+                            />
+
+                            {/* ACTION BUTTONS: SALIN & KIRIM KE WHATSAPP */}
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "flex-end",
+                                gap: 10,
+                                paddingTop: 4,
+                              }}
+                            >
+                              <button
+                                type="button"
+                                onClick={handleCopyDetailWaMessage}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  padding: "9px 18px",
+                                  borderRadius: 8,
+                                  border: "1px solid #CBD5E1",
+                                  background: "#FFFFFF",
+                                  color: "#334155",
+                                  fontSize: 13,
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {copiedDetailWa ? (
+                                  <Check size={14} style={{ color: "#16A34A" }} />
+                                ) : (
+                                  <Copy size={14} />
+                                )}
+                                <span>{copiedDetailWa ? "Tersalin!" : "Salin Pesan"}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={handleSendDetailWa}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  padding: "9px 22px",
+                                  borderRadius: 8,
+                                  border: "none",
+                                  background: "#22C55E",
+                                  color: "#FFFFFF",
+                                  fontSize: 13.5,
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                  boxShadow: "0 2px 6px rgba(34, 197, 94, 0.3)",
+                                }}
+                              >
+                                <Send size={15} />
+                                <span>Kirim ke WhatsApp</span>
+                              </button>
+                            </div>
                           </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 4. MODAL FOOTER */}
+                    <div className="order-detail-footer">
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => setDetailOpen(null)}
+                      >
+                        Tutup
+                      </button>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          onClick={() => handleDownloadDetailPdf(detailOpen)}
+                        >
+                          <Download size={15} />
+                          <span>Unduh PDF Lembar Calon</span>
+                        </button>
+
+                        {detailTab === "detail" ? (
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => setDetailTab("whatsapp")}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                            }}
+                          >
+                            <MessageCircle size={15} />
+                            <span>Beralih ke WhatsApp</span>
+                          </button>
                         ) : (
-                          <strong style={{ fontSize: "13px", color: "var(--navy-900)", display: "block", wordBreak: "break-word" }}>
-                            {ans.value || <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>-</span>}
-                          </strong>
+                          <button
+                            type="button"
+                            onClick={handleSendDetailWa}
+                            style={{
+                              background: "#22C55E",
+                              color: "#FFFFFF",
+                              border: "none",
+                              borderRadius: 8,
+                              padding: "8px 18px",
+                              fontSize: 13,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 6,
+                            }}
+                          >
+                            <Send size={14} />
+                            <span>Buka WhatsApp Sekarang</span>
+                          </button>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 📝 SECTION 4: INFORMASI LAINNYA (JIKA ADA FIELD LAIN) */}
-              {lainnya.length > 0 && (
-                <div
-                  style={{
-                    background: "#ffffff",
-                    borderRadius: 10,
-                    border: "1px solid #e2e8f0",
-                    padding: "14px 16px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <FileText size={16} style={{ color: "#64748b" }} />
-                    <strong style={{ fontSize: "13.5px", color: "var(--navy-900)" }}>
-                      Informasi Tambahan Lainnya
-                    </strong>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
-                    {lainnya.map((ans, lIdx) => (
-                      <div
-                        key={ans.id || lIdx}
-                        style={{
-                          padding: "10px 14px",
-                          background: "#f8fafc",
-                          borderRadius: 8,
-                          border: "1px solid #e2e8f0",
-                        }}
-                      >
-                        <span style={{ fontSize: "11.5px", color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: 3 }}>
-                          {ans.field?.label || "Pertanyaan Lain"}
-                        </span>
-                        <strong style={{ fontSize: "13px", color: "var(--navy-900)", display: "block" }}>
-                          {ans.value || <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>-</span>}
-                        </strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
-          );
-        })()}
-      </Modal>
+          </div>,
+          document.body
+        )}
 
       {/* MODAL UBAH STATUS SELEKSI */}
       <Modal
@@ -2471,6 +3294,153 @@ export function SubmissionList({
                   </div>
                 );
               })()}
+
+              {/* OPSI & PRATINJAU PENGUMUMAN WHATSAPP UNTUK STATUS TIDAK LOLOS (BAHASA SANTUN) */}
+              {selectedStatus === "tidak_lolos" && (() => {
+                const { hp, waTidakLolosUrl, pesanTidakLolos } = getCandidateInfo(statusModalSub);
+                return (
+                  <div
+                    style={{
+                      padding: "14px",
+                      borderRadius: "10px",
+                      background: "linear-gradient(135deg, rgba(220, 38, 38, 0.08) 0%, rgba(185, 28, 28, 0.04) 100%)",
+                      border: "1px solid rgba(220, 38, 38, 0.35)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: "50%",
+                            background: "#dc2626",
+                            color: "#ffffff",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <MessageCircle size={16} />
+                        </div>
+                        <div>
+                          <strong style={{ fontSize: "13px", color: "#991b1b", display: "block" }}>
+                            Opsi Pemberitahuan Tidak Lolos via WhatsApp
+                          </strong>
+                          <span style={{ fontSize: "11.5px", color: "#b91c1c" }}>
+                            Tujuan: {hp || "Nomor belum terdeteksi"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(pesanTidakLolos, "Format Pesan Pemberitahuan Tidak Lolos")}
+                          className="btn btn-ghost btn-sm"
+                          style={{
+                            fontSize: "11.5px",
+                            padding: "4px 8px",
+                            background: "#ffffff",
+                            border: "1px solid #fecaca",
+                            color: "#991b1b",
+                          }}
+                          title="Salin teks pesan ke clipboard"
+                        >
+                          <Copy size={12} /> Salin Pesan
+                        </button>
+
+                        {waTidakLolosUrl && (
+                          <a
+                            href={waTidakLolosUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm"
+                            style={{
+                              fontSize: "11.5px",
+                              padding: "4px 9px",
+                              background: "#dc2626",
+                              color: "#ffffff",
+                              textDecoration: "none",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              borderRadius: 6,
+                              fontWeight: 600,
+                            }}
+                            title="Buka WhatsApp langsung sekarang"
+                          >
+                            <Send size={12} /> Buka WA
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Santun & Apresiatif Highlight Tag */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "6px 10px",
+                        background: "rgba(220, 38, 38, 0.12)",
+                        borderRadius: 6,
+                        fontSize: "11.5px",
+                        color: "#991b1b",
+                        fontWeight: 600,
+                      }}
+                    >
+                      <Sparkles size={13} style={{ color: "#dc2626", flexShrink: 0 }} />
+                      <span>Bahasa santun &amp; apresiatif: Mengapresiasi dedikasi, menerangkan kuota terbatas, dan memotivasi</span>
+                    </div>
+
+                    {/* Checkbox Auto-Open WA */}
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontSize: "12.5px",
+                        color: "#7f1d1d",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        userSelect: "none",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={sendWaOnTidakLolosSave}
+                        onChange={(e) => setSendWaOnTidakLolosSave(e.target.checked)}
+                        style={{ cursor: "pointer", accentColor: "#dc2626", width: 16, height: 16 }}
+                      />
+                      Buka WhatsApp otomatis untuk kirim pemberitahuan santun setelah tombol simpan diklik
+                    </label>
+
+                    {/* Preview Box */}
+                    <div
+                      style={{
+                        background: "#ffffff",
+                        border: "1px solid #fecaca",
+                        borderRadius: 6,
+                        padding: "8px 10px",
+                        fontSize: "11.5px",
+                        color: "#1e293b",
+                        lineHeight: 1.45,
+                        maxHeight: "110px",
+                        overflowY: "auto",
+                        whiteSpace: "pre-wrap",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {pesanTidakLolos}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })()}
@@ -2687,6 +3657,152 @@ export function SubmissionList({
         onConfirm={handleDelete}
         onCancel={() => setDeleteOpen(null)}
       />
+
+      {/* MODAL PREVIEW WHATSAPP KHUSUS CALON ANGGOTA TIDAK LOLOS SELEKSI */}
+      <Modal
+        open={waTidakLolosPreviewSub !== null}
+        title="Kirim WhatsApp Calon Tidak Lolos"
+        onClose={() => setWaTidakLolosPreviewSub(null)}
+        size="md"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setWaTidakLolosPreviewSub(null)}
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={handleCopyWaTidakLolosDirect}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+            >
+              {copiedWaTidakLolos ? (
+                <Check size={14} style={{ color: "#16A34A" }} />
+              ) : (
+                <Copy size={14} />
+              )}
+              <span>{copiedWaTidakLolos ? "Tersalin!" : "Salin Pesan"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleSendWaTidakLolosDirect}
+              style={{
+                background: "#22C55E",
+                color: "#FFFFFF",
+                border: "none",
+                borderRadius: 8,
+                padding: "8px 18px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                boxShadow: "0 2px 6px rgba(34, 197, 94, 0.3)",
+              }}
+            >
+              <Send size={14} />
+              <span>Kirim via WhatsApp</span>
+            </button>
+          </>
+        }
+      >
+        {waTidakLolosPreviewSub && (() => {
+          const { nama, hp, rawHp, pilihan } = getCandidateInfo(waTidakLolosPreviewSub);
+          const cleanNumber = formatNomorWhatsAppUrl(rawHp || hp);
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Header Box Calon */}
+              <div
+                style={{
+                  background: "#F8FAFC",
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #E2E8F0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 8,
+                }}
+              >
+                <div>
+                  <strong style={{ fontSize: "14px", color: "#0F172A", display: "block" }}>
+                    {nama}
+                  </strong>
+                  <span style={{ fontSize: "12px", color: "#64748B" }}>
+                    Posisi / Instrumen: <strong>{pilihan}</strong>
+                  </span>
+                </div>
+                <div>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: cleanNumber ? "#059669" : "#DC2626",
+                      fontWeight: 600,
+                      background: cleanNumber ? "#ECFDF5" : "#FEF2F2",
+                      border: cleanNumber ? "1px solid #A7F3D0" : "1px solid #FECACA",
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                      display: "inline-block",
+                    }}
+                  >
+                    WA: {cleanNumber ? `+${cleanNumber}` : (hp || rawHp || "Nomor tidak valid")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Santun & Apresiatif Highlight Tag */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 12px",
+                  background: "rgba(220, 38, 38, 0.08)",
+                  borderRadius: 8,
+                  fontSize: "12px",
+                  color: "#991B1B",
+                  fontWeight: 600,
+                  border: "1px solid rgba(220, 38, 38, 0.2)",
+                }}
+              >
+                <Sparkles size={14} style={{ color: "#DC2626", flexShrink: 0 }} />
+                <span>Bahasa santun &amp; apresiatif: Menghargai waktu peserta, menerangkan kuota terbatas, dan memotivasi</span>
+              </div>
+
+              {/* Textarea Preview Pesan */}
+              <div>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>
+                  Pratinjau Pesan WhatsApp (Dapat Diedit Sebelum Dikirim):
+                </label>
+                <textarea
+                  rows={10}
+                  value={waTidakLolosText}
+                  onChange={(e) => setWaTidakLolosText(e.target.value)}
+                  style={{
+                    width: "100%",
+                    fontSize: "12.5px",
+                    lineHeight: "1.5",
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #CBD5E1",
+                    background: "#F8FAFC",
+                    color: "#0F172A",
+                    outline: "none",
+                    boxSizing: "border-box",
+                    resize: "vertical",
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
 
       {/* FULL PHOTO LIGHTBOX MODAL */}
       <PhotoLightboxModal
